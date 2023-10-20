@@ -2,8 +2,8 @@
 Jax and Flax Time Series Prediction Transformer. 
 
 ## TODO
-1.  Create the trainer class
-2.  Create a dataloader class
+1.  Create a dataloader class
+2.  Create the trainer class
 3.  Train the model
 4.  Create a test script
 

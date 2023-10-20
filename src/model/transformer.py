@@ -11,6 +11,7 @@ class TransformerConfig:
     n_heads: int = 8
     num_layers: int = 6
     dim_feedforward: int = 2048
+    max_seq_len: int = 256
     dropout: float = 0.0
     dtype: jnp.dtype = jnp.float32
     kernel_init: Callable = nn.initializers.xavier_uniform()
