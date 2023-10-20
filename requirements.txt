@@ -1,0 +1,7 @@
+# JAX
+jax[cuda12_pip] -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+# jax["cpu"]
+
+# Flax Deep Learning Library
+flax[all]
+

@@ -1,5 +1,5 @@
 # JAXER
-Jax and Haiku Time Series Prediction Transformer. 
+Jax and Flax Time Series Prediction Transformer. 
 
 ## Installation
 ```bash
