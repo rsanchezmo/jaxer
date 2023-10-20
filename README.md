@@ -2,10 +2,11 @@
 Jax and Flax Time Series Prediction Transformer. 
 
 ## TODO
-1.  Create a dataloader class
-2.  Create the trainer class
-3.  Train the model
-4.  Create a test script
+- Download timeseries dataset: Stocks?
+- Create a dataloader class
+- Create the trainer class
+- Train the model
+- Create a test script
 
 ## Installation
 ```bash
@@ -13,6 +14,7 @@ pip install -r requirements.txt
 ```
 
 ## Usage
+Set the configuration parameters in the `config.py` file. Then, run the training script:
 ```bash
 python train.py
 ```

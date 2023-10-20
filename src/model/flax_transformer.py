@@ -128,6 +128,26 @@ class AddPositionalEncoding(nn.Module):
 
         return x + pe
     
+class FeatureEmbedding(nn.Module):
+    config: TransformerConfig
+
+    @nn.compact
+    def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
+        """ Applies the feature embedding module """
+
+        x = nn.Dense(
+            features=self.config.d_model,
+            dtype=self.config.dtype,
+            kernel_init=self.config.kernel_init,
+            bias_init=self.config.bias_init,
+        )(x)
+        x = nn.gelu(x)
+        x = nn.Dropout(rate=self.config.dropout)(
+            x, deterministic=self.config.deterministic
+        )
+
+        return x
+    
 
 class Decoder(nn.Module):
     config: TransformerConfig
@@ -136,7 +156,15 @@ class Decoder(nn.Module):
     def __call__(self, targets: jnp.ndarray, mask: Optional[jnp.ndarray] = None) -> jnp.ndarray:
         """ Applies the decoder module """
 
+        """ Feature Embeddings"""
+        targets = FeatureEmbedding(
+            config=self.config
+        )(targets)
+
         """ Positional Encoding """
+        targets = AddPositionalEncoding(
+            config=self.config
+        )(targets)
 
 
         """ Decoder Blocks """

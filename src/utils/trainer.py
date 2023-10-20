@@ -1,5 +1,6 @@
-from ..model.transformer import Transformer
+from ..model.flax_transformer import Transformer, TransformerConfig
 from ..configs.config import Config
+from ..utils.dataset import Dataset
 import jax
 import jax.numpy as jnp
 import optax
@@ -9,9 +10,9 @@ import os
 from typing import Tuple, Dict
 
 
-class Trainer:
+class TrainerBase:
     def __init__(self, config: Config) -> None:
-        """ Trainer class """
+        """ Trainer Base Class: All trainers should inherit from this, FLAX or PyTorch [in the future] """
         self._config = config
 
         """ Training logs and checkpoints """
@@ -19,6 +20,24 @@ class Trainer:
         os.makedirs(self._log_dir, exist_ok=True)
         self._summary_writer = SummaryWriter(self._log_dir)
 
+    def train_and_evaluate(self) -> None:
+        """ Runs a training loop """
+        raise NotImplementedError
+
+
+class FlaxTrainer(TrainerBase):
+    def __init__(self, config: Config) -> None:
+        super().__init__(config)
+
+        self._flax_model_config = TransformerConfig(
+            d_model=self._config.model_config.d_model,
+            num_layers=self._config.model_config.num_layers,
+            n_heads=self._config.model_config.n_heads,
+            dim_feedforward=self._config.model_config.dim_feedforward,
+            dropout=self._config.model_config.dropout,
+            max_seq_len=self._config.model_config.max_seq_len,
+            dtype=jnp.float32
+        )
 
     def train_and_evaluate(self) -> None:
         """ Runs a training loop """
@@ -48,13 +67,13 @@ class Trainer:
     def _create_train_state(self, rng: jax.random.PRNGKey) -> train_state.TrainState:
         """ Creates a training state """
         
-        model = Transformer(self._config.model_config)
+        model = Transformer(self._flax_model_config)
 
-        input_shape = (1, self._config.model_config.max_seq_len, 1)
+        input_shape = (1, self._flax_model_config.max_seq_len, self._config.model_config.input_features)
         params = model.init(rng, jnp.ones((input_shape), dtype=jnp.float32))
 
         # optimizer
-        tx = optax.adamw(learning_rate=self.config.learning_rate)
+        tx = optax.adamw(learning_rate=self._config.learning_rate)
 
         return train_state.TrainState.create(apply_fn=model.apply, params=params, tx=tx)
         
