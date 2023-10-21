@@ -1,6 +1,8 @@
 # JAXER
 Jax and Flax Time Series Prediction Transformer. 
 
+![Jaxer Logo](/data/btc_transformer.png)
+
 ## TODO
 - Download timeseries dataset ✔️
 - Create a dataset class ✔️
