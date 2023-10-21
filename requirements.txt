@@ -8,3 +8,4 @@ flax[all]
 tensorboard
 optax
 torch
+orbax

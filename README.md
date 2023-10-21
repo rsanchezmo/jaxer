@@ -3,7 +3,7 @@ Jax and Flax Time Series Prediction Transformer.
 
 ## TODO
 - Download timeseries dataset ✔️
-- Create a dataset class
+- Create a dataset class ✔️
 - Create the trainer class
 - Train the model:
     - Encoder only

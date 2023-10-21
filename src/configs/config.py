@@ -15,12 +15,13 @@ class ModelConfig:
 class Config:
     model_config: ModelConfig
     log_dir: str   
+    experiment_name: str
     num_epochs: int
     learning_rate: float
-    train_ds_path: str
-    test_ds_path: str
+    dataset_path: str
+    batch_size: int
+    test_split: float
     
-
 
 config = ModelConfig(
     d_model=512,
@@ -34,9 +35,11 @@ config = ModelConfig(
 
 training_config = Config(
     model_config=config,
-    log_dir="logs",
+    log_dir="results",
+    experiment_name="v0",
     num_epochs=100,
     learning_rate=1e-4,
-    train_ds_path="../data/train.csv",
-    test_ds_path="../data/test.csv",
+    dataset_path="../data/BTCUSD.csv",
+    batch_size=32,
+    test_split=0.1
 )
