@@ -17,7 +17,6 @@ class TransformerConfig:
     kernel_init: Callable = nn.initializers.xavier_uniform()
     bias_init: Callable = nn.initializers.normal(stddev=1e-6)
     deterministic: bool = False
-    decode: bool = False
 
 
 class FeedForwardBlock(nn.Module):
@@ -49,47 +48,6 @@ class FeedForwardBlock(nn.Module):
         )
 
         return x        
-
-
-class DecoderBlock(nn.Module):
-    config: TransformerConfig
-
-    @nn.compact
-    def __call__(self, targets: jnp.ndarray, mask: Optional[jnp.ndarray] = None) -> jnp.ndarray:
-        """ Applies the decoder block module """
-
-        assert targets.ndim == 3, f"Expected x to have 3 dimensions, got {targets.ndim}"
-
-        """ Self Attention Block"""
-        x = nn.LayerNorm(dtype=self.config.dtype)(targets)
-
-        # nn.SelfAttention because the input is from the same source [self], 
-        # nn.MultiHeadDotProductAttention if the input is from different sources
-        x = nn.SelfAttention(
-            num_heads=self.config.n_heads,
-            dtype=self.config.dtype,
-            qkv_features=self.config.d_model,
-            kernel_init=self.config.kernel_init,
-            bias_init=self.config.bias_init,
-            use_bias=False,
-            broadcast_dropout=False,
-            dropout_rate=self.config.dropout,
-            deterministic=self.config.deterministic,
-            decode=self.config.decode
-        )(x, mask=mask)
-        x = nn.Dropout(rate=self.config.dropout)(
-            x, deterministic=self.config.deterministic
-        )
-
-        x = x + targets
-
-        """ Feed Forward Block """
-        y = nn.LayerNorm(dtype=self.config.dtype)(x)
-        y = FeedForwardBlock(
-            config=self.config
-        )(y)
-
-        return x + y
     
     
 def sinusoidal_init(max_len: int = 2048, min_scale: float = 1.0, max_scale: float = 10000.0) -> Callable:
@@ -148,6 +106,42 @@ class FeatureEmbedding(nn.Module):
 
         return x
     
+class EncoderBlock(nn.Module):
+    config: TransformerConfig
+
+    @nn.compact
+    def __call__(self, inputs: jnp.ndarray, encoder_mask: Optional[jnp.ndarray] = None) -> jnp.ndarray:
+        assert inputs.ndim == 3, f"Expected x to have 3 dimensions, got {inputs.ndim}"
+
+        """ Self Attention Block"""
+        x = nn.LayerNorm(dtype=self.config.dtype)(x)
+
+        # nn.SelfAttention because the input is from the same source [self], 
+        # nn.MultiHeadDotProductAttention if the input is from different sources
+        x = nn.SelfAttention(
+            num_heads=self.config.n_heads,
+            dtype=self.config.dtype,
+            qkv_features=self.config.d_model,
+            kernel_init=self.config.kernel_init,
+            bias_init=self.config.bias_init,
+            use_bias=False,
+            broadcast_dropout=False,
+            dropout_rate=self.config.dropout,
+            deterministic=self.config.deterministic
+        )(x, mask=encoder_mask)
+        x = nn.Dropout(rate=self.config.dropout)(
+            x, deterministic=self.config.deterministic
+        )
+
+        x = x + inputs
+
+        """ Feed Forward Block """
+        y = nn.LayerNorm(dtype=self.config.dtype)(x)
+        y = FeedForwardBlock(
+            config=self.config
+        )(y)
+
+        return x + y
 
 class Encoder(nn.Module):
     config: TransformerConfig
@@ -173,44 +167,6 @@ class Encoder(nn.Module):
             )(x)
 
         return x
-    
-
-class Decoder(nn.Module):
-    config: TransformerConfig
-
-    @nn.compact
-    def __call__(self, targets: jnp.ndarray, mask: Optional[jnp.ndarray] = None) -> jnp.ndarray:
-        """ Applies the decoder module """
-
-        """ Feature Embeddings"""
-        targets = FeatureEmbedding(
-            config=self.config
-        )(targets)
-
-        """ Positional Encoding """
-        targets = AddPositionalEncoding(
-            config=self.config
-        )(targets)
-
-
-        """ Decoder Blocks """
-        for _ in range(self.config.num_layers):
-            targets = DecoderBlock(
-                config=self.config
-            )(targets, mask=mask)
-
-
-        """ Output Layer """
-        targets = nn.LayerNorm(dtype=self.config.dtype)(targets)
-        targets = nn.Dense(
-            features=self.config.d_model,
-            dtype=self.config.dtype,
-            kernel_init=self.config.kernel_init,
-            bias_init=self.config.bias_init,
-        )(targets)
-
-        return targets
-
 
 class Transformer(nn.Module):
     config: TransformerConfig
@@ -220,13 +176,17 @@ class Transformer(nn.Module):
         """ Applies the transformer module """
 
         """ Encoder """
-        x = Encoder(
+        encoded = Encoder(
             config=self.config
-        )(x, mask=mask)
+        )(x)
 
-        """ Decoder """
-        x = Decoder(
-            config=self.config
-        )(x, mask=mask)
+        """ Regression Head """
+        x = nn.LayerNorm(dtype=self.config.dtype)(encoded)
+        x = nn.Dense(
+            features=1,
+            dtype=self.config.dtype,
+            kernel_init=self.config.kernel_init,
+            bias_init=self.config.bias_init,
+        )(x)
 
         return x
