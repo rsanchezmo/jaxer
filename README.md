@@ -2,8 +2,9 @@
 Jax and Flax Time Series Prediction Transformer. 
 
 ## TODO
-- Download timeseries dataset: Stocks?
-- Create a dataloader class
+- Download timeseries dataset ✔️
+- Create the transformer encoder for context window. 
+- Create a dataset class
 - Create the trainer class
 - Train the model
 - Create a test script

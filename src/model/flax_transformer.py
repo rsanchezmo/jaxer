@@ -149,6 +149,32 @@ class FeatureEmbedding(nn.Module):
         return x
     
 
+class Encoder(nn.Module):
+    config: TransformerConfig
+
+    @nn.compact
+    def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
+        """ Applies the encoder module """
+
+        """ Feature Embeddings"""
+        x = FeatureEmbedding(
+            config=self.config
+        )(x)
+
+        """ Positional Encoding """
+        x = AddPositionalEncoding(
+            config=self.config
+        )(x)
+
+        """ Encoder Blocks """
+        for _ in range(self.config.num_layers):
+            x = EncoderBlock(
+                config=self.config
+            )(x)
+
+        return x
+    
+
 class Decoder(nn.Module):
     config: TransformerConfig
 
@@ -192,6 +218,11 @@ class Transformer(nn.Module):
     @nn.compact
     def __call__(self, x: jnp.ndarray, mask: Optional[jnp.ndarray] = None) -> jnp.ndarray:
         """ Applies the transformer module """
+
+        """ Encoder """
+        x = Encoder(
+            config=self.config
+        )(x, mask=mask)
 
         """ Decoder """
         x = Decoder(
