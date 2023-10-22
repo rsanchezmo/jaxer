@@ -23,14 +23,14 @@ Render of a transformer model as a hologram, projecting from a digital device, w
 
 ## Installation
 ```bash
-pip install -r requirements.txt
+pip install .
 ```
 
 ## Usage
 ### Training
 Set the configuration parameters in the `config.py` file. Then, run the training script:
 ```bash
-python train.py
+python src/train.py
 ```
 
 ### Testing

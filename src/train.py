@@ -1,8 +1,8 @@
-from .utils.trainer import Trainer
-from .configs.config import training_config
+from jaxer.utils.trainer import FlaxTrainer as Trainer
+from jaxer.configs.config import training_config
 
 
 if __name__ == '__main__':
 
     trainer = Trainer(config=training_config)
-    trainer.train()
+    trainer.train_and_evaluate()

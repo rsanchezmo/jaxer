@@ -5,9 +5,9 @@ import jax
 import jax.numpy as jnp
 import optax
 from flax.training import train_state
-from tensorboard import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 import os
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Optional
 from flax.training import orbax_utils
 import orbax
 from torch.utils.data import DataLoader
@@ -36,7 +36,7 @@ class TrainerBase:
         dataset = Dataset(self._config.dataset_path, self._config.model_config.max_seq_len)
         train_ds, test_ds = dataset.get_train_test_split(test_size=self._config.test_split)
         self._train_dataloader = DataLoader(train_ds, batch_size=self._config.batch_size, shuffle=True)
-        self._test_dataloader = DataLoader(test_ds, batch_size=self._config.batch_size, shuffle=False)
+        self._test_dataloader = DataLoader(test_ds, batch_size=self._config.batch_size, shuffle=True)
 
 
     def train_and_evaluate(self) -> None:
@@ -66,24 +66,26 @@ class FlaxTrainer(TrainerBase):
             dim_feedforward=self._config.model_config.dim_feedforward,
             dropout=self._config.model_config.dropout,
             max_seq_len=self._config.model_config.max_seq_len,
-            dtype=jnp.float32
+            dtype=jnp.float32,
         )
+
 
     def train_and_evaluate(self) -> None:
         """ Runs a training loop """
 
         """ Create a training state """
-        rng, init_rng = jax.random.key(0)
-        train_state = self._create_train_state(init_rng)
+        rng = jax.random.key(self._config.seed) 
+        rng, key = jax.random.split(rng)  # creates a new subkey
+        train_state = self._create_train_state(key)
 
 
         best_loss = float("inf")
         for epoch in range(self._config.num_epochs):
-            rng, input_rng = jax.random.split(rng)
+            rng, key = jax.random.split(rng) # creates a new subkey
 
             """ Training """
             # TODO: check input_rng and droputs
-            state, metrics = self._train_step(train_state, input_rng)
+            state, metrics = self._train_step(train_state, key)
             
             """ Logging """
             test_metrics = self._evaluate_step(state)
@@ -115,17 +117,17 @@ class FlaxTrainer(TrainerBase):
         input_shape = (1, self._flax_model_config.max_seq_len, self._config.model_config.input_features)
         params = model.init(rng, jnp.ones((input_shape), dtype=jnp.float32))
 
-        # optimizer
         tx = optax.adamw(learning_rate=self._config.learning_rate)
 
-        return train_state.TrainState.create(apply_fn=model.apply, params=params, tx=tx, deterministic=False)
+        return train_state.TrainState.create(apply_fn=model.apply, params=params, tx=tx)
     
         
     @jax.jit
-    def _apply_model(self, state: train_state.TrainState, inputs: jnp.ndarray, targets: jnp.ndarray) -> jnp.ndarray:
+    def _apply_model(self, state: train_state.TrainState, inputs: jnp.ndarray, targets: jnp.ndarray, 
+                     rng: Optional[jax.random.PRNGKey] = None, deterministic: bool = False) -> jnp.ndarray:
 
         def loss_fn(params):
-            predictions = state.apply_fn({"params": params}, inputs)
+            predictions = state.apply_fn({"params": params}, inputs, rngs={"dropout": rng}, deterministic=deterministic) if rng is not None else state.apply_fn({"params": params}, inputs, deterministic=deterministic)
             loss = jnp.mean((predictions - targets) ** 2)  # MSE loss
             mae = jnp.mean(jnp.abs(predictions - targets))  # MAE loss
             r2 = 1 - jnp.sum((predictions - targets)**2) / jnp.sum((targets - jnp.mean(targets))**2)  # R2 loss
@@ -141,17 +143,17 @@ class FlaxTrainer(TrainerBase):
         return state.apply_gradients(grads=grads)
     
 
-    def _train_step(self, state: train_state.TrainState) -> Tuple[train_state.TrainState, Dict]:
+    def _train_step(self, state: train_state.TrainState, rng: jax.random.PRNGKey) -> Tuple[train_state.TrainState, Dict]:
         """ Runs a training step """
 
         metrics = {"mae": [], "r2": [], "loss": []}
         for data in self._train_dataloader:
             inputs, targets = data
-            grad, metrics = self._train_step(state, inputs, targets)
+            grad, _metrics = self._apply_model(state, inputs, targets, rng)
             state = self._update_model(state, grad)
-            metrics["mae"].append(metrics["mae"])
-            metrics["r2"].append(metrics["r2"])
-            metrics["loss"].append(metrics["loss"])
+            metrics["mae"].append(_metrics["mae"])
+            metrics["r2"].append(_metrics["r2"])
+            metrics["loss"].append_(metrics["loss"])
 
         metrics["mae"] = jnp.mean(metrics["mae"])
         metrics["r2"] = jnp.mean(metrics["r2"])
@@ -164,15 +166,13 @@ class FlaxTrainer(TrainerBase):
     def _evaluate_step(self, state: train_state.TrainState) -> Dict:
         """ Runs an evaluation step """
 
-        # TODO: manage dropouts and make the model deterministic [same as torch.eval()]
-
         metrics = {"mae": [], "r2": [], "loss": []}
         for data in self._test_dataloader:
             inputs, targets = data
-            _, metrics = self._apply_model(state, inputs, targets)
-            metrics["mae"].append(metrics["mae"])
-            metrics["r2"].append(metrics["r2"])
-            metrics["loss"].append(metrics["loss"])
+            _, _metrics = self._apply_model(state, inputs, targets, deterministic=True)
+            metrics["mae"].append(_metrics["mae"])
+            metrics["r2"].append(_metrics["r2"])
+            metrics["loss"].append(_metrics["loss"])
 
         metrics["mae"] = jnp.mean(metrics["mae"])
         metrics["r2"] = jnp.mean(metrics["r2"])

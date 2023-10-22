@@ -21,6 +21,7 @@ class Config:
     dataset_path: str
     batch_size: int
     test_split: float
+    seed: int = 0
     
 
 config = ModelConfig(
@@ -39,7 +40,8 @@ training_config = Config(
     experiment_name="v0",
     num_epochs=100,
     learning_rate=1e-4,
-    dataset_path="../data/BTCUSD.csv",
+    dataset_path="./data/BTCUSD.csv",
     batch_size=64,
-    test_split=0.1
+    test_split=0.1,
+    seed=0
 )
