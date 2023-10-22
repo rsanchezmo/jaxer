@@ -22,6 +22,19 @@ Render of a transformer model as a hologram, projecting from a digital device, w
 - Create a test script to display the results
 
 ## Installation
+
+Create a python venv:
+```bash
+python -m venv venv
+```
+
+Install your desired jax version. For example, for CUDA 12 on Linux:
+```bash
+pip install jax[cuda12_pip] -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+```
+
+Then install the rest of the dependencies:
+
 ```bash
 pip install .
 ```

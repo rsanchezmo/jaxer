@@ -74,13 +74,12 @@ class AddPositionalEncoding(nn.Module):
     def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
         """ Applies the positional encoding module """
 
-        length = x.shape[1]
-        pos_embed_shape = (1, self.config.max_seq_len, length)
+        pos_embed_shape = (1, self.config.max_seq_len, x.shape[-1])
         pos_embedding = sinusoidal_init(self.config.max_seq_len)(
             None, pos_embed_shape, None
         )
 
-        pe = pos_embedding[:, :length, :]
+        pe = pos_embedding[:, :x.shape[1], :]
 
         return x + pe
     
@@ -112,7 +111,7 @@ class EncoderBlock(nn.Module):
         assert inputs.ndim == 3, f"Expected x to have 3 dimensions, got {inputs.ndim}"
 
         """ Self Attention Block"""
-        x = nn.LayerNorm(dtype=self.config.dtype)(x)
+        x = nn.LayerNorm(dtype=self.config.dtype)(inputs)
 
         # nn.SelfAttention because the input is from the same source [self], 
         # nn.MultiHeadDotProductAttention if the input is from different sources
@@ -136,7 +135,8 @@ class EncoderBlock(nn.Module):
         """ Feed Forward Block """
         y = nn.LayerNorm(dtype=self.config.dtype)(x)
         y = FeedForwardBlock(
-            config=self.config
+            config=self.config,
+            out_dim=self.config.d_model
         )(y, deterministic=deterministic)
 
         return x + y

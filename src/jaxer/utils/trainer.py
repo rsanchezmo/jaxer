@@ -74,9 +74,8 @@ class FlaxTrainer(TrainerBase):
         """ Runs a training loop """
 
         """ Create a training state """
-        rng = jax.random.key(self._config.seed) 
-        rng, key = jax.random.split(rng)  # creates a new subkey
-        train_state = self._create_train_state(key)
+        rng = jax.random.PRNGKey(self._config.seed) 
+        train_state = self._create_train_state(rng)
 
 
         best_loss = float("inf")
@@ -115,7 +114,10 @@ class FlaxTrainer(TrainerBase):
         model = Transformer(self._flax_model_config)
 
         input_shape = (1, self._flax_model_config.max_seq_len, self._config.model_config.input_features)
-        params = model.init(rng, jnp.ones((input_shape), dtype=jnp.float32))
+
+        init_rng, dropout_rng = jax.random.split(rng)
+
+        params = model.init({"dropout": dropout_rng, "params": init_rng}, jnp.ones((input_shape), dtype=jnp.float32))
 
         tx = optax.adamw(learning_rate=self._config.learning_rate)
 
