@@ -12,12 +12,15 @@ Render of a transformer model as a hologram, projecting from a digital device, w
 
 ![Jaxer Logo](/data/btc_transformer.png)
 
+## Current issues
+- Unable to `@jax.jit` with deterministic arg to apply_fn in _appy_model function
+
 ## ROADMAP
 - Download BTC dataset ✔️
 - Create a dataset class ✔️
 - Create the trainer class ✔️
 - Train the model:
-    - **Encoder** only (next day prediction)
+    - **Encoder** only (next day prediction) ✔️
     - **Encoder + Decoder** (N days predictions)
 - Create a test script to display the results
 
