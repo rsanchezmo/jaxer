@@ -15,14 +15,21 @@ class Dataset(torch.utils.data.Dataset):
         self._data.sort_index(inplace=True)
         self._seq_len = seq_len
 
+
     def __getitem__(self, index):
         start_idx = index
         end_idx = index + self._seq_len
-        sequence_data = self._data.iloc[start_idx:end_idx][['Open', 'Close', 'High', 'Low', 'Adj Close', 'Volume']]  # Add more columns as needed
+        sequence_data = self._data.iloc[start_idx:end_idx][['Open', 'Close', 'High', 'Low', 'Adj Close', 'Volume']] 
+
+        # Window Min-Max scaling for each feature
+        min_vals = sequence_data.min()
+        max_vals = sequence_data.max()
+        sequence_data = (sequence_data - min_vals) / (max_vals - min_vals)
 
         # Extract the label (next Close price)
         label_idx = index + self._seq_len
         label = self._data.iloc[label_idx]['Close']
+        label = (label - min_vals['Close']) / (max_vals['Close'] - min_vals['Close'])
 
         # Convert to NumPy arrays
         sequence_data = np.array(sequence_data, dtype=np.float32)
