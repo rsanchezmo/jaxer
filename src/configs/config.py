@@ -24,13 +24,13 @@ class Config:
     
 
 config = ModelConfig(
-    d_model=512,
-    num_layers=6,
-    n_heads=8,
-    dim_feedforward=2048,
-    dropout=0.0,
-    max_seq_len=2048,
-    input_features=1
+    d_model=128,
+    num_layers=4,
+    n_heads=4,
+    dim_feedforward=512,
+    dropout=0.1,
+    max_seq_len=20,
+    input_features=6
 )
 
 training_config = Config(
@@ -40,6 +40,6 @@ training_config = Config(
     num_epochs=100,
     learning_rate=1e-4,
     dataset_path="../data/BTCUSD.csv",
-    batch_size=32,
+    batch_size=64,
     test_split=0.1
 )

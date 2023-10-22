@@ -18,13 +18,14 @@ class TrainerBase:
         """ Trainer Base Class: All trainers should inherit from this, FLAX or PyTorch [in the future] """
         self._config = config
 
-        """ Training logs and checkpoints """
+        """ Training logs """
         self._log_dir = os.path.join(os.getcwd(), self._config.log_dir, self._config.experiment_name)
         os.makedirs(self._log_dir, exist_ok=True)
-        self._summary_writer = SummaryWriter(self._log_dir)
+        self._summary_writer = SummaryWriter(os.path.join(self._log_dir, "tensorboard"))
+
+        """ Checkpoints """
         self._ckpts_dir = os.path.join(self._log_dir, "ckpt")
         os.makedirs(self._ckpts_dir, exist_ok=True)
-
         self._orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
         options = orbax.checkpoint.CheckpointManagerOptions(max_to_keep=2, create=True)
         self._checkpoint_manager = orbax.checkpoint.CheckpointManager(
@@ -71,36 +72,36 @@ class FlaxTrainer(TrainerBase):
     def train_and_evaluate(self) -> None:
         """ Runs a training loop """
 
-        """ Get dataloaders for training and evaluation """
-
-
         """ Create a training state """
         rng, init_rng = jax.random.key(0)
         train_state = self._create_train_state(init_rng)
 
 
         best_loss = float("inf")
-
-
         for epoch in range(self._config.num_epochs):
             rng, input_rng = jax.random.split(rng)
 
             """ Training """
-            state, loss, metrics = self._train_step(train_state, train_ds, self._config.batch_size, input_rng)
+            # TODO: check input_rng and droputs
+            state, metrics = self._train_step(train_state, input_rng)
             
             """ Logging """
-            test_loss, test_metrics = self._evaluate_step(state, test_ds)
+            test_metrics = self._evaluate_step(state)
 
             """ Logging """
-            self._summary_writer.scalar("train_loss", loss, epoch)
-            self._summary_writer.scalar("test_loss", test_loss, epoch)
-            self._summary_writer.scalar("train_mae", metrics["mae"], epoch)
-            self._summary_writer.scalar("test_mae", test_metrics["mae"], epoch)
-            self._summary_writer.scalar("train_r2", metrics["r2"], epoch)
-            self._summary_writer.scalar("test_r2", test_metrics["r2"], epoch)
+            for key, value in metrics.items():
+                self._summary_writer.add_scalar(f"Train/{key}", value, epoch)
+            for key, value in test_metrics.items():
+                self._summary_writer.add_scalar(f"Test/{key}", value, epoch)
+            
+            print(" *********************** ")
+            print(f"Epoch: {epoch} \n"
+                f"    Train Loss: {metrics['loss']} | Test Loss: {test_metrics['loss']} \n"
+                f"    Train MAE: {metrics['mae']} | Test MAE: {test_metrics['mae']} \n"
+                f"    Train R2: {metrics['r2']} | Test R2: {test_metrics['r2']}")
 
-            if test_loss < best_loss:
-                best_loss = test_loss
+            if test_metrics["loss"] < best_loss:
+                best_loss = test_metrics["loss"]
                 self._save_model(epoch, state)
 
         self._summary_writer.flush()
@@ -133,26 +134,48 @@ class FlaxTrainer(TrainerBase):
         (loss, mae, r2), grad = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
         metrics = {"mae": mae, "r2": r2, "loss": loss}
 
-        return grad, loss, metrics
+        return grad, metrics
     
     @jax.jit
     def _update_model(self, state: train_state.TrainState, grads) -> train_state.TrainState:
         return state.apply_gradients(grads=grads)
     
 
-    def _train_step(self, state: train_state.TrainState, data) -> Tuple[train_state.TrainState, float, Dict]:
+    def _train_step(self, state: train_state.TrainState) -> Tuple[train_state.TrainState, Dict]:
         """ Runs a training step """
 
-        inputs, targets = data
-        grad, loss, metrics = self._apply_model(state, inputs, targets)
-        state = self._update_model(state, grad)
-        return state, loss, metrics
+        metrics = {"mae": [], "r2": [], "loss": []}
+        for data in self._train_dataloader:
+            inputs, targets = data
+            grad, metrics = self._train_step(state, inputs, targets)
+            state = self._update_model(state, grad)
+            metrics["mae"].append(metrics["mae"])
+            metrics["r2"].append(metrics["r2"])
+            metrics["loss"].append(metrics["loss"])
+
+        metrics["mae"] = jnp.mean(metrics["mae"])
+        metrics["r2"] = jnp.mean(metrics["r2"])
+        metrics["loss"] = jnp.mean(metrics["loss"])
+
+        return state, metrics
+        
 
 
-    def _evaluate_step(self, state: train_state.TrainState, data) -> Tuple[train_state.TrainState, float, Dict]:
+    def _evaluate_step(self, state: train_state.TrainState) -> Dict:
         """ Runs an evaluation step """
-        inputs, targets = data
 
-        # TODO: here should set the model to deterministic
-        _, loss, metrics = self._apply_model(state, inputs, targets)
-        return loss, metrics
+        # TODO: manage dropouts and make the model deterministic [same as torch.eval()]
+
+        metrics = {"mae": [], "r2": [], "loss": []}
+        for data in self._test_dataloader:
+            inputs, targets = data
+            _, metrics = self._apply_model(state, inputs, targets)
+            metrics["mae"].append(metrics["mae"])
+            metrics["r2"].append(metrics["r2"])
+            metrics["loss"].append(metrics["loss"])
+
+        metrics["mae"] = jnp.mean(metrics["mae"])
+        metrics["r2"] = jnp.mean(metrics["r2"])
+        metrics["loss"] = jnp.mean(metrics["loss"])
+
+        return metrics
