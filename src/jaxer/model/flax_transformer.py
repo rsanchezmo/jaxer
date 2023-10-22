@@ -187,4 +187,6 @@ class Transformer(nn.Module):
             bias_init=self.config.bias_init,
         )(x)
 
+        x = x[:, -1, :]
+
         return x

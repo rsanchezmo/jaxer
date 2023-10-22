@@ -11,6 +11,8 @@ from typing import Tuple, Dict, Optional
 from flax.training import orbax_utils
 import orbax
 from torch.utils.data import DataLoader
+import time
+
 
 
 class TrainerBase:
@@ -35,19 +37,31 @@ class TrainerBase:
         """ Dataloaders """
         dataset = Dataset(self._config.dataset_path, self._config.model_config.max_seq_len)
         train_ds, test_ds = dataset.get_train_test_split(test_size=self._config.test_split)
-        self._train_dataloader = DataLoader(train_ds, batch_size=self._config.batch_size, shuffle=True)
-        self._test_dataloader = DataLoader(test_ds, batch_size=self._config.batch_size, shuffle=True)
+        self._train_dataloader = DataLoader(train_ds, batch_size=self._config.batch_size, shuffle=True, collate_fn=self._jax_collate_fn)
+        self._test_dataloader = DataLoader(test_ds, batch_size=self._config.batch_size, shuffle=True, collate_fn=self._jax_collate_fn)
 
 
     def train_and_evaluate(self) -> None:
         """ Runs a training loop """
         raise NotImplementedError
     
+    @staticmethod
+    def _jax_collate_fn(batch):
+        # Convert PyTorch tensors to JAX arrays for both inputs and labels
+        jax_inputs = [jnp.array(item[0]) for item in batch]
+        jax_labels = [jnp.array(item[1]) for item in batch]
+
+        # Stack them to create batched JAX arrays
+        batched_jax_inputs = jnp.stack(jax_inputs)
+        batched_jax_labels = jnp.stack(jax_labels)
+
+        return batched_jax_inputs, batched_jax_labels
+    
     def _save_model(self, epoch: int, state: train_state.TrainState) -> None:
         """ Saves a model checkpoint """
         ckpt = {'model': state}
         save_args = orbax_utils.save_args_from_target(ckpt)
-        self._checkpoint_manager.save_checkpoint(epoch, ckpt, save_args=save_args)
+        self._checkpoint_manager.save(epoch, ckpt, save_kwargs={'save_args': save_args})
 
     def _load_model(self, epoch: int) -> train_state.TrainState:
         """ Loads a model checkpoint """
@@ -80,6 +94,7 @@ class FlaxTrainer(TrainerBase):
 
         best_loss = float("inf")
         for epoch in range(self._config.num_epochs):
+            init_time = time.time() 
             rng, key = jax.random.split(rng) # creates a new subkey
 
             """ Training """
@@ -87,7 +102,10 @@ class FlaxTrainer(TrainerBase):
             state, metrics = self._train_step(train_state, key)
             
             """ Logging """
-            test_metrics = self._evaluate_step(state)
+            test_metrics = self._evaluate_step(state, key)
+
+            end_time = time.time()
+            delta_time = end_time - init_time
 
             """ Logging """
             for key, value in metrics.items():
@@ -97,9 +115,10 @@ class FlaxTrainer(TrainerBase):
             
             print(" *********************** ")
             print(f"Epoch: {epoch} \n"
-                f"    Train Loss: {metrics['loss']} | Test Loss: {test_metrics['loss']} \n"
-                f"    Train MAE: {metrics['mae']} | Test MAE: {test_metrics['mae']} \n"
-                f"    Train R2: {metrics['r2']} | Test R2: {test_metrics['r2']}")
+                f"    Train Loss: {metrics['loss']:.4f} | Test Loss: {test_metrics['loss']:.4f} \n"
+                f"    Train MAE: {metrics['mae']:.4f}   | Test MAE: {test_metrics['mae']:.4f} \n"
+                f"    Train R2: {metrics['r2']:.4f}     | Test R2: {test_metrics['r2']:.4f}")
+            print(f"    Elapsed epoch time: {delta_time} seconds")
 
             if test_metrics["loss"] < best_loss:
                 best_loss = test_metrics["loss"]
@@ -123,25 +142,26 @@ class FlaxTrainer(TrainerBase):
 
         return train_state.TrainState.create(apply_fn=model.apply, params=params, tx=tx)
     
-        
-    @jax.jit
-    def _apply_model(self, state: train_state.TrainState, inputs: jnp.ndarray, targets: jnp.ndarray, 
-                     rng: Optional[jax.random.PRNGKey] = None, deterministic: bool = False) -> jnp.ndarray:
+    
+    @staticmethod
+    def _apply_model(state: train_state.TrainState, inputs: jnp.ndarray, targets: jnp.ndarray, 
+                     rng: jax.random.PRNGKey, deterministic: bool) -> jnp.ndarray:
 
         def loss_fn(params):
-            predictions = state.apply_fn({"params": params}, inputs, rngs={"dropout": rng}, deterministic=deterministic) if rng is not None else state.apply_fn({"params": params}, inputs, deterministic=deterministic)
+            predictions = state.apply_fn(params, inputs, rngs={"dropout": rng}, deterministic=deterministic)
             loss = jnp.mean((predictions - targets) ** 2)  # MSE loss
             mae = jnp.mean(jnp.abs(predictions - targets))  # MAE loss
             r2 = 1 - jnp.sum((predictions - targets)**2) / jnp.sum((targets - jnp.mean(targets))**2)  # R2 loss
-            return loss, mae, r2
+            return loss, (mae, r2)
 
-        (loss, mae, r2), grad = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
+        (loss, (mae, r2)), grad  = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
         metrics = {"mae": mae, "r2": r2, "loss": loss}
 
         return grad, metrics
     
+    @staticmethod
     @jax.jit
-    def _update_model(self, state: train_state.TrainState, grads) -> train_state.TrainState:
+    def _update_model(state: train_state.TrainState, grads) -> train_state.TrainState:
         return state.apply_gradients(grads=grads)
     
 
@@ -151,33 +171,39 @@ class FlaxTrainer(TrainerBase):
         metrics = {"mae": [], "r2": [], "loss": []}
         for data in self._train_dataloader:
             inputs, targets = data
-            grad, _metrics = self._apply_model(state, inputs, targets, rng)
+            grad, _metrics = self._apply_model(state, inputs, targets, rng, deterministic=False)
             state = self._update_model(state, grad)
             metrics["mae"].append(_metrics["mae"])
             metrics["r2"].append(_metrics["r2"])
-            metrics["loss"].append_(metrics["loss"])
+            metrics["loss"].append(_metrics["loss"])
 
-        metrics["mae"] = jnp.mean(metrics["mae"])
-        metrics["r2"] = jnp.mean(metrics["r2"])
-        metrics["loss"] = jnp.mean(metrics["loss"])
+        metrics["mae"] = jnp.mean(jnp.array(metrics["mae"]))
+        metrics["mae"] = jax.device_get(metrics["mae"])
+        metrics["r2"] = jnp.mean(jnp.array(metrics["r2"]))
+        metrics["r2"] = jax.device_get(metrics["r2"])
+        metrics["loss"] = jnp.mean(jnp.array(metrics["loss"]))
+        metrics["loss"] = jax.device_get(metrics["loss"])
 
         return state, metrics
         
 
 
-    def _evaluate_step(self, state: train_state.TrainState) -> Dict:
+    def _evaluate_step(self, state: train_state.TrainState, rng: jax.random.PRNGKey) -> Dict:
         """ Runs an evaluation step """
 
         metrics = {"mae": [], "r2": [], "loss": []}
         for data in self._test_dataloader:
             inputs, targets = data
-            _, _metrics = self._apply_model(state, inputs, targets, deterministic=True)
+            _, _metrics = self._apply_model(state, inputs, targets, rng=rng, deterministic=True)
             metrics["mae"].append(_metrics["mae"])
             metrics["r2"].append(_metrics["r2"])
             metrics["loss"].append(_metrics["loss"])
 
-        metrics["mae"] = jnp.mean(metrics["mae"])
-        metrics["r2"] = jnp.mean(metrics["r2"])
-        metrics["loss"] = jnp.mean(metrics["loss"])
+        metrics["mae"] = jnp.mean(jnp.array(metrics["mae"]))
+        metrics["mae"] = jax.device_get(metrics["mae"])
+        metrics["r2"] = jnp.mean(jnp.array(metrics["r2"]))
+        metrics["r2"] = jax.device_get(metrics["r2"])
+        metrics["loss"] = jnp.mean(jnp.array(metrics["loss"]))
+        metrics["loss"] = jax.device_get(metrics["loss"])
 
         return metrics

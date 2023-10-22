@@ -39,9 +39,9 @@ training_config = Config(
     log_dir="results",
     experiment_name="v0",
     num_epochs=100,
-    learning_rate=1e-4,
+    learning_rate=1e-5,
     dataset_path="./data/BTCUSD.csv",
-    batch_size=64,
+    batch_size=128,
     test_split=0.1,
     seed=0
 )
