@@ -13,18 +13,24 @@ Render of a transformer model as a hologram, projecting from a digital device, w
 ![Jaxer Logo](/data/btc_transformer.png)
 
 
-## ROADMAP
+## Roadmap
 - Download BTC dataset ✔️
 - Create a dataset class ✔️
 - Create the trainer class ✔️
 - Train the model:
-    - **Encoder** only (next day prediction) ✔️ Not succesful yet, but the training loop works Must check data
+    - **Encoder** only (next day prediction) ✔️ Not succesful yet, but the training loop works. Must check data sequences.
     - **Encoder + Decoder** (N days predictions)
 - Create a test script to display the results `evaluator.py`
 - Add a logger to the trainer class
 - Add a lr scheduler to the trainer class
 
 ## Installation
+
+Clone the repo:
+```bash
+git clone https://github.com/rsanchezmo/jaxer.git
+cd jaxer
+```
 
 Create a python venv:
 ```bash

@@ -29,7 +29,7 @@ config = ModelConfig(
     num_layers=4,
     n_heads=4,
     dim_feedforward=128,
-    dropout=0.05,
+    dropout=0.0,
     max_seq_len=10,
     input_features=6
 )
