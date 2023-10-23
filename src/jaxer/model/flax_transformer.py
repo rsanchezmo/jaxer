@@ -16,13 +16,14 @@ class TransformerConfig:
     dtype: jnp.dtype = jnp.float32
     kernel_init: Callable = nn.initializers.xavier_uniform()
     bias_init: Callable = nn.initializers.normal(stddev=1e-6)
+    deterministic: bool = False
 
 class FeedForwardBlock(nn.Module):
     config: TransformerConfig
     out_dim: int
 
     @nn.compact
-    def __call__(self, x: jnp.ndarray, deterministic: bool = False) -> jnp.ndarray:
+    def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
         """ Applies the feed forward block module """
 
         x = nn.Dense(
@@ -33,7 +34,7 @@ class FeedForwardBlock(nn.Module):
         )(x)
         x = nn.gelu(x)
         x = nn.Dropout(rate=self.config.dropout)(
-            x, deterministic=deterministic
+            x, deterministic=self.config.deterministic
         )
         x = nn.Dense(
             features=self.out_dim,
@@ -42,7 +43,7 @@ class FeedForwardBlock(nn.Module):
             bias_init=self.config.bias_init,
         )(x)
         x = nn.Dropout(rate=self.config.dropout)(
-            x, deterministic=deterministic
+            x, deterministic=self.config.deterministic
         )
 
         return x        
@@ -87,7 +88,7 @@ class FeatureEmbedding(nn.Module):
     config: TransformerConfig
 
     @nn.compact
-    def __call__(self, x: jnp.ndarray, deterministic: bool = False) -> jnp.ndarray:
+    def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
         """ Applies the feature embedding module """
 
         x = nn.Dense(
@@ -98,7 +99,7 @@ class FeatureEmbedding(nn.Module):
         )(x)
         x = nn.gelu(x)
         x = nn.Dropout(rate=self.config.dropout)(
-            x, deterministic=deterministic
+            x, deterministic=self.config.deterministic
         )
 
         return x
@@ -107,7 +108,7 @@ class EncoderBlock(nn.Module):
     config: TransformerConfig
 
     @nn.compact
-    def __call__(self, inputs: jnp.ndarray, encoder_mask: Optional[jnp.ndarray] = None, deterministic: bool = False) -> jnp.ndarray:
+    def __call__(self, inputs: jnp.ndarray, encoder_mask: Optional[jnp.ndarray] = None) -> jnp.ndarray:
         assert inputs.ndim == 3, f"Expected x to have 3 dimensions, got {inputs.ndim}"
 
         """ Self Attention Block"""
@@ -124,10 +125,10 @@ class EncoderBlock(nn.Module):
             use_bias=False,
             broadcast_dropout=False,
             dropout_rate=self.config.dropout,
-            deterministic=deterministic
+            deterministic=self.config.deterministic,
         )(x, mask=encoder_mask)
         x = nn.Dropout(rate=self.config.dropout)(
-            x, deterministic=deterministic
+            x, deterministic=self.config.deterministic
         )
 
         x = x + inputs
@@ -137,7 +138,7 @@ class EncoderBlock(nn.Module):
         y = FeedForwardBlock(
             config=self.config,
             out_dim=self.config.d_model
-        )(y, deterministic=deterministic)
+        )(y)
 
         return x + y
 
@@ -145,13 +146,13 @@ class Encoder(nn.Module):
     config: TransformerConfig
 
     @nn.compact
-    def __call__(self, x: jnp.ndarray, deterministic: bool = False) -> jnp.ndarray:
+    def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
         """ Applies the encoder module """
 
         """ Feature Embeddings"""
         x = FeatureEmbedding(
             config=self.config
-        )(x, deterministic=deterministic)
+        )(x)
 
         """ Positional Encoding """
         x = AddPositionalEncoding(
@@ -162,7 +163,7 @@ class Encoder(nn.Module):
         for _ in range(self.config.num_layers):
             x = EncoderBlock(
                 config=self.config
-            )(x, deterministic=deterministic)
+            )(x)
 
         return x
 
@@ -170,13 +171,13 @@ class Transformer(nn.Module):
     config: TransformerConfig
 
     @nn.compact
-    def __call__(self, x: jnp.ndarray, mask: Optional[jnp.ndarray] = None, deterministic: bool = False) -> jnp.ndarray:
+    def __call__(self, x: jnp.ndarray, mask: Optional[jnp.ndarray] = None) -> jnp.ndarray:
         """ Applies the transformer module """
 
         """ Encoder """
         encoded = Encoder(
             config=self.config
-        )(x, deterministic=deterministic)
+        )(x)
 
         """ Regression Head """
         x = nn.LayerNorm(dtype=self.config.dtype)(encoded)

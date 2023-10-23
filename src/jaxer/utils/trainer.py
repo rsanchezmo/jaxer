@@ -81,7 +81,10 @@ class FlaxTrainer(TrainerBase):
             dropout=self._config.model_config.dropout,
             max_seq_len=self._config.model_config.max_seq_len,
             dtype=jnp.float32,
+            deterministic=False
         )
+
+        self._flax_model_config_eval = self._flax_model_config.replace(deterministic=True)
 
 
     def train_and_evaluate(self) -> None:
@@ -129,41 +132,55 @@ class FlaxTrainer(TrainerBase):
 
     def _create_train_state(self, rng: jax.random.PRNGKey) -> train_state.TrainState:
         """ Creates a training state """
-        
-        model = Transformer(self._flax_model_config)
+
+
+        """ Instance of the model. However, we could do this anywhere, as the state is saved outside of the model """
+        model = Transformer(self._flax_model_config) 
 
         input_shape = (1, self._flax_model_config.max_seq_len, self._config.model_config.input_features)
 
-        init_rng, dropout_rng = jax.random.split(rng)
+        key_dropout, key_params = jax.random.split(rng)
 
-        params = model.init({"dropout": dropout_rng, "params": init_rng}, jnp.ones((input_shape), dtype=jnp.float32))
+        """ call the init func, that returns a pytree with the model params. Have to initialize the dropouts too """
+        params =  model.init({"dropout": key_dropout, "params": key_params}, jnp.ones((input_shape), dtype=jnp.float32))
 
+        """ Create optimizer """
         tx = optax.adamw(learning_rate=self._config.learning_rate)
 
+        """ wrap params, apply_fn and tx in a TrainState, to not keep passing them around """
         return train_state.TrainState.create(apply_fn=model.apply, params=params, tx=tx)
     
-    
+
     @staticmethod
-    def _apply_model(state: train_state.TrainState, inputs: jnp.ndarray, targets: jnp.ndarray, 
-                     rng: jax.random.PRNGKey, deterministic: bool) -> jnp.ndarray:
+    @jax.jit
+    def _model_train_step(state: train_state.TrainState, inputs: jnp.ndarray, targets: jnp.ndarray, 
+                     rng: jax.random.PRNGKey) -> jnp.ndarray:
 
         def loss_fn(params):
-            predictions = state.apply_fn(params, inputs, rngs={"dropout": rng}, deterministic=deterministic)
+            predictions = state.apply_fn(params, inputs, rngs={"dropout": rng})
             loss = jnp.mean((predictions - targets) ** 2)  # MSE loss
             mae = jnp.mean(jnp.abs(predictions - targets))  # MAE loss
             r2 = 1 - jnp.sum((predictions - targets)**2) / jnp.sum((targets - jnp.mean(targets))**2)  # R2 loss
             return loss, (mae, r2)
 
-        (loss, (mae, r2)), grad  = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
+        (loss, (mae, r2)), grads  = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
+        state = state.apply_gradients(grads=grads)
         metrics = {"mae": mae, "r2": r2, "loss": loss}
+        return state, metrics
 
-        return grad, metrics
-    
     @staticmethod
     @jax.jit
-    def _update_model(state: train_state.TrainState, grads) -> train_state.TrainState:
-        return state.apply_gradients(grads=grads)
-    
+    def _model_eval_step(state: train_state.TrainState, inputs: jnp.ndarray, targets: jnp.ndarray, 
+                     rng: jax.random.PRNGKey, config: TransformerConfig) -> jnp.ndarray:
+        
+        predictions = Transformer(config).apply({'params': state.params}, inputs, rngs={"dropout": rng})
+
+        loss = jnp.mean((predictions - targets) ** 2)  # MSE loss
+        mae = jnp.mean(jnp.abs(predictions - targets))  # MAE loss
+        r2 = 1 - jnp.sum((predictions - targets)**2) / jnp.sum((targets - jnp.mean(targets))**2)  # R2 loss
+  
+        metrics = {"mae": mae, "r2": r2, "loss": loss}
+        return state, metrics  
 
     def _train_step(self, state: train_state.TrainState, rng: jax.random.PRNGKey) -> Tuple[train_state.TrainState, Dict]:
         """ Runs a training step """
@@ -171,8 +188,7 @@ class FlaxTrainer(TrainerBase):
         metrics = {"mae": [], "r2": [], "loss": []}
         for data in self._train_dataloader:
             inputs, targets = data
-            grad, _metrics = self._apply_model(state, inputs, targets, rng, deterministic=False)
-            state = self._update_model(state, grad)
+            state, _metrics = self._model_train_step(state, inputs, targets, rng)
             metrics["mae"].append(_metrics["mae"])
             metrics["r2"].append(_metrics["r2"])
             metrics["loss"].append(_metrics["loss"])
@@ -194,7 +210,7 @@ class FlaxTrainer(TrainerBase):
         metrics = {"mae": [], "r2": [], "loss": []}
         for data in self._test_dataloader:
             inputs, targets = data
-            _, _metrics = self._apply_model(state, inputs, targets, rng=rng, deterministic=True)
+            _metrics = self._model_eval_step(state, inputs, targets, rng=rng, config=self._flax_model_config_eval)
             metrics["mae"].append(_metrics["mae"])
             metrics["r2"].append(_metrics["r2"])
             metrics["loss"].append(_metrics["loss"])
