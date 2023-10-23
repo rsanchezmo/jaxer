@@ -153,6 +153,15 @@ class FlaxTrainer(TrainerBase):
 
     @staticmethod
     @jax.jit
+    def _compute_metrics(predictions: jnp.ndarray, targets: jnp.ndarray) -> Dict:
+        """ Computes metrics """
+        loss = jnp.mean((predictions - targets) ** 2)
+        mae = jnp.mean(jnp.abs(predictions - targets))
+        r2 = 1 - jnp.sum((predictions - targets)**2) / jnp.sum((targets - jnp.mean(targets))**2)
+        return {"mae": mae, "r2": r2, "loss": loss}
+
+    @staticmethod
+    @jax.jit
     def _model_train_step(state: train_state.TrainState, inputs: jnp.ndarray, targets: jnp.ndarray, 
                      rng: jax.random.PRNGKey) -> jnp.ndarray:
 
@@ -167,19 +176,15 @@ class FlaxTrainer(TrainerBase):
         state = state.apply_gradients(grads=grads)
         metrics = {"mae": mae, "r2": r2, "loss": loss}
         return state, metrics
+    
 
-    @staticmethod
-    @jax.jit
-    def _model_eval_step(state: train_state.TrainState, inputs: jnp.ndarray, targets: jnp.ndarray, 
+    def _model_eval_step(self, state: train_state.TrainState, inputs: jnp.ndarray, targets: jnp.ndarray, 
                      rng: jax.random.PRNGKey, config: TransformerConfig) -> jnp.ndarray:
         
-        predictions = Transformer(config).apply({'params': state.params}, inputs, rngs={"dropout": rng})
+        predictions = Transformer(config).apply(state.params, inputs, rngs={"dropout": rng})
 
-        loss = jnp.mean((predictions - targets) ** 2)  # MSE loss
-        mae = jnp.mean(jnp.abs(predictions - targets))  # MAE loss
-        r2 = 1 - jnp.sum((predictions - targets)**2) / jnp.sum((targets - jnp.mean(targets))**2)  # R2 loss
-  
-        metrics = {"mae": mae, "r2": r2, "loss": loss}
+        metrics = self._compute_metrics(predictions, targets)
+
         return state, metrics  
 
     def _train_step(self, state: train_state.TrainState, rng: jax.random.PRNGKey) -> Tuple[train_state.TrainState, Dict]:
@@ -210,7 +215,7 @@ class FlaxTrainer(TrainerBase):
         metrics = {"mae": [], "r2": [], "loss": []}
         for data in self._test_dataloader:
             inputs, targets = data
-            _metrics = self._model_eval_step(state, inputs, targets, rng=rng, config=self._flax_model_config_eval)
+            _, _metrics = self._model_eval_step(state, inputs, targets, rng=rng, config=self._flax_model_config_eval)
             metrics["mae"].append(_metrics["mae"])
             metrics["r2"].append(_metrics["r2"])
             metrics["loss"].append(_metrics["loss"])
