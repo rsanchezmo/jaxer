@@ -20,9 +20,11 @@ Render of a transformer model as a hologram, projecting from a digital device, w
 - Create a dataset class ✔️
 - Create the trainer class ✔️
 - Train the model:
-    - **Encoder** only (next day prediction) ✔️
+    - **Encoder** only (next day prediction) ✔️ Not succesful yet, but the training loop works Must check data
     - **Encoder + Decoder** (N days predictions)
-- Create a test script to display the results
+- Create a test script to display the results `evaluator.py`
+- Add a logger to the trainer class
+- Add a lr scheduler to the trainer class
 
 ## Installation
 
