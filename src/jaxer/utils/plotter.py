@@ -15,12 +15,12 @@ class Color:
 
 
 def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, y_pred: jnp.ndarray, name: str, foldername: str,
-                     scale_factor: 1.) -> None:
+                     scale_factor: float = 1.) -> None:
     """ Function to plot prediction and results """
 
     plt.style.use('ggplot')
     plt.figure(figsize=(14, 8))
-    plt.plot(input[:, 1], label='Close Price', color=Color.blue)
+    plt.plot(input[:, 1], label='Close Price', color=Color.blue,  linewidth=3, marker='o', markersize=5)
     plt.scatter(len(input[:, 1]), y_true[0]*scale_factor, label='Next Close Price', color='red')
     plt.scatter(len(input[:, 1]), y_pred[0]*scale_factor, label='Predicted Next Close Price', color='green')
     plt.title('BTC Close Price')

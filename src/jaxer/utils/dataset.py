@@ -34,7 +34,7 @@ class Dataset(torch.utils.data.Dataset):
         # Convert to NumPy arrays
         sequence_data = np.array(sequence_data, dtype=np.float32)
         label = np.array([label], dtype=np.float32)
-        return sequence_data, label
+        return sequence_data, label  # TODO: add the scales factor [dict?]
 
     def __len__(self):
         return len(self._data) - self._seq_len

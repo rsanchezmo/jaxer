@@ -23,7 +23,7 @@ class Config:
     dataset_path: str
     batch_size: int
     test_split: float
-    seed: int = 0
+    seed: int
 
     def save_config(self, path):
         config = asdict(self)

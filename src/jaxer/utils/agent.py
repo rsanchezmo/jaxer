@@ -11,7 +11,7 @@ class Agent:
     def __init__(self, experiment: str, model_name: str) -> None:
         self.experiment_path = os.path.join("results", experiment)
         self.model_name = model_name
-        self.ckpt_path = os.path.join(self.experiment_path, "ckpt", model_name)
+        self.ckpt_path = os.path.join(self.experiment_path, "ckpt", model_name, 'default')
 
         assert os.path.exists(self.experiment_path), f"Experiment {experiment} does not exist in results folder"
         assert os.path.exists(self.ckpt_path), f"Model {model_name} does not exist in experiment {experiment}"
@@ -31,8 +31,10 @@ class Agent:
         """ Create an orbax checkpointer to restore the model"""
         orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
         restored_state = orbax_checkpointer.restore(self.ckpt_path)
+        self.params = restored_state["model"]["params"]
 
 
     def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
         """ Inference function wrapper as __call__ """
+        return Transformer(self._flax_config).apply(self.params, x)
         

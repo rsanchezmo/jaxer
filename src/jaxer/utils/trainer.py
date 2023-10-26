@@ -260,5 +260,5 @@ class FlaxTrainer(TrainerBase):
         for i, data in enumerate(test_dataloader):
             inputs, targets = data
             predictions = Transformer(self._flax_model_config_eval).apply(self._best_model_state.params, inputs)
-            plot_predictions(inputs.squeeze(0), targets.squeeze(0), predictions.squeeze(0), i, save_folder)
+            plot_predictions(inputs.squeeze(0), targets.squeeze(0), predictions.squeeze(0), i, save_folder, scale_factor=1.)
 
