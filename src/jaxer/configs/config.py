@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+import json
+from dataclasses import asdict
 
 
 @dataclass
@@ -22,7 +24,17 @@ class Config:
     batch_size: int
     test_split: float
     seed: int = 0
-    
+
+    def save_config(self, path):
+        config = asdict(self)
+        with open(path, 'w') as f:
+            json.dump(config, f, indent=4)
+
+    def load_config(path):
+        with open(path, 'r') as f:
+            config = json.load(f)
+        return Config(**config)
+
 
 config = ModelConfig(
     d_model=64,

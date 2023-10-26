@@ -1,6 +1,6 @@
 from ..model.flax_transformer import Transformer, TransformerConfig
 from ..configs.config import Config
-from ..utils.dataset import Dataset
+from .dataset import Dataset
 import jax
 import jax.numpy as jnp
 import optax
@@ -12,7 +12,8 @@ from flax.training import orbax_utils
 import orbax
 from torch.utils.data import DataLoader
 import time
-
+import json
+from ..utils.plotter import plot_predictions
 
 
 class TrainerBase:
@@ -36,9 +37,16 @@ class TrainerBase:
 
         """ Dataloaders """
         dataset = Dataset(self._config.dataset_path, self._config.model_config.max_seq_len)
-        train_ds, test_ds = dataset.get_train_test_split(test_size=self._config.test_split)
-        self._train_dataloader = DataLoader(train_ds, batch_size=self._config.batch_size, shuffle=True, collate_fn=self._jax_collate_fn)
-        self._test_dataloader = DataLoader(test_ds, batch_size=self._config.batch_size, shuffle=True, collate_fn=self._jax_collate_fn)
+        self._train_ds, self._test_ds = dataset.get_train_test_split(test_size=self._config.test_split)
+        self._train_dataloader = DataLoader(self._train_ds, batch_size=self._config.batch_size, shuffle=True, collate_fn=self._jax_collate_fn)
+        self._test_dataloader = DataLoader(self._test_ds, batch_size=self._config.batch_size, shuffle=True, collate_fn=self._jax_collate_fn)
+
+
+        """ Save config """
+        self._config.save_config(os.path.join(self._log_dir, "config.json"))
+
+        """ Best model state: eval purposes """
+        self._best_model_state: Optional[train_state.TrainState] = None
 
 
     def train_and_evaluate(self) -> None:
@@ -105,7 +113,7 @@ class FlaxTrainer(TrainerBase):
             state, metrics = self._train_step(train_state, key)
             
             """ Logging """
-            test_metrics = self._evaluate_step(state, key)
+            test_metrics = self._evaluate_step(state)
 
             end_time = time.time()
             delta_time = end_time - init_time
@@ -125,14 +133,28 @@ class FlaxTrainer(TrainerBase):
 
             if test_metrics["loss"] < best_loss:
                 best_loss = test_metrics["loss"]
-                self._save_model(epoch, state)
+                self._save_best_model(epoch, state, test_metrics)
+                self.best_model_test()
+
 
         self._summary_writer.flush()
 
 
+    def _save_best_model(self, epoch: int, state: train_state.TrainState, metrics: Dict) -> None:
+        self._save_model(epoch, state)
+        self._best_model_state = state
+
+        for key, value in metrics.items():
+            metrics[key] = value.item()
+
+        # save metrics in a json file
+        metrics["ckpt"] = epoch
+        with open(os.path.join(self._log_dir, "best_model_train.json"), 'w') as f:
+            f.write(json.dumps(metrics, indent=4))
+
+
     def _create_train_state(self, rng: jax.random.PRNGKey) -> train_state.TrainState:
         """ Creates a training state """
-
 
         """ Instance of the model. However, we could do this anywhere, as the state is saved outside of the model """
         model = Transformer(self._flax_model_config) 
@@ -179,9 +201,9 @@ class FlaxTrainer(TrainerBase):
     
 
     def _model_eval_step(self, state: train_state.TrainState, inputs: jnp.ndarray, targets: jnp.ndarray, 
-                     rng: jax.random.PRNGKey, config: TransformerConfig) -> jnp.ndarray:
+                     config: TransformerConfig) -> jnp.ndarray:
         
-        predictions = Transformer(config).apply(state.params, inputs, rngs={"dropout": rng})
+        predictions = Transformer(config).apply(state.params, inputs)
 
         metrics = self._compute_metrics(predictions, targets)
 
@@ -206,16 +228,14 @@ class FlaxTrainer(TrainerBase):
         metrics["loss"] = jax.device_get(metrics["loss"])
 
         return state, metrics
-        
 
-
-    def _evaluate_step(self, state: train_state.TrainState, rng: jax.random.PRNGKey) -> Dict:
+    def _evaluate_step(self, state: train_state.TrainState) -> Dict:
         """ Runs an evaluation step """
 
         metrics = {"mae": [], "r2": [], "loss": []}
         for data in self._test_dataloader:
             inputs, targets = data
-            _, _metrics = self._model_eval_step(state, inputs, targets, rng=rng, config=self._flax_model_config_eval)
+            _, _metrics = self._model_eval_step(state, inputs, targets, config=self._flax_model_config_eval)
             metrics["mae"].append(_metrics["mae"])
             metrics["r2"].append(_metrics["r2"])
             metrics["loss"].append(_metrics["loss"])
@@ -228,3 +248,17 @@ class FlaxTrainer(TrainerBase):
         metrics["loss"] = jax.device_get(metrics["loss"])
 
         return metrics
+    
+    def best_model_test(self):
+        """ Generate images from the test set of the best model """
+
+        # get test dataloader but with batch == 1
+        test_dataloader = DataLoader(self._test_ds, batch_size=1, collate_fn=self._jax_collate_fn)
+        save_folder = os.path.join(self._log_dir, "best_model_test")
+        os.makedirs(save_folder, exist_ok=True)
+
+        for i, data in enumerate(test_dataloader):
+            inputs, targets = data
+            predictions = Transformer(self._flax_model_config_eval).apply(self._best_model_state.params, inputs)
+            plot_predictions(inputs.squeeze(0), targets.squeeze(0), predictions.squeeze(0), i, save_folder)
+
