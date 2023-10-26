@@ -33,8 +33,12 @@ class Agent:
         restored_state = orbax_checkpointer.restore(self.ckpt_path)
         self.params = restored_state["model"]["params"]
 
+        """ Do a warmup of the model """
+        self.model = Transformer(self._flax_config)
+        self.model.apply(self.params, jnp.ones((1, self.config.model_config["max_seq_len"], self.config.model_config["input_features"])))
+
 
     def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
         """ Inference function wrapper as __call__ """
-        return Transformer(self._flax_config).apply(self.params, x)
+        return self.model.apply(self.params, x)
         

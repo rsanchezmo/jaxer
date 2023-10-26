@@ -20,7 +20,7 @@ Render of a transformer model as a hologram, projecting from a digital device, w
 - Train the model:
     - **Encoder** only (next day prediction) ✔️ Not succesful yet, but the training loop works. Must check data sequences.
     - **Encoder + Decoder** (N days predictions)
-- Create an agent that loads the model and act as a predictor. Now built, but too slow. CHECK WHY
+- Create an agent that loads the model and act as a predictor. ✔️
 - Add a logger to the trainer class
 - Add a lr scheduler to the trainer class
 
