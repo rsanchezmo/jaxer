@@ -3,6 +3,8 @@ import pandas as pd
 from typing import Tuple
 import numpy as np
 import torch.utils.data
+import jax.numpy as jnp
+from typing import Union
 
 
 class Dataset(torch.utils.data.Dataset):
@@ -29,12 +31,17 @@ class Dataset(torch.utils.data.Dataset):
         # Extract the label (next Close price)
         label_idx = index + self._seq_len
         label = self._data.iloc[label_idx]['Close']
-        label = (label - min_vals['Close']) / (max_vals['Close'] - min_vals['Close'])
+
+        min_close = min_vals['Close']
+        max_close = max_vals['Close']
+        normalizer = dict(min_close=min_close, max_close=max_close)
+
+        label = normalize(label, normalizer)
 
         # Convert to NumPy arrays
         sequence_data = np.array(sequence_data, dtype=np.float32)
         label = np.array([label], dtype=np.float32)
-        return sequence_data, label  # TODO: add the scales factor [dict?]
+        return sequence_data, label, normalizer
 
     def __len__(self):
         return len(self._data) - self._seq_len
@@ -50,3 +57,11 @@ class Dataset(torch.utils.data.Dataset):
 
         return train_dataset, test_dataset
     
+
+def normalize(data: Union[np.ndarray, jnp.ndarray], normalizer: dict) -> Union[np.ndarray, jnp.ndarray]:
+    """ Normalizes the data """
+    return (data - normalizer['min_close']) / (normalizer['max_close'] - normalizer['min_close'])
+
+def denormalize(data: Union[np.ndarray, jnp.ndarray], normalizer: dict) -> Union[np.ndarray, jnp.ndarray]:
+    """ Denormalizes the data """
+    return data * (normalizer['max_close'] - normalizer['min_close']) + normalizer['min_close']

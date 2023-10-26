@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import jax.numpy as jnp
 import numpy as np
 from dataclasses import dataclass
+from typing import Optional, Dict
+from .dataset import denormalize
 
 
 @dataclass
@@ -15,16 +17,27 @@ class Color:
 
 
 def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, y_pred: jnp.ndarray, name: str, foldername: str,
-                     scale_factor: float = 1.) -> None:
+                     normalizer: Optional[Dict] = None) -> None:
     """ Function to plot prediction and results """
+
+    if normalizer is None:
+        normalizer = dict(min_close=0, max_close=1)
 
     plt.style.use('ggplot')
     plt.figure(figsize=(14, 8))
-    plt.plot(input[:, 1], label='Close Price', color=Color.blue,  linewidth=3, marker='o', markersize=5)
-    plt.scatter(len(input[:, 1]), y_true[0]*scale_factor, label='Next Close Price', color='red')
-    plt.scatter(len(input[:, 1]), y_pred[0]*scale_factor, label='Predicted Next Close Price', color='green')
+
+    sequence_data = denormalize(input[:, 1], normalizer)
+    prediction_data = jnp.append(sequence_data[-1], denormalize(y_pred[0], normalizer))
+    real_data = jnp.append(sequence_data[-1], denormalize(y_true[0], normalizer))
+    base = jnp.arange(len(sequence_data))
+
+    base_pred = jnp.array([len(sequence_data)-1, len(sequence_data)])
+
+    plt.plot(base, sequence_data, label='Close Price', color=Color.blue,  linewidth=4, marker='o', markersize=8)
+    plt.plot(base_pred, real_data, label='Next Day Real', color=Color.orange, linewidth=4, marker='o', markersize=8)
+    plt.plot(base_pred, prediction_data, label='Next Day Pred', color=Color.green, linewidth=4, marker='o', markersize=8)
     plt.title('BTC Close Price')
-    plt.xlabel('Date')
+    plt.xlabel('Date [Sequence]')
     plt.ylabel('Close Price (USD)')
     plt.legend()
     plt.grid(True)

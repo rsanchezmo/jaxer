@@ -16,11 +16,12 @@ Render of a transformer model as a hologram, projecting from a digital device, w
 ## Roadmap
 - Download BTC dataset ✔️
 - Create a dataset class ✔️
+- Add normalizer as dataset output ✔️
 - Create the trainer class ✔️
 - Train the model:
     - **Encoder** only (next day prediction) ✔️ Not succesful yet, but the training loop works. Must check data sequences.
     - **Encoder + Decoder** (N days predictions)
-- Create an agent that loads the model and act as a predictor. ✔️
+- Create an agent that loads the model and act as a predictor. Aprox  inference speed 80ms ✔️
 - Add a logger to the trainer class
 - Add a lr scheduler to the trainer class
 
@@ -52,11 +53,8 @@ pip install .
 ### Training
 Set the configuration parameters in the `config.py` file. Then, run the training script:
 ```bash
-python src/train.py
+python train.py
 ```
-
-### Testing
-*TODO*
 
 ## Contributors
 - [Rodrigo Sánchez Molina](rsanchezm98@gmail.com)

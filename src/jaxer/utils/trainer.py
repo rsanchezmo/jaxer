@@ -58,12 +58,14 @@ class TrainerBase:
         # Convert PyTorch tensors to JAX arrays for both inputs and labels
         jax_inputs = [jnp.array(item[0]) for item in batch]
         jax_labels = [jnp.array(item[1]) for item in batch]
+        norms = [item[2] for item in batch]
 
         # Stack them to create batched JAX arrays
         batched_jax_inputs = jnp.stack(jax_inputs)
         batched_jax_labels = jnp.stack(jax_labels)
 
-        return batched_jax_inputs, batched_jax_labels
+
+        return batched_jax_inputs, batched_jax_labels, norms
     
     def _save_model(self, epoch: int, state: train_state.TrainState) -> None:
         """ Saves a model checkpoint """
@@ -95,12 +97,20 @@ class FlaxTrainer(TrainerBase):
         self._flax_model_config_eval = self._flax_model_config.replace(deterministic=True)
 
 
+    def _warmup_eval(self, state: train_state.TrainState) -> None:
+        """ Warmup models """
+        self._eval_model = Transformer(self._flax_model_config_eval)
+        self._eval_model.apply(state.params, jnp.ones((1, self._config.model_config.max_seq_len, self._config.model_config.input_features)))
+
+
     def train_and_evaluate(self) -> None:
         """ Runs a training loop """
 
         """ Create a training state """
         rng = jax.random.PRNGKey(self._config.seed) 
         train_state = self._create_train_state(rng)
+
+        self._warmup_eval(train_state)
 
 
         best_loss = float("inf")
@@ -134,9 +144,9 @@ class FlaxTrainer(TrainerBase):
             if test_metrics["loss"] < best_loss:
                 best_loss = test_metrics["loss"]
                 self._save_best_model(epoch, state, test_metrics)
-                self.best_model_test()
 
 
+        self.best_model_test()
         self._summary_writer.flush()
 
 
@@ -203,7 +213,7 @@ class FlaxTrainer(TrainerBase):
     def _model_eval_step(self, state: train_state.TrainState, inputs: jnp.ndarray, targets: jnp.ndarray, 
                      config: TransformerConfig) -> jnp.ndarray:
         
-        predictions = Transformer(config).apply(state.params, inputs)
+        predictions = self._eval_model.apply(state.params, inputs)
 
         metrics = self._compute_metrics(predictions, targets)
 
@@ -214,7 +224,7 @@ class FlaxTrainer(TrainerBase):
 
         metrics = {"mae": [], "r2": [], "loss": []}
         for data in self._train_dataloader:
-            inputs, targets = data
+            inputs, targets, _ = data
             state, _metrics = self._model_train_step(state, inputs, targets, rng)
             metrics["mae"].append(_metrics["mae"])
             metrics["r2"].append(_metrics["r2"])
@@ -234,7 +244,7 @@ class FlaxTrainer(TrainerBase):
 
         metrics = {"mae": [], "r2": [], "loss": []}
         for data in self._test_dataloader:
-            inputs, targets = data
+            inputs, targets, _ = data
             _, _metrics = self._model_eval_step(state, inputs, targets, config=self._flax_model_config_eval)
             metrics["mae"].append(_metrics["mae"])
             metrics["r2"].append(_metrics["r2"])
@@ -258,7 +268,7 @@ class FlaxTrainer(TrainerBase):
         os.makedirs(save_folder, exist_ok=True)
 
         for i, data in enumerate(test_dataloader):
-            inputs, targets = data
-            predictions = Transformer(self._flax_model_config_eval).apply(self._best_model_state.params, inputs)
-            plot_predictions(inputs.squeeze(0), targets.squeeze(0), predictions.squeeze(0), i, save_folder, scale_factor=1.)
+            inputs, targets, norm = data
+            predictions = self._eval_model.apply(self._best_model_state.params, inputs)
+            plot_predictions(inputs.squeeze(0), targets.squeeze(0), predictions.squeeze(0), i, save_folder, normalizer=norm[0])
 
