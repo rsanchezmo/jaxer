@@ -60,5 +60,24 @@ Currently, when the agent is **trained**, the test is repeated with the best mod
 
 ![Example Predictions](/data/example_output.png)
 
+### Inference
+An agent class has been created so you can load a model and use it to predict to any data you want. 
+
+```python
+from jaxer.utils.agent import Agent
+import jax.numpy as jnp
+
+
+# the experiment in the "results" folder
+agent = Agent(experiment_name="exp", model_name="2") 
+
+# a random input
+x_test = jnp.ones((1, agent.config.model_config["max_seq_len"], agent.config.model_config["input_features"]))
+
+# predict
+pred = agent(x_test)
+
+```
+
 ## Contributors
 - [Rodrigo Sánchez Molina](rsanchezm98@gmail.com)
