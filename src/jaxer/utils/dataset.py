@@ -28,15 +28,13 @@ class Dataset(torch.utils.data.Dataset):
         max_vals = sequence_data.max()
         sequence_data = (sequence_data - min_vals) / (max_vals - min_vals)
 
-        # Extract the label (next Close price)
+        normalizer = {key: dict(min_val=min_vals[i], max_val=max_vals[i]) for (i, key) in enumerate(["open", "close", "high", "low", "adj_close", "volume"])}
+
+        # Extract the label
         label_idx = index + self._seq_len
         label = self._data.iloc[label_idx]['Close']
 
-        min_close = min_vals['Close']
-        max_close = max_vals['Close']
-        normalizer = dict(min_close=min_close, max_close=max_close)
-
-        label = normalize(label, normalizer)
+        label = normalize(label, normalizer["close"])
 
         # Convert to NumPy arrays
         sequence_data = np.array(sequence_data, dtype=np.float32)
@@ -60,8 +58,8 @@ class Dataset(torch.utils.data.Dataset):
 
 def normalize(data: Union[np.ndarray, jnp.ndarray], normalizer: dict) -> Union[np.ndarray, jnp.ndarray]:
     """ Normalizes the data """
-    return (data - normalizer['min_close']) / (normalizer['max_close'] - normalizer['min_close'])
+    return (data - normalizer['min_val']) / (normalizer['max_val'] - normalizer['min_val'])
 
 def denormalize(data: Union[np.ndarray, jnp.ndarray], normalizer: dict) -> Union[np.ndarray, jnp.ndarray]:
     """ Denormalizes the data """
-    return data * (normalizer['max_close'] - normalizer['min_close']) + normalizer['min_close']
+    return data * (normalizer['max_val'] - normalizer['min_val']) + normalizer['min_val']

@@ -141,9 +141,11 @@ class FlaxTrainer(TrainerBase):
                 f"    Train R2: {metrics['r2']:.4f}     | Test R2: {test_metrics['r2']:.4f}")
             print(f"    Elapsed epoch time: {delta_time} seconds")
 
+
             if test_metrics["loss"] < best_loss:
                 best_loss = test_metrics["loss"]
                 self._save_best_model(epoch, state, test_metrics)
+
 
 
         self.best_model_test()
@@ -259,7 +261,7 @@ class FlaxTrainer(TrainerBase):
 
         return metrics
     
-    def best_model_test(self):
+    def best_model_test(self, max_seqs: int = 10):
         """ Generate images from the test set of the best model """
 
         # get test dataloader but with batch == 1
@@ -267,8 +269,12 @@ class FlaxTrainer(TrainerBase):
         save_folder = os.path.join(self._log_dir, "best_model_test")
         os.makedirs(save_folder, exist_ok=True)
 
+        counter = 0
         for i, data in enumerate(test_dataloader):
-            inputs, targets, norm = data
+            inputs, targets, normalizer = data
             predictions = self._eval_model.apply(self._best_model_state.params, inputs)
-            plot_predictions(inputs.squeeze(0), targets.squeeze(0), predictions.squeeze(0), i, save_folder, normalizer=norm[0])
+            plot_predictions(inputs.squeeze(0), targets.squeeze(0), predictions.squeeze(0), i, save_folder, normalizer=normalizer[0])
+            counter += 1
+            if counter == max_seqs:
+                break
 

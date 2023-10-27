@@ -15,32 +15,65 @@ class Color:
     purple = np.array([114, 62, 148]) / 255.
     yellow = np.array([255, 195, 0]) / 255.
 
-
 def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, y_pred: jnp.ndarray, name: str, foldername: str,
                      normalizer: Optional[Dict] = None) -> None:
     """ Function to plot prediction and results """
 
     if normalizer is None:
-        normalizer = dict(min_close=0, max_close=1)
+        normalizer = {key: dict(min_val=0, max_val=1) for key in ["open", "close", "high", "low", "adj_close", "volume"]}
 
     plt.style.use('ggplot')
-    plt.figure(figsize=(14, 8), visible=False)
+    fig, axs = plt.subplots(nrows=2, ncols=3, figsize=(20, 12), sharex=True)
 
-    sequence_data = denormalize(input[:, 1], normalizer)
-    prediction_data = jnp.append(sequence_data[-1], denormalize(y_pred[0], normalizer))
-    real_data = jnp.append(sequence_data[-1], denormalize(y_true[0], normalizer))
+    sequence_data = denormalize(input[:, 1], normalizer["close"])
+    prediction_data = jnp.append(sequence_data[-1], denormalize(y_pred[0], normalizer["close"]))
+    real_data = jnp.append(sequence_data[-1], denormalize(y_true[0], normalizer["close"]))
     base = jnp.arange(len(sequence_data))
 
     base_pred = jnp.array([len(sequence_data)-1, len(sequence_data)])
     error = jnp.abs(real_data[-1] - prediction_data[-1])
 
-    plt.plot(base, sequence_data, label='Close Price', color=Color.blue,  linewidth=4, marker='o', markersize=8)
-    plt.plot(base_pred, real_data, label='Next Day Real', color=Color.orange, linewidth=4, marker='o', markersize=8)
-    plt.plot(base_pred, prediction_data, label='Next Day Pred', color=Color.green, linewidth=4, marker='o', markersize=8)
-    plt.title(f'Jaxer Predictor || Error {error:.1f} USD', fontsize=20, fontweight='bold')
-    plt.xlabel('Date [Sequence]', fontsize=18, fontweight='bold')
-    plt.ylabel('Close Price [$]', fontsize=18, fontweight='bold')
-    plt.legend()
+    """ Plot close price """
+    axs[0, 0].plot(base, sequence_data, label='Close Price', color=Color.blue,  linewidth=4, marker='o', markersize=8)
+    axs[0, 0].plot(base_pred, real_data, label='Next Day Real', color=Color.orange, linewidth=4, marker='o', markersize=8)
+    axs[0, 0].plot(base_pred, prediction_data, label='Next Day Pred', color=Color.green, linewidth=4, marker='o', markersize=8)
+    axs[0, 0].set_ylabel('Close Price [$]', fontsize=18, fontweight='bold')
+    axs[0, 0].legend()
+
+    """ Plot open price """
+    open_data = denormalize(input[:, 0], normalizer["open"])
+    axs[0, 1].plot(base, open_data, label='Open Price', color=Color.blue,  linewidth=4, marker='o', markersize=8)
+    axs[0, 1].set_ylabel('Open Price [$]', fontsize=18, fontweight='bold')
+    axs[0, 1].legend()
+
+    """ Plot high price """
+    high_data = denormalize(input[:, 2], normalizer["high"])
+    axs[0, 2].plot(base, high_data, label='High Price', color=Color.pink,  linewidth=4, marker='o', markersize=8)
+    axs[0, 2].set_ylabel('High Price [$]', fontsize=18, fontweight='bold')
+    axs[0, 2].legend()
+
+    """ Plot low price """
+    low_data = denormalize(input[:, 3], normalizer["low"])
+    axs[1, 0].plot(base, low_data, label='Low Price', color=Color.purple,  linewidth=4, marker='o', markersize=8)
+    axs[1, 0].set_ylabel('Low Price [$]', fontsize=18, fontweight='bold')
+    axs[1, 0].set_xlabel('Date [Sequence]', fontsize=18, fontweight='bold')
+    axs[1, 0].legend()
+
+    """ Plot volume """
+    volume_data = denormalize(input[:, 4], normalizer["volume"])
+    axs[1, 1].plot(base, volume_data, label='Volume', color=Color.yellow,  linewidth=4, marker='o', markersize=8)
+    axs[1, 1].set_ylabel('Volume', fontsize=18, fontweight='bold')
+    axs[1, 1].set_xlabel('Date [Sequence]', fontsize=18, fontweight='bold')
+    axs[1, 1].legend()
+
+    """ Plot adj close price """
+    adj_close_data = denormalize(input[:, 5], normalizer["adj_close"])
+    axs[1, 2].plot(base, adj_close_data, label='Adj Close Price', color=Color.orange,  linewidth=4, marker='o', markersize=8)
+    axs[1, 2].set_ylabel('Adj Close Price [$]', fontsize=18, fontweight='bold')
+    axs[1, 2].set_xlabel('Date [Sequence]', fontsize=18, fontweight='bold')
+    axs[1, 2].legend()
+
+    plt.suptitle(f'Jaxer Predictor || Error {error:.1f} USD', fontsize=20, fontweight='bold')
     plt.grid(True)
     plt.tight_layout()
     plt.savefig(f"{foldername}/{name}.png")

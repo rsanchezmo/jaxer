@@ -56,5 +56,9 @@ Set the configuration parameters in the `config.py` file. Then, run the training
 python train.py
 ```
 
+Currently, when the agent is **trained**, the test is repeated with the best model to get some graphics like the following for each test sequence:
+
+![Example Predictions](/data/example_output.png)
+
 ## Contributors
 - [Rodrigo Sánchez Molina](rsanchezm98@gmail.com)
