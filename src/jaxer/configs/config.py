@@ -37,12 +37,12 @@ class Config:
 
 
 config = ModelConfig(
-    d_model=128,
-    num_layers=4,
+    d_model=64,
+    num_layers=2,
     n_heads=4,
-    dim_feedforward=256,
+    dim_feedforward=128,
     dropout=0.05,
-    max_seq_len=20,
+    max_seq_len=10,
     input_features=6
 )
 
@@ -51,7 +51,7 @@ training_config = Config(
     log_dir="results",
     experiment_name="v0",
     num_epochs=100,
-    learning_rate=1e-4,
+    learning_rate=1e-5,
     dataset_path="./data/BTCUSD.csv",
     batch_size=128,
     test_split=0.1,

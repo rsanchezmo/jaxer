@@ -18,30 +18,39 @@ class Dataset(torch.utils.data.Dataset):
         self._seq_len = seq_len
 
 
-    def __getitem__(self, index):
+    def __getitem__(self, index) -> Tuple[np.ndarray, np.ndarray, dict]:
         start_idx = index
         end_idx = index + self._seq_len
-        sequence_data = self._data.iloc[start_idx:end_idx][['Open', 'Close', 'High', 'Low', 'Adj Close', 'Volume']] 
+        sequence_data_price = self._data.iloc[start_idx:end_idx][['Open', 'Close', 'High', 'Low', 'Adj Close']] 
+        sequence_data_volume = self._data.iloc[start_idx:end_idx][['Volume']]
 
         # Window Min-Max scaling for each feature
-        min_vals = sequence_data.min()
-        max_vals = sequence_data.max()
-        sequence_data = (sequence_data - min_vals) / (max_vals - min_vals)
+        min_vals = sequence_data_price.min().min()
+        max_vals = sequence_data_price.max().max()
+        normalizer_price = dict(min_val=min_vals, max_val=max_vals)
+        sequence_data_price = normalize(sequence_data_price, normalizer_price)
 
-        normalizer = {key: dict(min_val=min_vals[i], max_val=max_vals[i]) for (i, key) in enumerate(["open", "close", "high", "low", "adj_close", "volume"])}
+        min_vals = sequence_data_volume.min().min()
+        max_vals = sequence_data_volume.max().max()
+        normalizer_volume = dict(min_val=min_vals, max_val=max_vals)
+        sequence_data_volume = normalize(sequence_data_volume, normalizer_volume)
+
 
         # Extract the label
         label_idx = index + self._seq_len
         label = self._data.iloc[label_idx]['Close']
+        label = normalize(label, normalizer_price)
 
-        label = normalize(label, normalizer["close"])
+        # normalizer
+        normalizer = dict(price=normalizer_price, volume=normalizer_volume)
 
         # Convert to NumPy arrays
-        sequence_data = np.array(sequence_data, dtype=np.float32)
+        sequence_data = np.array(sequence_data_price.join(sequence_data_volume), dtype=np.float32)
+
         label = np.array([label], dtype=np.float32)
         return sequence_data, label, normalizer
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._data) - self._seq_len
     
     def get_train_test_split(self, test_size: float = 0.1) -> Tuple[torch.utils.data.Dataset, torch.utils.data.Dataset]:
@@ -58,8 +67,28 @@ class Dataset(torch.utils.data.Dataset):
 
 def normalize(data: Union[np.ndarray, jnp.ndarray], normalizer: dict) -> Union[np.ndarray, jnp.ndarray]:
     """ Normalizes the data """
-    return (data - normalizer['min_val']) / (normalizer['max_val'] - normalizer['min_val'])
+    min_ = normalizer['min_val']
+    max_ = normalizer['max_val']
+    return (data - min_) / (max_ - min_)
+
 
 def denormalize(data: Union[np.ndarray, jnp.ndarray], normalizer: dict) -> Union[np.ndarray, jnp.ndarray]:
     """ Denormalizes the data """
-    return data * (normalizer['max_val'] - normalizer['min_val']) + normalizer['min_val']
+    if isinstance(data, jnp.ndarray):
+        data = np.asarray(data)  # BUG: if too large, the jnp array overflows
+    min_ = normalizer['min_val']
+    max_ = normalizer['max_val']
+    return data * (max_ - min_) + min_
+
+
+def jax_collate_fn(batch):
+    # Convert PyTorch tensors to JAX arrays for both inputs and labels
+    jax_inputs = [jnp.array(item[0]) for item in batch]
+    jax_labels = [jnp.array(item[1]) for item in batch]
+    norms = [item[2] for item in batch]
+
+    # Stack them to create batched JAX arrays
+    batched_jax_inputs = jnp.stack(jax_inputs)
+    batched_jax_labels = jnp.stack(jax_labels)
+
+    return batched_jax_inputs, batched_jax_labels, norms

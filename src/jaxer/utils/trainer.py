@@ -1,6 +1,6 @@
 from ..model.flax_transformer import Transformer, TransformerConfig
 from ..configs.config import Config
-from .dataset import Dataset
+from .dataset import Dataset, jax_collate_fn
 import jax
 import jax.numpy as jnp
 import optax
@@ -38,8 +38,8 @@ class TrainerBase:
         """ Dataloaders """
         dataset = Dataset(self._config.dataset_path, self._config.model_config.max_seq_len)
         self._train_ds, self._test_ds = dataset.get_train_test_split(test_size=self._config.test_split)
-        self._train_dataloader = DataLoader(self._train_ds, batch_size=self._config.batch_size, shuffle=True, collate_fn=self._jax_collate_fn)
-        self._test_dataloader = DataLoader(self._test_ds, batch_size=self._config.batch_size, shuffle=True, collate_fn=self._jax_collate_fn)
+        self._train_dataloader = DataLoader(self._train_ds, batch_size=self._config.batch_size, shuffle=True, collate_fn=jax_collate_fn)
+        self._test_dataloader = DataLoader(self._test_ds, batch_size=self._config.batch_size, shuffle=True, collate_fn=jax_collate_fn)
 
 
         """ Save config """
@@ -52,20 +52,6 @@ class TrainerBase:
     def train_and_evaluate(self) -> None:
         """ Runs a training loop """
         raise NotImplementedError
-    
-    @staticmethod
-    def _jax_collate_fn(batch):
-        # Convert PyTorch tensors to JAX arrays for both inputs and labels
-        jax_inputs = [jnp.array(item[0]) for item in batch]
-        jax_labels = [jnp.array(item[1]) for item in batch]
-        norms = [item[2] for item in batch]
-
-        # Stack them to create batched JAX arrays
-        batched_jax_inputs = jnp.stack(jax_inputs)
-        batched_jax_labels = jnp.stack(jax_labels)
-
-
-        return batched_jax_inputs, batched_jax_labels, norms
     
     def _save_model(self, epoch: int, state: train_state.TrainState) -> None:
         """ Saves a model checkpoint """
@@ -145,7 +131,7 @@ class FlaxTrainer(TrainerBase):
             if test_metrics["loss"] < best_loss:
                 best_loss = test_metrics["loss"]
                 self._save_best_model(epoch, state, test_metrics)
-
+                # self.best_model_test()
 
 
         self.best_model_test()
