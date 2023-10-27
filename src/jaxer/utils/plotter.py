@@ -24,7 +24,7 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, y_pred: jnp.ndarra
         normalizer = dict(min_close=0, max_close=1)
 
     plt.style.use('ggplot')
-    plt.figure(figsize=(14, 8))
+    plt.figure(figsize=(14, 8), visible=False)
 
     sequence_data = denormalize(input[:, 1], normalizer)
     prediction_data = jnp.append(sequence_data[-1], denormalize(y_pred[0], normalizer))
@@ -32,13 +32,14 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, y_pred: jnp.ndarra
     base = jnp.arange(len(sequence_data))
 
     base_pred = jnp.array([len(sequence_data)-1, len(sequence_data)])
+    error = jnp.abs(real_data[-1] - prediction_data[-1])
 
     plt.plot(base, sequence_data, label='Close Price', color=Color.blue,  linewidth=4, marker='o', markersize=8)
     plt.plot(base_pred, real_data, label='Next Day Real', color=Color.orange, linewidth=4, marker='o', markersize=8)
     plt.plot(base_pred, prediction_data, label='Next Day Pred', color=Color.green, linewidth=4, marker='o', markersize=8)
-    plt.title('BTC Close Price')
-    plt.xlabel('Date [Sequence]')
-    plt.ylabel('Close Price (USD)')
+    plt.title(f'Jaxer Predictor || Error {error:.1f} USD', fontsize=20, fontweight='bold')
+    plt.xlabel('Date [Sequence]', fontsize=18, fontweight='bold')
+    plt.ylabel('Close Price [$]', fontsize=18, fontweight='bold')
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
