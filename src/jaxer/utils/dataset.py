@@ -8,7 +8,7 @@ from typing import Union
 
 
 class Dataset(torch.utils.data.Dataset):
-    def __init__(self, datapath: str, seq_len: int) -> None:
+    def __init__(self, datapath: str, seq_len: int, norm_mode: str = 'window') -> None:
         """ Reads a csv file """
         self._datapath = datapath
         self._data = pd.read_csv(self._datapath)
@@ -17,6 +17,23 @@ class Dataset(torch.utils.data.Dataset):
         self._data.sort_index(inplace=True)
         self._seq_len = seq_len
 
+        if norm_mode not in ["window", "global", "none"]:
+            raise ValueError("norm_mode must be one of ['window', 'global', 'none']")
+        
+        self._norm_mode = norm_mode
+        if self._norm_mode == "global":
+            self._global_normalizer = dict(
+                price=dict(min_val=self._data[['Open', 'Close', 'High', 'Low', 'Adj Close']].min().min(), 
+                           max_val=self._data[['Open', 'Close', 'High', 'Low', 'Adj Close']].max().max()),
+                volume=dict(min_val=self._data['Volume'].min().min(), 
+                            max_val=self._data['Volume'].max().max())
+            )
+        elif self._norm_mode == 'none':
+            self._global_normalizer = dict(
+                price=dict(min_val=0, max_val=1),
+                volume=dict(min_val=0, max_val=1)
+            )
+
 
     def __getitem__(self, index) -> Tuple[np.ndarray, np.ndarray, dict]:
         start_idx = index
@@ -24,24 +41,28 @@ class Dataset(torch.utils.data.Dataset):
         sequence_data_price = self._data.iloc[start_idx:end_idx][['Open', 'Close', 'High', 'Low', 'Adj Close']] 
         sequence_data_volume = self._data.iloc[start_idx:end_idx][['Volume']]
 
-        # Window Min-Max scaling for each feature
-        min_vals = sequence_data_price.min().min()
-        max_vals = sequence_data_price.max().max()
-        normalizer_price = dict(min_val=min_vals, max_val=max_vals)
+        if self._norm_mode == "window":
+            min_vals = sequence_data_price.min().min()
+            max_vals = sequence_data_price.max().max()
+            normalizer_price = dict(min_val=min_vals, max_val=max_vals)
+        else:
+            normalizer_price = self._global_normalizer['price']
         sequence_data_price = normalize(sequence_data_price, normalizer_price)
 
-        min_vals = sequence_data_volume.min().min()
-        max_vals = sequence_data_volume.max().max()
-        normalizer_volume = dict(min_val=min_vals, max_val=max_vals)
+        if self._norm_mode == "window":
+            min_vals = sequence_data_volume.min().min()
+            max_vals = sequence_data_volume.max().max()
+            normalizer_volume = dict(min_val=min_vals, max_val=max_vals)
+        else:
+            normalizer_volume = self._global_normalizer['volume']
         sequence_data_volume = normalize(sequence_data_volume, normalizer_volume)
-
 
         # Extract the label
         label_idx = index + self._seq_len
         label = self._data.iloc[label_idx]['Close']
         label = normalize(label, normalizer_price)
 
-        # normalizer
+        # Create a normalizer dict
         normalizer = dict(price=normalizer_price, volume=normalizer_volume)
 
         # Convert to NumPy arrays

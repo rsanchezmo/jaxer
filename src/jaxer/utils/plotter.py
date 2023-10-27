@@ -73,7 +73,7 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, y_pred: jnp.ndarra
     axs[1, 2].set_xlabel('Date [Sequence]', fontsize=18, fontweight='bold')
     axs[1, 2].legend()
 
-    plt.suptitle(f'Jaxer Predictor || Error {error:.1f} $', fontsize=20, fontweight='bold')
+    plt.suptitle(f'Jaxer Predictor || Error {error:.2f} $', fontsize=20, fontweight='bold')
     plt.grid(True)
     plt.tight_layout()
     

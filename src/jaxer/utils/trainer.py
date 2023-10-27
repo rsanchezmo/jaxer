@@ -30,13 +30,13 @@ class TrainerBase:
         self._ckpts_dir = os.path.join(self._log_dir, "ckpt")
         os.makedirs(self._ckpts_dir, exist_ok=True)
         self._orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
-        options = orbax.checkpoint.CheckpointManagerOptions(max_to_keep=2, create=True)
+        options = orbax.checkpoint.CheckpointManagerOptions(max_to_keep=5, create=True)
         self._checkpoint_manager = orbax.checkpoint.CheckpointManager(
             self._ckpts_dir, self._orbax_checkpointer, options)
         
 
         """ Dataloaders """
-        dataset = Dataset(self._config.dataset_path, self._config.model_config.max_seq_len)
+        dataset = Dataset(self._config.dataset_path, self._config.model_config.max_seq_len, norm_mode=self._config.normalizer_mode)
         self._train_ds, self._test_ds = dataset.get_train_test_split(test_size=self._config.test_split)
         self._train_dataloader = DataLoader(self._train_ds, batch_size=self._config.batch_size, shuffle=True, collate_fn=jax_collate_fn)
         self._test_dataloader = DataLoader(self._test_ds, batch_size=self._config.batch_size, shuffle=True, collate_fn=jax_collate_fn)
@@ -98,14 +98,12 @@ class FlaxTrainer(TrainerBase):
 
         self._warmup_eval(train_state)
 
-
         best_loss = float("inf")
         for epoch in range(self._config.num_epochs):
             init_time = time.time() 
             rng, key = jax.random.split(rng) # creates a new subkey
 
             """ Training """
-            # TODO: check input_rng and droputs
             state, metrics = self._train_step(train_state, key)
             
             """ Logging """

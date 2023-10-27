@@ -8,7 +8,7 @@ from jaxer.utils.plotter import plot_predictions
 
 
 if __name__ == '__main__':
-    agent = Agent(experiment="v0", model_name="64")
+    agent = Agent(experiment="v1", model_name="10")
 
     """ LOAD SOME DATA """
     x_test = jnp.ones((1, agent.config.model_config["max_seq_len"], agent.config.model_config["input_features"]))
@@ -20,7 +20,7 @@ if __name__ == '__main__':
 
     # get the dataloaders from training
     """ Dataloaders """
-    dataset = Dataset('./data/BTCUSD.csv', agent.config.model_config["max_seq_len"])
+    dataset = Dataset('./data/BTCUSD.csv', agent.config.model_config["max_seq_len"], norm_mode=agent.config.normalizer_mode)
     train_ds, test_ds = dataset.get_train_test_split(test_size=agent.config.test_split)
     train_dataloader = DataLoader(train_ds, batch_size=1, shuffle=True, collate_fn=jax_collate_fn)
     test_dataloader = DataLoader(test_ds, batch_size=1, shuffle=True, collate_fn=jax_collate_fn)
