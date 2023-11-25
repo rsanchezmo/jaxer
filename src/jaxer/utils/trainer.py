@@ -251,7 +251,7 @@ class FlaxTrainer(TrainerBase):
         """ Generate images from the test set of the best model """
 
         # get test dataloader but with batch == 1
-        test_dataloader = DataLoader(self._test_ds, batch_size=1, collate_fn=self._jax_collate_fn)
+        test_dataloader = DataLoader(self._test_ds, batch_size=1, collate_fn=jax_collate_fn)
         save_folder = os.path.join(self._log_dir, "best_model_test")
         os.makedirs(save_folder, exist_ok=True)
 

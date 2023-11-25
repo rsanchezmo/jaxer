@@ -80,4 +80,6 @@ pred = agent(x_test)
 ```
 
 ## Contributors
-- [Rodrigo Sánchez Molina](rsanchezm98@gmail.com)
+Rodrigo Sánchez Molina
+- [Email](rsanchezm98@gmail.com)
+- [Linkedin](https://www.linkedin.com/in/rsanchezm98/)
