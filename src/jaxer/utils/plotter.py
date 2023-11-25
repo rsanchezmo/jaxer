@@ -60,11 +60,11 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, y_pred: jnp.ndarra
     axs[1, 0].legend()
 
     """ Plot volume """
-    # volume_data = denormalize(input[:, 5], normalizer["volume"])
-    # axs[1, 1].plot(base, volume_data, label='Volume', color=Color.yellow,  linewidth=4, marker='o', markersize=8)
-    # axs[1, 1].set_ylabel('Volume', fontsize=18, fontweight='bold')
-    # axs[1, 1].set_xlabel('Date [Sequence]', fontsize=18, fontweight='bold')
-    # axs[1, 1].legend()
+    volume_data = denormalize(input[:, 5], normalizer["volume"])
+    axs[1, 1].plot(base, volume_data, label='Volume', color=Color.yellow,  linewidth=4, marker='o', markersize=8)
+    axs[1, 1].set_ylabel('Volume', fontsize=18, fontweight='bold')
+    axs[1, 1].set_xlabel('Date [Sequence]', fontsize=18, fontweight='bold')
+    axs[1, 1].legend()
 
     """ Plot adj close price """
     adj_close_data = denormalize(input[:, 4], normalizer["price"])

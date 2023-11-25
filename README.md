@@ -19,11 +19,11 @@ Render of a transformer model as a hologram, projecting from a digital device, w
 - Add normalizer as dataset output ✔️
 - Create the trainer class ✔️
 - Train the model:
-    - **Encoder** only (next day prediction) ✔️ Not succesful yet, but the training loop works. Must check data sequences.
+    - **Encoder** only (next day prediction) ✔️ 
     - **Encoder + Decoder** (N days predictions)
-- Create an agent that loads the model and act as a predictor. Aprox  inference speed 80ms ✔️
+- Create an agent that loads the model and act as a predictor ✔️
 - Add a logger to the trainer class
-- Add a lr scheduler to the trainer class
+- Add a lr scheduler to the trainer class ✔️
 
 ## Installation
 
@@ -51,14 +51,10 @@ pip install .
 
 ## Usage
 ### Training
-Set the configuration parameters in the `config.py` file. Then, run the training script:
+Set the configuration parameters in the `training_config.py` file. Then, run the training script:
 ```bash
 python train.py
 ```
-
-Currently, when the agent is **trained**, the test is repeated with the best model to get some graphics like the following for each test sequence:
-
-![Example Predictions](/data/example_output.png)
 
 ### Inference
 An agent class has been created so you can load a model and use it to predict to any data you want. 
@@ -78,6 +74,8 @@ x_test = jnp.ones((1, agent.config.model_config["max_seq_len"], agent.config.mod
 pred = agent(x_test)
 
 ```
+
+## Results
 
 ## Contributors
 Rodrigo Sánchez Molina

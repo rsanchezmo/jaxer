@@ -8,7 +8,7 @@ from jaxer.utils.plotter import plot_predictions
 
 
 if __name__ == '__main__':
-    agent = Agent(experiment="v1", model_name="2")
+    agent = Agent(experiment="fixed", model_name="99")
 
     """ LOAD SOME DATA """
     x_test = jnp.ones((1, agent.config.model_config["max_seq_len"], agent.config.model_config["input_features"]))
@@ -27,7 +27,7 @@ if __name__ == '__main__':
     test_dataloader = DataLoader(test_ds, batch_size=1, shuffle=True, collate_fn=jax_collate_fn)
 
 
-    for batch in train_dataloader:
+    for batch in test_dataloader:
         input, label, normalizer, initial_date = batch
         result = agent(input)
         plot_predictions(input.squeeze(0), label.squeeze(0), result.squeeze(0), normalizer=normalizer[0], name='train', initial_date=initial_date[0])
