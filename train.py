@@ -1,5 +1,5 @@
 from jaxer.utils.trainer import FlaxTrainer as Trainer
-from jaxer.configs.config import training_config
+from training_config import training_config
 
 
 if __name__ == '__main__':

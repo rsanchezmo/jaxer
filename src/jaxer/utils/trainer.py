@@ -1,5 +1,5 @@
 from ..model.flax_transformer import Transformer, TransformerConfig
-from ..configs.config import Config
+from .config import Config
 from .dataset import Dataset, jax_collate_fn
 import jax
 import jax.numpy as jnp

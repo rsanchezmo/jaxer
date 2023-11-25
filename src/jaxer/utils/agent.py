@@ -1,5 +1,5 @@
 from typing import Any
-from ..configs.config import Config
+from .config import Config
 from ..model.flax_transformer import Transformer, TransformerConfig
 import os
 import jax.numpy as jnp
