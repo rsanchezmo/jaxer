@@ -79,9 +79,9 @@ In order to see analyse results, several metrics have been considered:
 - **MAE**: Mean Absolute Error
 - **R2**: R2 Score
 
-The best results are shown in the following table:
+The best results are shown in the following table. The evaluation is computed on the test set which is the 20% of the whole dataset.
 | Model | MSE | MAE | R2 |
-|-------|-----|-----|----|
+|:-------:|:-----:|:-----:|:----:|
 | Encoder | 0.0296 | 0.1116 | 0.7671 |
 | Encoder + Decoder | - | - | -      |
 
@@ -93,9 +93,15 @@ Some of the predictions are shown below:
 
 ![Jaxer Predictions 3](./data/2.png)
 
+## Conclusions
+- Jax and Flax are easy to use once you learn the basics. I have tried to make the code as simple as possible so it can be easily understood, encapsulating the complexity of the libraries.
+- The model is not able to predict exactly the price of BTC. It may be related to the scarcity of the variables used to predict the price. It would be interseting to add some market news or other variables to the model.
+- The general idea from this repo is that the transformer can be applied to time series prediction, and can be implemented with state of the art libraries such as Jax and Flax from DeepMind. 
 
-
-
+## Future Work
+- Compare the model against other models such as LSTM or GRU.
+- Add more variables to the model.
+- Compare speed and performance against other libraries such as PyTorch or Tensorflow.
 
 ## Contributors
 Rodrigo Sánchez Molina

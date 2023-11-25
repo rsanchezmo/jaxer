@@ -134,13 +134,13 @@ class FeatureExtractor(nn.Module):
         )
 
         # some residual blocks
-        x = ResidualBlock(feature_dim=self.config.d_model,
-                          dtype=self.config.dtype,
-                          kernel_init=self.config.kernel_init,
-                          bias_init=self.config.bias_init)(x)
-        x = nn.Dropout(rate=self.config.dropout)(
-            x, deterministic=self.config.deterministic
-        )
+        # x = ResidualBlock(feature_dim=self.config.d_model,
+        #                   dtype=self.config.dtype,
+        #                   kernel_init=self.config.kernel_init,
+        #                   bias_init=self.config.bias_init)(x)
+        # x = nn.Dropout(rate=self.config.dropout)(
+        #     x, deterministic=self.config.deterministic
+        # )
 
         x = ResidualBlock(feature_dim=self.config.d_model,
                           dtype=self.config.dtype,
