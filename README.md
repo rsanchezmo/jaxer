@@ -22,8 +22,8 @@ Render of a transformer model as a hologram, projecting from a digital device, w
     - **Encoder** only (next day prediction) ✔️ 
     - **Encoder + Decoder** (N days predictions)
 - Create an agent that loads the model and act as a predictor ✔️
-- Add a logger to the trainer class
-- Add a lr scheduler to the trainer class ✔️
+- Add a logger to the trainer class ✔️
+- Add a lr scheduler to the trainer class: warmup cosine scheduler ✔️
 
 ## Installation
 
@@ -63,7 +63,6 @@ An agent class has been created so you can load a model and use it to predict to
 from jaxer.utils.agent import Agent
 import jax.numpy as jnp
 
-
 # the experiment in the "results" folder
 agent = Agent(experiment_name="exp", model_name="2") 
 
@@ -72,10 +71,31 @@ x_test = jnp.ones((1, agent.config.model_config["max_seq_len"], agent.config.mod
 
 # predict
 pred = agent(x_test)
-
 ```
 
 ## Results
+In order to see analyse results, several metrics have been considered:
+- **MSE**: Mean Squared Error
+- **MAE**: Mean Absolute Error
+- **R2**: R2 Score
+
+The best results are shown in the following table:
+| Model | MSE | MAE | R2 |
+|-------|-----|-----|----|
+| Encoder | 0.0296 | 0.1116 | 0.7671 |
+| Encoder + Decoder | - | - | -      |
+
+
+Some of the predictions are shown below:
+![Jaxer Predictions 1](./data/1.png)
+
+![Jaxer Predictions 2](./data/4.png)
+
+![Jaxer Predictions 3](./data/2.png)
+
+
+
+
 
 ## Contributors
 Rodrigo Sánchez Molina

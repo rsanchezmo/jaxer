@@ -14,6 +14,7 @@ from torch.utils.data import DataLoader
 import time
 import json
 from ..utils.plotter import plot_predictions
+from .logger import Logger
 
 
 def create_learning_rate_schedule(learning_rate: float, warmup_epochs: int, num_epochs: int, steps_per_epoch: int) -> optax.Schedule:
@@ -62,6 +63,8 @@ class TrainerBase:
 
         """ Best model state: eval purposes """
         self._best_model_state: Optional[train_state.TrainState] = None
+
+        self.logger = Logger("Trainer")
 
 
     def train_and_evaluate(self) -> None:
@@ -137,13 +140,12 @@ class FlaxTrainer(TrainerBase):
             for key, value in test_metrics.items():
                 self._summary_writer.add_scalar(f"Test/{key}", value, epoch)
             
-            print(" *********************** ")
-            print(f"Epoch: {epoch} \n"
-                f"    Learning Rate: {metrics['lr']:.2e} \n"
-                f"    Train Loss: {metrics['loss']:.4f} | Test Loss: {test_metrics['loss']:.4f} \n"
-                f"    Train MAE: {metrics['mae']:.4f}   | Test MAE: {test_metrics['mae']:.4f} \n"
-                f"    Train R2: {metrics['r2']:.4f}     | Test R2: {test_metrics['r2']:.4f}")
-            print(f"    Elapsed epoch time: {delta_time} seconds")
+            self.logger.info(f"Epoch: {epoch} \n"
+                f"                  Learning Rate: {metrics['lr']:.2e} \n"
+                f"                  Train Loss: {metrics['loss']:.4f} | Test Loss: {test_metrics['loss']:.4f} \n"
+                f"                  Train MAE:  {metrics['mae']:.4f} | Test MAE: {test_metrics['mae']:.4f} \n"
+                f"                  Train R2:   {metrics['r2']:.4f} | Test R2: {test_metrics['r2']:.4f}\n"
+                f"                  Elapsed time: {delta_time:.2f} seconds")
 
 
             if test_metrics["loss"] < best_loss:
@@ -274,11 +276,11 @@ class FlaxTrainer(TrainerBase):
 
         return metrics
     
-    def best_model_test(self, max_seqs: int = 10):
+    def best_model_test(self, max_seqs: int = 20):
         """ Generate images from the test set of the best model """
 
         # get test dataloader but with batch == 1
-        test_dataloader = DataLoader(self._test_ds, batch_size=1, collate_fn=jax_collate_fn)
+        test_dataloader = DataLoader(self._test_ds, batch_size=1, collate_fn=jax_collate_fn, shuffle=True)
         save_folder = os.path.join(self._log_dir, "best_model_test")
         os.makedirs(save_folder, exist_ok=True)
 
