@@ -123,10 +123,10 @@ class FlaxTrainer(TrainerBase):
 
             """ Training """
             # TODO: I HAVE A THOUGHT THAT I AM RESETING THE STATE BETWEEN EPOCHS!!!!
-            state, metrics = self._train_epoch(train_state, key)
+            train_state, metrics = self._train_epoch(train_state, key)
             
             """ Logging """
-            test_metrics = self._evaluate_step(state)
+            test_metrics = self._evaluate_step(train_state)
 
             end_time = time.time()
             delta_time = end_time - init_time
@@ -148,7 +148,7 @@ class FlaxTrainer(TrainerBase):
 
             if test_metrics["loss"] < best_loss:
                 best_loss = test_metrics["loss"]
-                self._save_best_model(epoch, state, test_metrics)
+                self._save_best_model(epoch, train_state, test_metrics)
                 # self.best_model_test()
 
 
@@ -238,7 +238,6 @@ class FlaxTrainer(TrainerBase):
             inputs, targets, _, _ = data
             step = state.step
             lr = self._learning_rate_fn(step)
-            print(lr)
             state, _metrics = self._model_train_step(state, inputs, targets, rng)
             metrics["mae"].append(_metrics["mae"])
             metrics["r2"].append(_metrics["r2"])
