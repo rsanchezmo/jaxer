@@ -39,12 +39,12 @@ class Config:
 
 
 config = ModelConfig(
-    d_model=128,
-    num_layers=4,
+    d_model=64,
+    num_layers=1,
     head_layers=2,
     n_heads=4,
-    dim_feedforward=256,
-    dropout=0.05,
+    dim_feedforward=128,
+    dropout=0.0,
     max_seq_len=30,
     input_features=5
 )

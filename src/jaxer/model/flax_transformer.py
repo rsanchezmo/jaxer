@@ -95,6 +95,9 @@ class ResidualBlock(nn.Module):
     @nn.compact
     def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
         inputs = x
+        
+        assert x.shape[-1] == self.feature_dim, f"Expected x to have {self.feature_dim} dimensions, got {x.shape[-1]}"
+
         x = nn.Dense(
             features=self.feature_dim,
             dtype=self.dtype,
@@ -118,14 +121,19 @@ class FeatureExtractor(nn.Module):
     def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
         """ Feature extractor based on residual MLP networks """
 
-        x = ResidualBlock(feature_dim=self.config.d_model,
-                          dtype=self.config.dtype,
-                          kernel_init=self.config.kernel_init,
-                          bias_init=self.config.bias_init)(x)
+        # first part of the network to get to the right dimension
+        x = nn.Dense(
+            features=self.config.d_model,
+            dtype=self.config.dtype,
+            kernel_init=self.config.kernel_init,
+            bias_init=self.config.bias_init,
+        )(x)
+        x = nn.gelu(x)
         x = nn.Dropout(rate=self.config.dropout)(
             x, deterministic=self.config.deterministic
         )
 
+        # some residual blocks
         x = ResidualBlock(feature_dim=self.config.d_model,
                           dtype=self.config.dtype,
                           kernel_init=self.config.kernel_init,
@@ -207,12 +215,12 @@ class Encoder(nn.Module):
 
         return x
     
-class Head(nn.module):
+class Head(nn.Module):
     config: TransformerConfig
 
     @nn.compact
     def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
-        for i in range(self.config.head_layers):
+        for _ in range(self.config.head_layers):
             x = ResidualBlock(feature_dim=self.config.d_model,
                                 dtype=self.config.dtype,
                                 kernel_init=self.config.kernel_init,
