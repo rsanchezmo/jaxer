@@ -57,7 +57,9 @@ The available information is:
 - Volume
 - Adjusted close price
 
-The dataset is implemented in PyTorch due to the easyness of creating a dataloader. However, as we are working with jax arrays, it was necessary to pass a function to the dataloader to map the torch tensors to jax.ndarrays. 
+Data must be normalized to avoid exploding gradients during training. Two normalization methods are implemented. First, a minmax normalization across the entire dataset. Second, a window minmax normalization. The second one seems more suitable to avoid losing too much resolution and also to ensure to work over time and not become obsolete (BTC may surpass the current max BTC price or volume).
+
+The dataset class is implemented in PyTorch due to the easyness of creating a dataloader. However, as we are working with jax arrays, it was necessary to pass a function to the dataloader to map the torch tensors to jax.ndarrays. 
 
 ### Model
 
