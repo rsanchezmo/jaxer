@@ -4,17 +4,21 @@ from typing import Tuple
 import numpy as np
 import torch.utils.data
 import jax.numpy as jnp
-from typing import Union
+from typing import Union, Optional
 
 
 class Dataset(torch.utils.data.Dataset):
-    def __init__(self, datapath: str, seq_len: int, norm_mode: str = 'window') -> None:
+    def __init__(self, datapath: str, seq_len: int, norm_mode: str = 'window', initial_date: Optional[str] = None) -> None:
         """ Reads a csv file """
         self._datapath = datapath
         self._data = pd.read_csv(self._datapath)
         self._data['Date'] = pd.to_datetime(self._data['Date'])
         self._data.set_index('Date', inplace=True)
         self._data.sort_index(inplace=True)
+
+        if initial_date is not None:
+            self._data = self._data[self._data.index >= initial_date]
+
         self._seq_len = seq_len
 
         if norm_mode not in ["window", "global", "none"]:
@@ -45,31 +49,36 @@ class Dataset(torch.utils.data.Dataset):
             min_vals = sequence_data_price.min().min()
             max_vals = sequence_data_price.max().max()
             normalizer_price = dict(min_val=min_vals, max_val=max_vals)
-        else:
-            normalizer_price = self._global_normalizer['price']
-        sequence_data_price = normalize(sequence_data_price, normalizer_price)
 
-        if self._norm_mode == "window":
             min_vals = sequence_data_volume.min().min()
             max_vals = sequence_data_volume.max().max()
             normalizer_volume = dict(min_val=min_vals, max_val=max_vals)
         else:
+            normalizer_price = self._global_normalizer['price']
             normalizer_volume = self._global_normalizer['volume']
+
+        sequence_data_price = normalize(sequence_data_price, normalizer_price)
         sequence_data_volume = normalize(sequence_data_volume, normalizer_volume)
 
         # Extract the label
         label_idx = index + self._seq_len
         label = self._data.iloc[label_idx]['Close']
         label = normalize(label, normalizer_price)
-
+    
         # Create a normalizer dict
         normalizer = dict(price=normalizer_price, volume=normalizer_volume)
 
         # Convert to NumPy arrays
-        sequence_data = np.array(sequence_data_price.join(sequence_data_volume), dtype=np.float32)
+        # sequence_data = np.array(sequence_data_price.join(sequence_data_volume), dtype=np.float32)
+        sequence_data = np.array(sequence_data_price, dtype=np.float32)
 
         label = np.array([label], dtype=np.float32)
-        return sequence_data, label, normalizer
+
+
+        # get the initial timestep
+        timestep = self._data.iloc[start_idx].name
+
+        return sequence_data, label, normalizer, timestep.strftime("%Y-%m-%d")
 
     def __len__(self) -> int:
         return len(self._data) - self._seq_len
@@ -107,9 +116,10 @@ def jax_collate_fn(batch):
     jax_inputs = [jnp.array(item[0]) for item in batch]
     jax_labels = [jnp.array(item[1]) for item in batch]
     norms = [item[2] for item in batch]
+    timesteps = [item[3] for item in batch]
 
     # Stack them to create batched JAX arrays
     batched_jax_inputs = jnp.stack(jax_inputs)
     batched_jax_labels = jnp.stack(jax_labels)
 
-    return batched_jax_inputs, batched_jax_labels, norms
+    return batched_jax_inputs, batched_jax_labels, norms, timesteps

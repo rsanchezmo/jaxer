@@ -16,7 +16,7 @@ class Color:
     yellow = np.array([255, 195, 0]) / 255.
 
 def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, y_pred: jnp.ndarray, name: str, foldername: Optional[str] = None,
-                     normalizer: Optional[Dict] = None) -> None:
+                     normalizer: Optional[Dict] = None, initial_date: Optional[str] = None) -> None:
     """ Function to plot prediction and results """
 
     if normalizer is None:
@@ -60,11 +60,11 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, y_pred: jnp.ndarra
     axs[1, 0].legend()
 
     """ Plot volume """
-    volume_data = denormalize(input[:, 5], normalizer["volume"])
-    axs[1, 1].plot(base, volume_data, label='Volume', color=Color.yellow,  linewidth=4, marker='o', markersize=8)
-    axs[1, 1].set_ylabel('Volume', fontsize=18, fontweight='bold')
-    axs[1, 1].set_xlabel('Date [Sequence]', fontsize=18, fontweight='bold')
-    axs[1, 1].legend()
+    # volume_data = denormalize(input[:, 5], normalizer["volume"])
+    # axs[1, 1].plot(base, volume_data, label='Volume', color=Color.yellow,  linewidth=4, marker='o', markersize=8)
+    # axs[1, 1].set_ylabel('Volume', fontsize=18, fontweight='bold')
+    # axs[1, 1].set_xlabel('Date [Sequence]', fontsize=18, fontweight='bold')
+    # axs[1, 1].legend()
 
     """ Plot adj close price """
     adj_close_data = denormalize(input[:, 4], normalizer["price"])
@@ -72,8 +72,12 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, y_pred: jnp.ndarra
     axs[1, 2].set_ylabel('Adj Close Price [$]', fontsize=18, fontweight='bold')
     axs[1, 2].set_xlabel('Date [Sequence]', fontsize=18, fontweight='bold')
     axs[1, 2].legend()
-
-    plt.suptitle(f'Jaxer Predictor || Error {error:.2f} $', fontsize=20, fontweight='bold')
+    
+    if initial_date is not None:
+        title = f'Jaxer Predictor || Error {error:.2f} $ || Initial Date: {initial_date}' 
+    else:
+        title = f'Jaxer Predictor || Error {error:.2f} $'
+    plt.suptitle(title, fontsize=20, fontweight='bold')
     plt.grid(True)
     plt.tight_layout()
     

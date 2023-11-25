@@ -36,7 +36,8 @@ class TrainerBase:
         
 
         """ Dataloaders """
-        dataset = Dataset(self._config.dataset_path, self._config.model_config.max_seq_len, norm_mode=self._config.normalizer_mode)
+        dataset = Dataset(self._config.dataset_path, self._config.model_config.max_seq_len, norm_mode=self._config.normalizer_mode,
+                          initial_date='2021-01-01')
         self._train_ds, self._test_ds = dataset.get_train_test_split(test_size=self._config.test_split)
         self._train_dataloader = DataLoader(self._train_ds, batch_size=self._config.batch_size, shuffle=True, collate_fn=jax_collate_fn)
         self._test_dataloader = DataLoader(self._test_ds, batch_size=self._config.batch_size, shuffle=True, collate_fn=jax_collate_fn)
@@ -72,6 +73,7 @@ class FlaxTrainer(TrainerBase):
         self._flax_model_config = TransformerConfig(
             d_model=self._config.model_config.d_model,
             num_layers=self._config.model_config.num_layers,
+            head_layers=self._config.model_config.head_layers,
             n_heads=self._config.model_config.n_heads,
             dim_feedforward=self._config.model_config.dim_feedforward,
             dropout=self._config.model_config.dropout,
@@ -210,7 +212,7 @@ class FlaxTrainer(TrainerBase):
 
         metrics = {"mae": [], "r2": [], "loss": []}
         for data in self._train_dataloader:
-            inputs, targets, _ = data
+            inputs, targets, _, _ = data
             state, _metrics = self._model_train_step(state, inputs, targets, rng)
             metrics["mae"].append(_metrics["mae"])
             metrics["r2"].append(_metrics["r2"])
@@ -230,7 +232,7 @@ class FlaxTrainer(TrainerBase):
 
         metrics = {"mae": [], "r2": [], "loss": []}
         for data in self._test_dataloader:
-            inputs, targets, _ = data
+            inputs, targets, _, _ = data
             _, _metrics = self._model_eval_step(state, inputs, targets, config=self._flax_model_config_eval)
             metrics["mae"].append(_metrics["mae"])
             metrics["r2"].append(_metrics["r2"])
@@ -255,7 +257,7 @@ class FlaxTrainer(TrainerBase):
 
         counter = 0
         for i, data in enumerate(test_dataloader):
-            inputs, targets, normalizer = data
+            inputs, targets, normalizer, _ = data
             predictions = self._eval_model.apply(self._best_model_state.params, inputs)
             plot_predictions(inputs.squeeze(0), targets.squeeze(0), predictions.squeeze(0), i, save_folder, normalizer=normalizer[0])
             counter += 1

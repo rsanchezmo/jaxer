@@ -1,4 +1,4 @@
-from typing import Optional, Callable
+from typing import Any, Optional, Callable
 from flax import linen as nn
 import jax.numpy as jnp
 from flax import struct
@@ -10,6 +10,7 @@ class TransformerConfig:
     d_model: int = 512
     n_heads: int = 8
     num_layers: int = 6
+    head_layers: int = 2
     dim_feedforward: int = 2048
     max_seq_len: int = 256
     dropout: float = 0.0
@@ -84,20 +85,59 @@ class AddPositionalEncoding(nn.Module):
 
         return x + pe
     
-class FeatureEmbedding(nn.Module):
+
+class ResidualBlock(nn.Module):
+    dtype: jnp.dtype
+    feature_dim: int
+    kernel_init: Callable
+    bias_init: Callable
+
+    @nn.compact
+    def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
+        inputs = x
+        x = nn.Dense(
+            features=self.feature_dim,
+            dtype=self.dtype,
+            kernel_init=self.kernel_init,
+            bias_init=self.bias_init,
+        )(x)
+        
+        x = nn.gelu(x) 
+
+        x = inputs + x
+
+        x = nn.LayerNorm()(x)
+
+        return x
+
+    
+class FeatureExtractor(nn.Module):
     config: TransformerConfig
 
     @nn.compact
     def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
-        """ Applies the feature embedding module """
+        """ Feature extractor based on residual MLP networks """
 
-        x = nn.Dense(
-            features=self.config.d_model,
-            dtype=self.config.dtype,
-            kernel_init=self.config.kernel_init,
-            bias_init=self.config.bias_init,
-        )(x)
-        x = nn.gelu(x)
+        x = ResidualBlock(feature_dim=self.config.d_model,
+                          dtype=self.config.dtype,
+                          kernel_init=self.config.kernel_init,
+                          bias_init=self.config.bias_init)(x)
+        x = nn.Dropout(rate=self.config.dropout)(
+            x, deterministic=self.config.deterministic
+        )
+
+        x = ResidualBlock(feature_dim=self.config.d_model,
+                          dtype=self.config.dtype,
+                          kernel_init=self.config.kernel_init,
+                          bias_init=self.config.bias_init)(x)
+        x = nn.Dropout(rate=self.config.dropout)(
+            x, deterministic=self.config.deterministic
+        )
+
+        x = ResidualBlock(feature_dim=self.config.d_model,
+                          dtype=self.config.dtype,
+                          kernel_init=self.config.kernel_init,
+                          bias_init=self.config.bias_init)(x)
         x = nn.Dropout(rate=self.config.dropout)(
             x, deterministic=self.config.deterministic
         )
@@ -150,7 +190,7 @@ class Encoder(nn.Module):
         """ Applies the encoder module """
 
         """ Feature Embeddings"""
-        x = FeatureEmbedding(
+        x = FeatureExtractor(
             config=self.config
         )(x)
 
@@ -166,6 +206,26 @@ class Encoder(nn.Module):
             )(x)
 
         return x
+    
+class Head(nn.module):
+    config: TransformerConfig
+
+    @nn.compact
+    def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
+        for i in range(self.config.head_layers):
+            x = ResidualBlock(feature_dim=self.config.d_model,
+                                dtype=self.config.dtype,
+                                kernel_init=self.config.kernel_init,
+                                bias_init=self.config.bias_init)(x)
+            
+        x = nn.Dense(
+            features=1,
+            dtype=self.config.dtype,
+            kernel_init=self.config.kernel_init,
+            bias_init=self.config.bias_init,
+        )(x)
+
+        return x
 
 class Transformer(nn.Module):
     config: TransformerConfig
@@ -175,19 +235,14 @@ class Transformer(nn.Module):
         """ Applies the transformer module """
 
         """ Encoder """
-        encoded = Encoder(
+        x = Encoder(
             config=self.config
         )(x)
 
         """ Regression Head """
-        x = nn.LayerNorm(dtype=self.config.dtype)(encoded)
-        x = nn.Dense(
-            features=1,
-            dtype=self.config.dtype,
-            kernel_init=self.config.kernel_init,
-            bias_init=self.config.bias_init,
-        )(x)
-
+        x = nn.LayerNorm(dtype=self.config.dtype)(x)
         x = x[:, -1, :]
+
+        x = Head(config=self.config)(x)
 
         return x
