@@ -21,6 +21,7 @@ class Config:
     experiment_name: str
     num_epochs: int
     learning_rate: float
+    warmup_epochs: int
     dataset_path: str
     batch_size: int
     test_split: float

@@ -16,6 +16,21 @@ import json
 from ..utils.plotter import plot_predictions
 
 
+def create_learning_rate_schedule(learning_rate: float, warmup_epochs: int, num_epochs: int, steps_per_epoch: int) -> optax.Schedule:
+    """Creates learning rate schedule."""
+    warmup_fn = optax.linear_schedule(
+        init_value=0., end_value=learning_rate,
+        transition_steps=warmup_epochs * steps_per_epoch)
+    cosine_epochs = max(num_epochs - warmup_epochs, 1)
+    cosine_fn = optax.cosine_decay_schedule(
+        init_value=learning_rate,
+        decay_steps=cosine_epochs * steps_per_epoch)
+    schedule_fn = optax.join_schedules(
+        schedules=[warmup_fn, cosine_fn],
+        boundaries=[warmup_epochs * steps_per_epoch])
+    return schedule_fn
+
+
 class TrainerBase:
     def __init__(self, config: Config) -> None:
         """ Trainer Base Class: All trainers should inherit from this, FLAX or PyTorch [in the future] """
@@ -36,8 +51,7 @@ class TrainerBase:
         
 
         """ Dataloaders """
-        dataset = Dataset(self._config.dataset_path, self._config.model_config.max_seq_len, norm_mode=self._config.normalizer_mode,
-                          initial_date='2021-01-01')
+        dataset = Dataset(self._config.dataset_path, self._config.model_config.max_seq_len, norm_mode=self._config.normalizer_mode)
         self._train_ds, self._test_ds = dataset.get_train_test_split(test_size=self._config.test_split)
         self._train_dataloader = DataLoader(self._train_ds, batch_size=self._config.batch_size, shuffle=True, collate_fn=jax_collate_fn)
         self._test_dataloader = DataLoader(self._test_ds, batch_size=self._config.batch_size, shuffle=True, collate_fn=jax_collate_fn)
@@ -84,6 +98,8 @@ class FlaxTrainer(TrainerBase):
 
         self._flax_model_config_eval = self._flax_model_config.replace(deterministic=True)
 
+        self._learning_rate_fn = None
+
 
     def _warmup_eval(self, state: train_state.TrainState) -> None:
         """ Warmup models """
@@ -106,7 +122,8 @@ class FlaxTrainer(TrainerBase):
             rng, key = jax.random.split(rng) # creates a new subkey
 
             """ Training """
-            state, metrics = self._train_step(train_state, key)
+            # TODO: I HAVE A THOUGHT THAT I AM RESETING THE STATE BETWEEN EPOCHS!!!!
+            state, metrics = self._train_epoch(train_state, key)
             
             """ Logging """
             test_metrics = self._evaluate_step(state)
@@ -122,6 +139,7 @@ class FlaxTrainer(TrainerBase):
             
             print(" *********************** ")
             print(f"Epoch: {epoch} \n"
+                f"    Learning Rate: {metrics['lr']:.2e} \n"
                 f"    Train Loss: {metrics['loss']:.4f} | Test Loss: {test_metrics['loss']:.4f} \n"
                 f"    Train MAE: {metrics['mae']:.4f}   | Test MAE: {test_metrics['mae']:.4f} \n"
                 f"    Train R2: {metrics['r2']:.4f}     | Test R2: {test_metrics['r2']:.4f}")
@@ -164,8 +182,13 @@ class FlaxTrainer(TrainerBase):
         """ call the init func, that returns a pytree with the model params. Have to initialize the dropouts too """
         params =  model.init({"dropout": key_dropout, "params": key_params}, jnp.ones((input_shape), dtype=jnp.float32))
 
+        """ Create lr scheduler """
+        steps_per_epoch = len(self._train_dataloader)
+        self._learning_rate_fn = create_learning_rate_schedule(learning_rate=self._config.learning_rate, warmup_epochs=self._config.warmup_epochs,
+                                                               num_epochs=self._config.num_epochs, steps_per_epoch=steps_per_epoch)
+
         """ Create optimizer """
-        tx = optax.adamw(learning_rate=self._config.learning_rate)
+        tx = optax.adamw(self._learning_rate_fn)
 
         """ wrap params, apply_fn and tx in a TrainState, to not keep passing them around """
         return train_state.TrainState.create(apply_fn=model.apply, params=params, tx=tx)
@@ -207,17 +230,22 @@ class FlaxTrainer(TrainerBase):
 
         return state, metrics  
 
-    def _train_step(self, state: train_state.TrainState, rng: jax.random.PRNGKey) -> Tuple[train_state.TrainState, Dict]:
+    def _train_epoch(self, state: train_state.TrainState, rng: jax.random.PRNGKey) -> Tuple[train_state.TrainState, Dict]:
         """ Runs a training step """
 
         metrics = {"mae": [], "r2": [], "loss": []}
         for data in self._train_dataloader:
             inputs, targets, _, _ = data
+            step = state.step
+            lr = self._learning_rate_fn(step)
+            print(lr)
             state, _metrics = self._model_train_step(state, inputs, targets, rng)
             metrics["mae"].append(_metrics["mae"])
             metrics["r2"].append(_metrics["r2"])
             metrics["loss"].append(_metrics["loss"])
 
+
+        metrics["lr"] = jax.device_get(lr)
         metrics["mae"] = jnp.mean(jnp.array(metrics["mae"]))
         metrics["mae"] = jax.device_get(metrics["mae"])
         metrics["r2"] = jnp.mean(jnp.array(metrics["r2"]))

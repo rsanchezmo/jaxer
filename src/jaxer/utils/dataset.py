@@ -69,8 +69,7 @@ class Dataset(torch.utils.data.Dataset):
         normalizer = dict(price=normalizer_price, volume=normalizer_volume)
 
         # Convert to NumPy arrays
-        # sequence_data = np.array(sequence_data_price.join(sequence_data_volume), dtype=np.float32)
-        sequence_data = np.array(sequence_data_price, dtype=np.float32)
+        sequence_data = np.array(sequence_data_price.join(sequence_data_volume), dtype=np.float32)
 
         label = np.array([label], dtype=np.float32)
 
