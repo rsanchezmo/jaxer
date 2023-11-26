@@ -14,8 +14,9 @@ class Color:
     orange = np.array([255, 85, 1]) / 255.
     purple = np.array([114, 62, 148]) / 255.
     yellow = np.array([255, 195, 0]) / 255.
+    red = np.array([205, 92, 92]) / 255.
 
-def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, y_pred: jnp.ndarray, name: str, foldername: Optional[str] = None,
+def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, y_pred: jnp.ndarray, variances: jnp.ndarray, name: str, foldername: Optional[str] = None,
                      normalizer: Optional[Dict] = None, initial_date: Optional[str] = None) -> None:
     """ Function to plot prediction and results """
 
@@ -37,6 +38,12 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, y_pred: jnp.ndarra
     axs[0, 0].plot(base, sequence_data, label='Close Price', color=Color.blue,  linewidth=4, marker='o', markersize=8)
     axs[0, 0].plot(base_pred, real_data, label='Next Day Real', color=Color.orange, linewidth=4, marker='o', markersize=8)
     axs[0, 0].plot(base_pred, prediction_data, label='Next Day Pred', color=Color.green, linewidth=4, marker='o', markersize=8)
+
+    # Add error bars
+    std_dev = denormalize(jnp.sqrt(variances), normalizer["price"])
+    axs[0, 0].errorbar(base_pred[1], prediction_data[1], yerr=std_dev, fmt='o', color=Color.green, capsize=5, linewidth=2, markersize=4)
+
+
     axs[0, 0].set_ylabel('Close Price [$]', fontsize=18, fontweight='bold')
     axs[0, 0].legend()
 

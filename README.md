@@ -1,5 +1,5 @@
-# JAXER
-Jax and Flax Time Series Prediction Transformer. The goal of this repo is to learn [**Jax**](https://jax.readthedocs.io/en/latest/) and [**Flax**](https://flax.readthedocs.io/en/latest/) by implementing a deep learning model. I just wanted to test the easyness, speed and robustness of this new libraries compared to PyTorch or Tensorflow. 
+# Jaxer
+Jax and Flax Time Series Prediction Transformer. The goal of this repo is to learn [**Jax**](https://jax.readthedocs.io/en/latest/) and [**Flax**](https://flax.readthedocs.io/en/latest/) by implementing a deep learning model.
 
 In this case, a **transformer** for time series prediction. I have decided to predict BTC due to the availability of the data. However, this could be used for any other time series data, such as market stocks.
 
@@ -22,6 +22,7 @@ Render of a transformer model as a hologram, projecting from a digital device, w
 - Create an agent that loads the model and act as a predictor ✔️
 - Add a logger to the trainer class ✔️
 - Add a lr scheduler to the trainer class: warmup cosine scheduler ✔️
+- Make the prediction head output a distribution instead of a single value to cover uncertainaty ✔️
 
 ## Installation
 
@@ -68,17 +69,19 @@ The dataset class is implemented in PyTorch due to the easyness of creating a da
 
 Model is implemented in Flax. Feature extractors and prediction head consist on an MLP with residual blocks and layer normalization. The encoder consists on L x Encoder blocks with self attention. layer norms and feedforwarding. The output of the encoder is flattened to feed the prediction head. Each token of the output sequence contains the "context" of the others related to itself. 
 
-We could get the last token instead of flattening the encoder output, but as we are not masking the attention, each contextual embedding can be valuable for the prediction head. However, this is something I am exploring these days. The need to mask the attention, and if not, the need to use the positional encoding.  
+We could get the last token instead of flattening the encoder output, but as we are not masking the attention, each contextual embedding can be valuable for the prediction head. However, this is something I am exploring these days. The need to mask the attention, and if not, the need to use the positional encoding.
+
+The output of the prediction head is a probability distribution. I want to have a better understanding of the uncertainty of the model, so I have decided to use a distribution instead of a single value. The distribution is a normal distribution with mean and variance. By doing so, the loss function is the negative log likelihood of the distribution.
 
 ## Usage
 ### Training
-Set the configuration parameters in the `training_config.py` file. The training is made really easy:
+Set the configuration parameters in the `training_config.py` file. The training of the model is made really easy, as simple as creating a trainer and calling the `train_and_evaluate` method:
 
 ```python
 from jaxer.utils.trainer import FlaxTrainer as Trainer
-from training_config import training_config
+from training_config import config
 
-trainer = Trainer(config=training_config)
+trainer = Trainer(config=config)
 trainer.train_and_evaluate()
 ```
 
@@ -101,14 +104,14 @@ pred = agent(x_test)
 
 ## Results
 In order to analyze and compare results, several metrics have been considered:
-- **MSE**: Mean Squared Error
-- **MAE**: Mean Absolute Error
-- **R2**: R2 Score
+- **NLL**: Negative Log Likelihood. The lower the value, the better the model as the model assigns more probability to the real value.
+- **MAE**: Mean Absolute Error. The lower the value, the better the model as the mean of the distribution is closer to the real value.
+- **R2**: R2 Score. The higher the value, the better the model as the model explains more variance of the data.
 
-The best results are shown in the following table. The evaluation is computed on the test set which is the 20% of the whole dataset.
-| Model | MSE | MAE | R2 |
+The best test results are shown in the following table. The evaluation is computed on the test set which is the 20% of the whole dataset.
+| Model | NLL | MAE | R2 |
 |:-------:|:-----:|:-----:|:----:|
-| Encoder | 0.0296 | 0.1116 | 0.7671 |
+| Encoder | -0.8547 | 0.0704 | 0.8818 |
 | Encoder + Decoder | - | - | -      |
 
 

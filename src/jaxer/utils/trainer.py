@@ -81,6 +81,11 @@ class TrainerBase:
         """ Loads a model checkpoint """
         ckpt = self._orbax_checkpoint.restore(os.path.join(self._ckpts_dir, epoch))
         return ckpt['model']
+    
+
+@jax.jit
+def gaussian_negative_log_likelihood(mean: jnp.ndarray, variance: jnp.ndarray, targets: jnp.ndarray):
+    return jnp.mean(0.5 * jnp.log(2 * jnp.pi * variance) + 0.5 * ((targets - mean) ** 2) / variance)
 
 
 class FlaxTrainer(TrainerBase):
@@ -96,7 +101,8 @@ class FlaxTrainer(TrainerBase):
             dropout=self._config.model_config.dropout,
             max_seq_len=self._config.model_config.max_seq_len,
             dtype=jnp.float32,
-            deterministic=False
+            deterministic=False,
+            flatten_encoder_output=self._config.model_config.flatten_encoder_output
         )
 
         self._flax_model_config_eval = self._flax_model_config.replace(deterministic=True)
@@ -200,9 +206,10 @@ class FlaxTrainer(TrainerBase):
     @jax.jit
     def _compute_metrics(predictions: jnp.ndarray, targets: jnp.ndarray) -> Dict:
         """ Computes metrics """
-        loss = jnp.mean((predictions - targets) ** 2)
-        mae = jnp.mean(jnp.abs(predictions - targets))
-        r2 = 1 - jnp.sum((predictions - targets)**2) / jnp.sum((targets - jnp.mean(targets))**2)
+        means, variances = predictions
+        loss = gaussian_negative_log_likelihood(means, variances, targets)
+        mae = jnp.mean(jnp.abs(means - targets))
+        r2 = 1 - jnp.sum((means - targets)**2) / jnp.sum((targets - jnp.mean(targets))**2)
         return {"mae": mae, "r2": r2, "loss": loss}
 
     @staticmethod
@@ -211,10 +218,11 @@ class FlaxTrainer(TrainerBase):
                      rng: jax.random.PRNGKey) -> jnp.ndarray:
 
         def loss_fn(params):
-            predictions = state.apply_fn(params, inputs, rngs={"dropout": rng})
-            loss = jnp.mean((predictions - targets) ** 2)  # MSE loss
-            mae = jnp.mean(jnp.abs(predictions - targets))  # MAE loss
-            r2 = 1 - jnp.sum((predictions - targets)**2) / jnp.sum((targets - jnp.mean(targets))**2)  # R2 loss
+            means, variances = state.apply_fn(params, inputs, rngs={"dropout": rng})
+            loss = gaussian_negative_log_likelihood(means, variances, targets)
+
+            mae = jnp.mean(jnp.abs(means - targets))  # MAE loss
+            r2 = 1 - jnp.sum((means - targets)**2) / jnp.sum((targets - jnp.mean(targets))**2)  # R2 loss
             return loss, (mae, r2)
 
         (loss, (mae, r2)), grads  = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
@@ -287,8 +295,8 @@ class FlaxTrainer(TrainerBase):
         counter = 0
         for i, data in enumerate(test_dataloader):
             inputs, targets, normalizer, _ = data
-            predictions = self._eval_model.apply(self._best_model_state.params, inputs)
-            plot_predictions(inputs.squeeze(0), targets.squeeze(0), predictions.squeeze(0), i, save_folder, normalizer=normalizer[0])
+            means, variances = self._eval_model.apply(self._best_model_state.params, inputs)
+            plot_predictions(inputs.squeeze(0), targets.squeeze(0), means.squeeze(0), variances.squeeze(0), i, save_folder, normalizer=normalizer[0])
             counter += 1
             if counter == max_seqs:
                 break

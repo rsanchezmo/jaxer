@@ -18,6 +18,7 @@ class TransformerConfig:
     kernel_init: Callable = nn.initializers.xavier_uniform()
     bias_init: Callable = nn.initializers.normal(stddev=1e-6)
     deterministic: bool = False
+    flatten_encoder_output: bool = False
 
 class FeedForwardBlock(nn.Module):
     config: TransformerConfig
@@ -215,19 +216,28 @@ class Encoder(nn.Module):
 
         return x
     
-class Head(nn.Module):
+class PredictionHead(nn.Module):
     config: TransformerConfig
 
     @nn.compact
     def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
-        for _ in range(self.config.head_layers):
+        
+        if self.config.flatten_encoder_output:
+            """ to adapt the size to be able to use the residual blocks as they expect the same size across the block """
+            x = nn.Dense(features=self.config.d_model,
+                        dtype=self.config.dtype,
+                        kernel_init=self.config.kernel_init,
+                        bias_init=self.config.bias_init)(x)
+            x = nn.gelu(x)
+                        
+        for _ in range(self.config.head_layers - 1):
             x = ResidualBlock(feature_dim=self.config.d_model,
                                 dtype=self.config.dtype,
                                 kernel_init=self.config.kernel_init,
                                 bias_init=self.config.bias_init)(x)
             
         x = nn.Dense(
-            features=1,
+            features=2,  # predict the mean and the variance
             dtype=self.config.dtype,
             kernel_init=self.config.kernel_init,
             bias_init=self.config.bias_init,
@@ -249,8 +259,18 @@ class Transformer(nn.Module):
 
         """ Regression Head """
         x = nn.LayerNorm(dtype=self.config.dtype)(x)
-        x = x[:, -1, :]
 
-        x = Head(config=self.config)(x)
+        # flatten the output:
+        if self.config.flatten_encoder_output:
+            x = x.reshape((x.shape[0], -1))
+        else:
+            x = x[:, -1, :]
 
-        return x
+        x = PredictionHead(config=self.config)(x)
+
+
+        """ output a probability distribution """
+        mean, log_variance = jnp.split(x, 2, axis=-1)
+        variance = jnp.exp(log_variance)
+
+        return mean, variance

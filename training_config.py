@@ -1,21 +1,22 @@
 from jaxer.utils.config import ModelConfig, Config
 
 
-config = ModelConfig(
-    d_model=32,
+model_config = ModelConfig(
+    d_model=64,
     num_layers=2,
     head_layers=2,
     n_heads=2,
-    dim_feedforward=64,
+    dim_feedforward=4*64,  # 4 * d_model
     dropout=0.05,
-    max_seq_len=20,
-    input_features=6
+    max_seq_len=40,
+    input_features=6,
+    flatten_encoder_output=False
 )
 
-training_config = Config(
-    model_config=config,
+config = Config(
+    model_config=model_config,
     log_dir="results",
-    experiment_name="fixed_short",
+    experiment_name="distribution",
     num_epochs=100,
     learning_rate=5e-4,
     warmup_epochs=20,

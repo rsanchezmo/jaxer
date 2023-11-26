@@ -13,6 +13,7 @@ class ModelConfig:
     dropout: float
     max_seq_len: int
     input_features: int
+    flatten_encoder_output: int
 
 @dataclass
 class Config:
