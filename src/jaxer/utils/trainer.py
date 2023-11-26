@@ -142,9 +142,9 @@ class FlaxTrainer(TrainerBase):
 
             """ Logging """
             for key, value in metrics.items():
-                self._summary_writer.add_scalar(f"Train/{key}", value, epoch)
+                self._summary_writer.add_scalar(f"train/{key}", value, epoch)
             for key, value in test_metrics.items():
-                self._summary_writer.add_scalar(f"Test/{key}", value, epoch)
+                self._summary_writer.add_scalar(f"test/{key}", value, epoch)
             
             self.logger.info(f"Epoch: {epoch} \n"
                 f"                  Learning Rate: {metrics['lr']:.2e} \n"

@@ -20,6 +20,7 @@ Render of a transformer model as a hologram, projecting from a digital device, w
     - **Encoder** only (next day prediction) ✔️
     - **Encoder + Decoder** (N days predictions)
 - Create an agent that loads the model and act as a predictor ✔️
+- Add tensorboard support to the trainer class ✔️
 - Add a logger to the trainer class ✔️
 - Add a lr scheduler to the trainer class: warmup cosine scheduler ✔️
 - Make the prediction head output a distribution instead of a single value to cover uncertainaty ✔️
@@ -54,7 +55,7 @@ The dataset has been downloaded from [Yahoo Finance](https://es.finance.yahoo.co
 
 The available information is:
 - Low/High price
-- Close price -> Open price will not be used as it is the same as the previous close price, so information is redundant.
+- Close price -> Open price will not be used as it is the same as the previous close price. We want to avoid redundant information.
 - Volume
 - Adjusted close price
 
@@ -108,14 +109,15 @@ In order to analyze and compare results, several metrics have been considered:
 - **MAE**: Mean Absolute Error. The lower the value, the better the model as the mean of the distribution is closer to the real value.
 - **R2**: R2 Score. The higher the value, the better the model as the model explains more variance of the data.
 
-The best test results are shown in the following table. The evaluation is computed on the test set which is the 20% of the whole dataset.
+The best test results are shown in the following table. The evaluation is computed on the test set which is the 10% of the whole dataset.
 | Model | NLL | MAE | R2 |
 |:-------:|:-----:|:-----:|:----:|
 | Encoder | -0.8547 | 0.0704 | 0.8818 |
 | Encoder + Decoder | - | - | -      |
 
 
-Some of the predictions are shown below:
+Some of the predictions are shown below. As we are predicting a distirbution, the 95% confidence interval is shown in the plots in order to have a better understanding of the uncertainty of the model. The upper and lower bounds are computed as ```[mean + 1.96*std, mean - 1.96*std]``` respectively.
+
 ![Jaxer Predictions 1](./data/1.png)
 
 ![Jaxer Predictions 2](./data/4.png)
@@ -124,15 +126,17 @@ Some of the predictions are shown below:
 
 ## Conclusions
 - Jax and Flax are easy to use once you learn the basics. I have tried to make the code as simple as possible so it can be easily understood, encapsulating the complexity of the libraries.
-- The model is not able to predict very accurately the price of BTC. It may be related to the scarcity of the variables used to predict the price. It would be interseting to add some market news or other variables to the model.
-- The general idea from this repo is that the transformer can be applied to time series prediction, and can be implemented with state of the art libraries such as Jax and Flax from DeepMind. 
+- The model performance is not bad at all considering the input information that feeds the model. However, dataset size is small due to one day resolution. Increasing resolution may improve the model performance. 
+- The general idea from this repo is that the transformer can be applied to time series prediction, and can be implemented with state of the art gpu accelerated deep learning libraries such as Jax and Flax. 
 
 ## Future Work
 - Compare the model against other models such as LSTM or GRU.
+- Increase time resolution to predict intraday prices (e.g. 1h).
 - Add more variables to the model to improve accuracy such as market sentiment analysis. 
 - Compare speed and performance against other libraries such as PyTorch or Tensorflow.
 
 ## Contributors
 Rodrigo Sánchez Molina
 - Email: rsanchezm98@gmail.com
-- [Linkedin](https://www.linkedin.com/in/rsanchezm98/)
+- Linkedin: [rsanchezm98](https://www.linkedin.com/in/rsanchezm98/)
+- Github: [rsanchezmo](https://github.com/rsanchezmo)

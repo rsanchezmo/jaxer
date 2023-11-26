@@ -29,7 +29,7 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, y_pred: jnp.ndarra
     fig = plt.figure(figsize=(20, 12))
 
     # Crear un GridSpec con dos filas y tres columnas
-    gs = gridspec.GridSpec(2, 3, height_ratios=[1, 2])
+    gs = gridspec.GridSpec(2, 3, height_ratios=[1, 1])
 
     # Añadir subplots
     ax0 = plt.subplot(gs[0, :])  # El primer gráfico abarca todas las columnas
