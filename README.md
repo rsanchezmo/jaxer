@@ -54,7 +54,7 @@ The dataset has been downloaded from [Yahoo Finance](https://es.finance.yahoo.co
 
 The available information is:
 - Low/High price
-- Open/Close price
+- Close price -> Open price will not be used as it is the same as the previous close price, so information is redundant.
 - Volume
 - Adjusted close price
 

@@ -42,7 +42,7 @@ class Dataset(torch.utils.data.Dataset):
     def __getitem__(self, index) -> Tuple[np.ndarray, np.ndarray, dict]:
         start_idx = index
         end_idx = index + self._seq_len
-        sequence_data_price = self._data.iloc[start_idx:end_idx][['Open', 'Close', 'High', 'Low', 'Adj Close']] 
+        sequence_data_price = self._data.iloc[start_idx:end_idx][['Close', 'High', 'Low', 'Adj Close']] 
         sequence_data_volume = self._data.iloc[start_idx:end_idx][['Volume']]
 
         if self._norm_mode == "window":

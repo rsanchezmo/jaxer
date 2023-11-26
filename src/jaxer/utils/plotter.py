@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from matplotlib import gridspec
 import jax.numpy as jnp
 import numpy as np
 from dataclasses import dataclass
@@ -24,7 +25,21 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, y_pred: jnp.ndarra
         normalizer = {key: dict(min_val=0, max_val=1) for key in ["price", "volume"]}
 
     plt.style.use('ggplot')
-    fig, axs = plt.subplots(nrows=2, ncols=3, figsize=(20, 12), sharex=True)
+
+    fig = plt.figure(figsize=(20, 12))
+
+    # Crear un GridSpec con dos filas y tres columnas
+    gs = gridspec.GridSpec(2, 3, height_ratios=[1, 2])
+
+    # Añadir subplots
+    ax0 = plt.subplot(gs[0, :])  # El primer gráfico abarca todas las columnas
+    ax1 = plt.subplot(gs[1, 0])  # Segundo gráfico (inferior izquierdo)
+    ax2 = plt.subplot(gs[1, 1])  # Tercer gráfico (inferior central)
+    ax3 = plt.subplot(gs[1, 2])  # Cuarto gráfico (inferior derecho)
+
+
+    linewidth = 3
+    marker_size = 4
 
     sequence_data = denormalize(input[:, 1], normalizer["price"])
     prediction_data = jnp.append(sequence_data[-1], denormalize(y_pred[0], normalizer["price"]))
@@ -34,55 +49,51 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, y_pred: jnp.ndarra
     base_pred = jnp.array([len(sequence_data)-1, len(sequence_data)])
     error = jnp.abs(real_data[-1] - prediction_data[-1])
 
+    #open_data = denormalize(input[:, 0], normalizer["price"])
+
     """ Plot close price """
-    axs[0, 0].plot(base, sequence_data, label='Close Price', color=Color.blue,  linewidth=4, marker='o', markersize=8)
-    axs[0, 0].plot(base_pred, real_data, label='Next Day Real', color=Color.orange, linewidth=4, marker='o', markersize=8)
-    axs[0, 0].plot(base_pred, prediction_data, label='Next Day Pred', color=Color.green, linewidth=4, marker='o', markersize=8)
+    ax0.plot(base, sequence_data, label='Close Price', color=Color.blue,  linewidth=linewidth, marker='o', markersize=marker_size)
+    ax0.plot(base_pred, real_data, label='Next Day Real', color=Color.orange, linewidth=linewidth, marker='o', markersize=marker_size)
+    ax0.plot(base_pred, prediction_data, label='Next Day Pred', color=Color.green, linewidth=linewidth, marker='o', markersize=marker_size)
+    #ax0.plot(base, open_data, label='Open Price', color=Color.red,  linewidth=linewidth, marker='o', markersize=marker_size)
+
 
     # Add error bars
-    std_dev = denormalize(jnp.sqrt(variances), normalizer=normalizer["price"])
-    upper_bound = [sequence_data[-1], float(prediction_data[-1]) + float(std_dev)]
-    lower_bound = [sequence_data[-1], float(prediction_data[-1]) - float(std_dev)]
+    variances = denormalize(variances, normalizer=normalizer["price"])
+    std_dev = jnp.sqrt(variances)
+    upper_bound = [sequence_data[-1], float(prediction_data[-1]) + 1.96 * float(std_dev)]  # 95% confidence interval
+    lower_bound = [sequence_data[-1], float(prediction_data[-1]) - 1.96 * float(std_dev)]  # 95% confidence interval
 
-    # axs[0, 0].errorbar(base_pred[1], prediction_data[1], yerr=std_dev, fmt='o', color=Color.green, capsize=5, linewidth=2, markersize=4)
-    axs[0, 0].fill_between(base_pred, upper_bound, lower_bound, alpha=0.2, color=Color.green)
+    ax0.errorbar(base_pred[1], prediction_data[1], yerr=std_dev*1.96, color=Color.green, capsize=5, linewidth=2)
+    ax0.fill_between(base_pred, upper_bound, lower_bound, alpha=0.2, color=Color.green)
 
 
-    axs[0, 0].set_ylabel('Close Price [$]', fontsize=18, fontweight='bold')
-    axs[0, 0].legend()
+    ax0.set_ylabel('Close Price [$]', fontsize=18, fontweight='bold')
+    ax0.legend()
 
-    """ Plot open price """
-    open_data = denormalize(input[:, 0], normalizer["price"])
-    axs[0, 1].plot(base, open_data, label='Open Price', color=Color.green,  linewidth=4, marker='o', markersize=8)
-    axs[0, 1].set_ylabel('Open Price [$]', fontsize=18, fontweight='bold')
-    axs[0, 1].legend()
 
-    """ Plot high price """
+    """ Plot high/low price """
     high_data = denormalize(input[:, 2], normalizer["price"])
-    axs[0, 2].plot(base, high_data, label='High Price', color=Color.pink,  linewidth=4, marker='o', markersize=8)
-    axs[0, 2].set_ylabel('High Price [$]', fontsize=18, fontweight='bold')
-    axs[0, 2].legend()
-
-    """ Plot low price """
     low_data = denormalize(input[:, 3], normalizer["price"])
-    axs[1, 0].plot(base, low_data, label='Low Price', color=Color.purple,  linewidth=4, marker='o', markersize=8)
-    axs[1, 0].set_ylabel('Low Price [$]', fontsize=18, fontweight='bold')
-    axs[1, 0].set_xlabel('Date [Sequence]', fontsize=18, fontweight='bold')
-    axs[1, 0].legend()
+    ax1.plot(base, high_data, label='High Price', color=Color.pink,  linewidth=linewidth, marker='o', markersize=marker_size)
+    ax1.plot(base, low_data, label='Low Price', color=Color.purple,  linewidth=linewidth, marker='o', markersize=marker_size)
+    ax1.set_ylabel('High/Low Price [$]', fontsize=18, fontweight='bold')
+    ax1.set_xlabel('Date [Sequence]', fontsize=18, fontweight='bold')
+    ax1.legend()
 
     """ Plot volume """
     volume_data = denormalize(input[:, 5], normalizer["volume"])
-    axs[1, 1].plot(base, volume_data, label='Volume', color=Color.yellow,  linewidth=4, marker='o', markersize=8)
-    axs[1, 1].set_ylabel('Volume', fontsize=18, fontweight='bold')
-    axs[1, 1].set_xlabel('Date [Sequence]', fontsize=18, fontweight='bold')
-    axs[1, 1].legend()
+    ax2.plot(base, volume_data, label='Volume', color=Color.yellow,  linewidth=linewidth, marker='o', markersize=marker_size)
+    ax2.set_ylabel('Volume', fontsize=18, fontweight='bold')
+    ax2.set_xlabel('Date [Sequence]', fontsize=18, fontweight='bold')
+    ax2.legend()
 
     """ Plot adj close price """
     adj_close_data = denormalize(input[:, 4], normalizer["price"])
-    axs[1, 2].plot(base, adj_close_data, label='Adj Close Price', color=Color.orange,  linewidth=4, marker='o', markersize=8)
-    axs[1, 2].set_ylabel('Adj Close Price [$]', fontsize=18, fontweight='bold')
-    axs[1, 2].set_xlabel('Date [Sequence]', fontsize=18, fontweight='bold')
-    axs[1, 2].legend()
+    ax3.plot(base, adj_close_data, label='Adj Close Price', color=Color.orange,  linewidth=linewidth, marker='o', markersize=marker_size)
+    ax3.set_ylabel('Adj Close Price [$]', fontsize=18, fontweight='bold')
+    ax3.set_xlabel('Date [Sequence]', fontsize=18, fontweight='bold')
+    ax3.legend()
     
     if initial_date is not None:
         title = f'Jaxer Predictor || Error {error:.2f} $ || Initial Date: {initial_date}' 

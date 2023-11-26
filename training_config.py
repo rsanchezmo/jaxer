@@ -9,7 +9,7 @@ model_config = ModelConfig(
     dim_feedforward=4*64,  # 4 * d_model
     dropout=0.05,
     max_seq_len=40,
-    input_features=6,
+    input_features=5,
     flatten_encoder_output=False
 )
 
