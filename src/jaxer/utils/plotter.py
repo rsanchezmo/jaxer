@@ -40,8 +40,12 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, y_pred: jnp.ndarra
     axs[0, 0].plot(base_pred, prediction_data, label='Next Day Pred', color=Color.green, linewidth=4, marker='o', markersize=8)
 
     # Add error bars
-    std_dev = denormalize(jnp.sqrt(variances), normalizer["price"])
-    axs[0, 0].errorbar(base_pred[1], prediction_data[1], yerr=std_dev, fmt='o', color=Color.green, capsize=5, linewidth=2, markersize=4)
+    std_dev = denormalize(jnp.sqrt(variances), normalizer=normalizer["price"])
+    upper_bound = [sequence_data[-1], float(prediction_data[-1]) + float(std_dev)]
+    lower_bound = [sequence_data[-1], float(prediction_data[-1]) - float(std_dev)]
+
+    # axs[0, 0].errorbar(base_pred[1], prediction_data[1], yerr=std_dev, fmt='o', color=Color.green, capsize=5, linewidth=2, markersize=4)
+    axs[0, 0].fill_between(base_pred, upper_bound, lower_bound, alpha=0.2, color=Color.green)
 
 
     axs[0, 0].set_ylabel('Close Price [$]', fontsize=18, fontweight='bold')
