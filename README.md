@@ -59,9 +59,12 @@ The available information is:
 - Volume
 - Adjusted close price
 
-Data must be normalized to avoid exploding gradients during training. Two normalization methods are implemented. First, a minmax normalization across the entire dataset. Second, a window minmax normalization. The second one seems more suitable to avoid losing too much resolution and also to ensure to work over time and not become obsolete (BTC may surpass the current max BTC price or volume).
+The dataset class is implemented in PyTorch due to the easyness of creating a dataloader. However, as we are working with jax arrays, it was necessary to pass a function to the dataloader to map the torch tensors to jax.ndarrays.
 
-The dataset class is implemented in PyTorch due to the easyness of creating a dataloader. However, as we are working with jax arrays, it was necessary to pass a function to the dataloader to map the torch tensors to jax.ndarrays. 
+The test set is not randomly computed across the entire dataset. For better generalization capabilities understanding, the test set is taken from the last dataset components; simulating real world prediction. 
+
+#### Normalization
+Data must be normalized to avoid exploding gradients during training. Two normalization methods are implemented. First, a minmax normalization across the entire dataset. Second, a window minmax normalization. The second one seems more suitable to avoid losing too much resolution and also to ensure to work over time and not become obsolete (BTC may surpass the current max BTC price or volume). However, this approach can introduce inconsistencies in data scaling across different windows, potentially affecting the model's performance and its ability to generalize to new data.
 
 ### Model
 
@@ -109,11 +112,12 @@ In order to analyze and compare results, several metrics have been considered:
 - **MAE**: Mean Absolute Error. The lower the value, the better the model as the mean of the distribution is closer to the real value.
 - **R2**: R2 Score. The higher the value, the better the model as the model explains more variance of the data.
 
-The best test results are shown in the following table. The evaluation is computed on the test set which is the 10% of the whole dataset.
-| Model | NLL | MAE | R2 |
-|:-------:|:-----:|:-----:|:----:|
-| Encoder | -0.8547 | 0.0704 | 0.8818 |
-| Encoder + Decoder | - | - | -      |
+The best test results are shown in the following table. Metrics are computed with normalized data. The evaluation is computed on the test set which is the 20% of the whole dataset.
+| Model | NLL | MAE | R2 | Normalization |
+|:-------:|:-----:|:-----:|:----:|:-------:|
+| Encoder | -0.8547 | 0.0704 | 0.8818 | window |
+| Encoder | - | - | -      | absolute | 
+| Encoder | - | - | - | none |
 
 
 Some of the predictions are shown below. As we are predicting a distirbution, the 95% confidence interval is shown in the plots in order to have a better understanding of the uncertainty of the model. The upper and lower bounds are computed as ```[mean + 1.96*std, mean - 1.96*std]``` respectively.

@@ -27,8 +27,8 @@ class Dataset(torch.utils.data.Dataset):
         self._norm_mode = norm_mode
         if self._norm_mode == "global":
             self._global_normalizer = dict(
-                price=dict(min_val=self._data[['Open', 'Close', 'High', 'Low', 'Adj Close']].min().min(), 
-                           max_val=self._data[['Open', 'Close', 'High', 'Low', 'Adj Close']].max().max()),
+                price=dict(min_val=self._data[['Close', 'High', 'Low', 'Adj Close']].min().min(), 
+                           max_val=self._data[['Close', 'High', 'Low', 'Adj Close']].max().max()),
                 volume=dict(min_val=self._data['Volume'].min().min(), 
                             max_val=self._data['Volume'].max().max())
             )

@@ -8,7 +8,7 @@ from jaxer.utils.plotter import plot_predictions
 
 
 if __name__ == '__main__':
-    agent = Agent(experiment="distribution", model_name="52")
+    agent = Agent(experiment="distribution_v2_def_global", model_name="58")
 
     """ LOAD SOME DATA """
     x_test = jnp.ones((1, agent.config.model_config["max_seq_len"], agent.config.model_config["input_features"]))

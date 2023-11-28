@@ -25,7 +25,9 @@ class Agent:
             dim_feedforward=self.config.model_config["dim_feedforward"],
             dropout=self.config.model_config["dropout"],
             max_seq_len=self.config.model_config["max_seq_len"],
-            deterministic=True
+            deterministic=True,
+            flatten_encoder_output=self.config.model_config["flatten_encoder_output"],
+            head_layers=self.config.model_config["head_layers"]
         )
 
         """ Create an orbax checkpointer to restore the model"""

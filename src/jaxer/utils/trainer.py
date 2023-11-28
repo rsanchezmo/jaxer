@@ -131,7 +131,6 @@ class FlaxTrainer(TrainerBase):
             rng, key = jax.random.split(rng) # creates a new subkey
 
             """ Training """
-            # TODO: I HAVE A THOUGHT THAT I AM RESETING THE STATE BETWEEN EPOCHS!!!!
             train_state, metrics = self._train_epoch(train_state, key)
             
             """ Logging """
