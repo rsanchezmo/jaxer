@@ -7,7 +7,7 @@ model_config = ModelConfig(
     head_layers=1,
     n_heads=8,
     dim_feedforward=4*64,  # 4 * d_model
-    dropout=0.05,
+    dropout=0.1,
     max_seq_len=30,
     input_features=5,
     flatten_encoder_output=False
@@ -22,7 +22,7 @@ config = Config(
     warmup_epochs=15,
     dataset_path="./data/BTCUSD.csv",
     batch_size=64,
-    test_split=0.2,
+    test_split=0.3,
     seed=0,
     normalizer_mode="window_meanstd"
 )
