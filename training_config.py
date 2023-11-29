@@ -16,7 +16,7 @@ model_config = ModelConfig(
 config = Config(
     model_config=model_config,
     log_dir="results",
-    experiment_name="distribution_v2_def_global",
+    experiment_name="distribution_v2_window_meanstd",
     num_epochs=100,
     learning_rate=3e-4,
     warmup_epochs=15,
@@ -24,5 +24,5 @@ config = Config(
     batch_size=64,
     test_split=0.2,
     seed=0,
-    normalizer_mode="global"
+    normalizer_mode="window_meanstd"
 )

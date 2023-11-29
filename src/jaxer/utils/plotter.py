@@ -22,7 +22,7 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, y_pred: jnp.ndarra
     """ Function to plot prediction and results """
 
     if normalizer is None:
-        normalizer = {key: dict(min_val=0, max_val=1) for key in ["price", "volume"]}
+        normalizer = {key: dict(min_val=0, max_val=1, mode="minmax") for key in ["price", "volume"]}
 
     plt.style.use('ggplot')
 

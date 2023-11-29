@@ -94,10 +94,12 @@ An agent class has been created so you can load a model and use it to predict to
 
 ```python
 from jaxer.utils.agent import Agent
+from jaxer.utils.config import get_best_model
 import jax.numpy as jnp
 
 # the experiment in the "results" folder
-agent = Agent(experiment_name="exp", model_name="2") 
+experiment = "transformer_encoder_only_window"
+agent = Agent(experiment=experiment, model_name=get_best_model(experiment))
 
 # a random input
 x_test = jnp.ones((1, agent.config.model_config["max_seq_len"], agent.config.model_config["input_features"]))
