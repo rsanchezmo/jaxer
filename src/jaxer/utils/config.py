@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 import json
 from dataclasses import asdict
+import os
 
 
 @dataclass
@@ -39,4 +40,15 @@ class Config:
             config = json.load(f)
         return Config(**config)
 
+
+def get_best_model(experiment_name: str) -> str:
+    """ Returns the best model from the experiment """
+    complete_path = os.path.join("results", experiment_name, "best_model_train.json")
+    if not os.path.exists(complete_path):
+        raise FileNotFoundError(f"File {complete_path} not found")
+    
+    with open(complete_path, 'r') as f:
+        best_model = json.load(f)
+
+    return str(best_model["ckpt"])
 

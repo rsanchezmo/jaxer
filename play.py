@@ -4,11 +4,14 @@ import time
 from jaxer.utils.dataset import Dataset, jax_collate_fn
 from torch.utils.data import DataLoader
 from jaxer.utils.plotter import plot_predictions
+from jaxer.utils.config import get_best_model
 
 
 
 if __name__ == '__main__':
-    agent = Agent(experiment="distribution_v2_def_global", model_name="58")
+    """ LOAD THE AGENT """
+    experiment = "distribution_v2_def_global"
+    agent = Agent(experiment=experiment, model_name=get_best_model(experiment))
 
     """ LOAD SOME DATA """
     x_test = jnp.ones((1, agent.config.model_config["max_seq_len"], agent.config.model_config["input_features"]))
