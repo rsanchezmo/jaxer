@@ -44,11 +44,46 @@ class FeedForwardBlock(nn.Module):
             kernel_init=self.config.kernel_init,
             bias_init=self.config.bias_init,
         )(x)
+        x = nn.gelu(x)
         x = nn.Dropout(rate=self.config.dropout)(
             x, deterministic=self.config.deterministic
         )
 
-        return x        
+        return x       
+
+
+class FeedForwardBlockConv1D(nn.Module):
+    config: TransformerConfig
+    out_dim: int
+
+    @nn.compact
+    def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
+        """ Applies the feed forward block module """
+
+        x = nn.Conv(
+            features=self.config.dim_feedforward,
+            dtype=self.config.dtype,
+            kernel_size=(1,),
+            kernel_init=self.config.kernel_init,
+            bias_init=self.config.bias_init,
+        )(x)
+        x = nn.gelu(x)
+        x = nn.Dropout(rate=self.config.dropout)(
+            x, deterministic=self.config.deterministic
+        )
+        x = nn.Conv(
+            features=self.out_dim,
+            dtype=self.config.dtype,
+            kernel_size=(1,),
+            kernel_init=self.config.kernel_init,
+            bias_init=self.config.bias_init,
+        )(x)
+        x = nn.gelu(x)
+        x = nn.Dropout(rate=self.config.dropout)(
+            x, deterministic=self.config.deterministic
+        )
+
+        return x 
     
     
 def sinusoidal_init(max_len: int = 2048, min_scale: float = 1.0, max_scale: float = 10000.0) -> Callable:
@@ -85,6 +120,51 @@ class AddPositionalEncoding(nn.Module):
         pe = pos_embedding[:, :x.shape[1], :]
 
         return x + pe
+    
+class Time2Vec(nn.Module):
+    dtype: jnp.dtype
+    kernel_init: Callable
+    bias_init: Callable
+    max_seq_len: int
+
+    @nn.compact
+    def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
+
+        weights_linear = self.param(
+            "weights_linear",
+            nn.initializers.uniform(),
+            (self.max_seq_len,),
+            self.dtype,
+        )
+        weights_periodic = self.param(
+            "weights_periodic",
+            nn.initializers.uniform(),
+            (self.max_seq_len,),
+            self.dtype,
+        )
+        bias_linear = self.param(
+            "bias_linear",
+            nn.initializers.uniform(),
+            (1,),
+            self.dtype,
+        )
+        bias_periodic = self.param(
+            "bias_periodic",
+            nn.initializers.uniform(),
+            (1,),
+            self.dtype,
+        )
+
+        mean = jnp.mean(x, axis=-1)
+
+        time_linear = weights_linear * mean + bias_linear
+
+        time_periodic = jnp.sin(weights_periodic * mean + bias_periodic)   
+
+        time_linear = jnp.expand_dims(time_linear, axis=-1)
+        time_periodic = jnp.expand_dims(time_periodic, axis=-1) 
+
+        return jnp.concatenate([time_linear, time_periodic], axis=-1)
     
 
 class ResidualBlock(nn.Module):
@@ -143,13 +223,13 @@ class FeatureExtractor(nn.Module):
         #     x, deterministic=self.config.deterministic
         # )
 
-        x = ResidualBlock(feature_dim=self.config.d_model,
-                          dtype=self.config.dtype,
-                          kernel_init=self.config.kernel_init,
-                          bias_init=self.config.bias_init)(x)
-        x = nn.Dropout(rate=self.config.dropout)(
-            x, deterministic=self.config.deterministic
-        )
+        # x = ResidualBlock(feature_dim=self.config.d_model,
+        #                   dtype=self.config.dtype,
+        #                   kernel_init=self.config.kernel_init,
+        #                   bias_init=self.config.bias_init)(x)
+        # x = nn.Dropout(rate=self.config.dropout)(
+        #     x, deterministic=self.config.deterministic
+        # )
 
         return x
     
@@ -184,6 +264,11 @@ class EncoderBlock(nn.Module):
 
         """ Feed Forward Block """
         y = nn.LayerNorm(dtype=self.config.dtype)(x)
+        # y = FeedForwardBlockConv1D(
+        #     config=self.config,
+        #     out_dim=self.config.d_model
+        # )(y)
+
         y = FeedForwardBlock(
             config=self.config,
             out_dim=self.config.d_model
@@ -198,15 +283,26 @@ class Encoder(nn.Module):
     def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
         """ Applies the encoder module """
 
-        """ Feature Embeddings"""
-        x = FeatureExtractor(
-            config=self.config
+        """ Time2Vec """
+        time_embeddings = Time2Vec(
+            dtype=self.config.dtype,
+            kernel_init=self.config.kernel_init,
+            bias_init=self.config.bias_init,
+            max_seq_len=self.config.max_seq_len
         )(x)
 
-        """ Positional Encoding """
-        x = AddPositionalEncoding(
-            config=self.config
+        """ Concatenate """
+        x = jnp.concatenate([x, time_embeddings], axis=-1)
+
+        """ Feature Embeddings"""
+        x = FeatureExtractor(
+                config=self.config
         )(x)
+
+        # """ Positional Encoding """
+        # x = AddPositionalEncoding(
+        #     config=self.config
+        # )(x)
 
         """ Encoder Blocks """
         for _ in range(self.config.num_layers):
@@ -228,7 +324,7 @@ class PredictionHead(nn.Module):
                         dtype=self.config.dtype,
                         kernel_init=self.config.kernel_init,
                         bias_init=self.config.bias_init)(x)
-            x = nn.gelu(x)
+            x = nn.relu(x)
                         
         for _ in range(self.config.head_layers - 1):
             x = ResidualBlock(feature_dim=self.config.d_model,
@@ -258,16 +354,16 @@ class Transformer(nn.Module):
         )(x)
 
         """ Regression Head """
-        x = nn.LayerNorm(dtype=self.config.dtype)(x)
+        # x = nn.LayerNorm(dtype=self.config.dtype)(x)
 
         # flatten the output:
         if self.config.flatten_encoder_output:
             x = x.reshape((x.shape[0], -1))
         else:
-            x = x[:, -1, :]
+            #x = jnp.mean(x, axis=1)  # average over the time dimension [Global Average Pooling 1D]
+            x = x[:, -1, :]  # get the last element of the sequence
 
         x = PredictionHead(config=self.config)(x)
-
 
         """ output a probability distribution """
         mean, log_variance = jnp.split(x, 2, axis=-1)

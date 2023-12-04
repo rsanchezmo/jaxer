@@ -1,6 +1,6 @@
-from ..model.flax_transformer import Transformer, TransformerConfig
-from .config import Config
-from .dataset import Dataset, jax_collate_fn
+from jaxer.model.flax_transformer import Transformer, TransformerConfig
+from jaxer.utils.config import Config
+from jaxer.utils.dataset import Dataset, jax_collate_fn
 import jax
 import jax.numpy as jnp
 import optax
@@ -13,8 +13,9 @@ import orbax
 from torch.utils.data import DataLoader
 import time
 import json
-from ..utils.plotter import plot_predictions
-from .logger import Logger
+from jaxer.utils.plotter import plot_predictions
+from jaxer.utils.logger import Logger
+from jaxer.utils.losses import gaussian_negative_log_likelihood, mae, r2, rmse
 
 
 def create_learning_rate_schedule(learning_rate: float, warmup_epochs: int, num_epochs: int, steps_per_epoch: int) -> optax.Schedule:
@@ -52,7 +53,8 @@ class TrainerBase:
         
 
         """ Dataloaders """
-        dataset = Dataset(self._config.dataset_path, self._config.model_config.max_seq_len, norm_mode=self._config.normalizer_mode)
+        dataset = Dataset(self._config.dataset_path, self._config.model_config.max_seq_len, norm_mode=self._config.normalizer_mode,
+                          initial_date='2017-01-01')
         self._train_ds, self._test_ds = dataset.get_train_test_split(test_size=self._config.test_split)
         self._train_dataloader = DataLoader(self._train_ds, batch_size=self._config.batch_size, shuffle=True, collate_fn=jax_collate_fn)
         self._test_dataloader = DataLoader(self._test_ds, batch_size=self._config.batch_size, shuffle=True, collate_fn=jax_collate_fn)
@@ -81,11 +83,6 @@ class TrainerBase:
         """ Loads a model checkpoint """
         ckpt = self._orbax_checkpoint.restore(os.path.join(self._ckpts_dir, epoch))
         return ckpt['model']
-    
-
-@jax.jit
-def gaussian_negative_log_likelihood(mean: jnp.ndarray, variance: jnp.ndarray, targets: jnp.ndarray):
-    return jnp.mean(0.5 * jnp.log(2 * jnp.pi * variance) + 0.5 * ((targets - mean) ** 2) / variance)
 
 
 class FlaxTrainer(TrainerBase):
@@ -123,9 +120,11 @@ class FlaxTrainer(TrainerBase):
         rng = jax.random.PRNGKey(self._config.seed) 
         train_state = self._create_train_state(rng)
 
+        self.logger.info("Warming up model...")
         self._warmup_eval(train_state)
 
         best_loss = float("inf")
+        self.logger.info("Starting training...")
         for epoch in range(self._config.num_epochs):
             init_time = time.time() 
             rng, key = jax.random.split(rng) # creates a new subkey
@@ -150,6 +149,7 @@ class FlaxTrainer(TrainerBase):
                 f"                  Train Loss: {metrics['loss']:.4f} | Test Loss: {test_metrics['loss']:.4f} \n"
                 f"                  Train MAE:  {metrics['mae']:.4f} | Test MAE: {test_metrics['mae']:.4f} \n"
                 f"                  Train R2:   {metrics['r2']:.4f} | Test R2: {test_metrics['r2']:.4f}\n"
+                f"                  Train RMSE: {metrics['rmse']:.4f} | Test RMSE: {test_metrics['rmse']:.4f}\n"
                 f"                  Elapsed time: {delta_time:.2f} seconds")
 
 
@@ -159,6 +159,7 @@ class FlaxTrainer(TrainerBase):
                 # self.best_model_test()
 
 
+        self.logger.info("Training finished!")
         self.best_model_test()
         self._summary_writer.flush()
 
@@ -207,9 +208,10 @@ class FlaxTrainer(TrainerBase):
         """ Computes metrics """
         means, variances = predictions
         loss = gaussian_negative_log_likelihood(means, variances, targets)
-        mae = jnp.mean(jnp.abs(means - targets))
-        r2 = 1 - jnp.sum((means - targets)**2) / jnp.sum((targets - jnp.mean(targets))**2)
-        return {"mae": mae, "r2": r2, "loss": loss}
+        mae_ = mae(means, targets)
+        rmse_ = rmse(means, targets)
+        r2_ = r2(means, targets)
+        return {"mae": mae_, "r2": r2_, "loss": loss, "rmse": rmse_}
 
     @staticmethod
     @jax.jit
@@ -220,13 +222,14 @@ class FlaxTrainer(TrainerBase):
             means, variances = state.apply_fn(params, inputs, rngs={"dropout": rng})
             loss = gaussian_negative_log_likelihood(means, variances, targets)
 
-            mae = jnp.mean(jnp.abs(means - targets))  # MAE loss
-            r2 = 1 - jnp.sum((means - targets)**2) / jnp.sum((targets - jnp.mean(targets))**2)  # R2 loss
-            return loss, (mae, r2)
+            mae_ = mae(means, targets)
+            r2_ = r2(means, targets)
+            rmse_ = rmse(means, targets)
+            return loss, (mae_, r2_, rmse_)
 
-        (loss, (mae, r2)), grads  = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
+        (loss, (mae_, r2_, rmse_)), grads  = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
         state = state.apply_gradients(grads=grads)
-        metrics = {"mae": mae, "r2": r2, "loss": loss}
+        metrics = {"mae": mae_, "r2": r2_, "loss": loss, "rmse": rmse_}
         return state, metrics
     
 
@@ -242,7 +245,7 @@ class FlaxTrainer(TrainerBase):
     def _train_epoch(self, state: train_state.TrainState, rng: jax.random.PRNGKey) -> Tuple[train_state.TrainState, Dict]:
         """ Runs a training step """
 
-        metrics = {"mae": [], "r2": [], "loss": []}
+        metrics = {"mae": [], "r2": [], "loss": [], "rmse": []}
         for data in self._train_dataloader:
             inputs, targets, _, _ = data
             step = state.step
@@ -250,6 +253,7 @@ class FlaxTrainer(TrainerBase):
             state, _metrics = self._model_train_step(state, inputs, targets, rng)
             metrics["mae"].append(_metrics["mae"])
             metrics["r2"].append(_metrics["r2"])
+            metrics["rmse"].append(_metrics["rmse"])
             metrics["loss"].append(_metrics["loss"])
 
 
@@ -258,6 +262,8 @@ class FlaxTrainer(TrainerBase):
         metrics["mae"] = jax.device_get(metrics["mae"])
         metrics["r2"] = jnp.mean(jnp.array(metrics["r2"]))
         metrics["r2"] = jax.device_get(metrics["r2"])
+        metrics["rmse"] = jnp.mean(jnp.array(metrics["rmse"]))
+        metrics["rmse"] = jax.device_get(metrics["rmse"])
         metrics["loss"] = jnp.mean(jnp.array(metrics["loss"]))
         metrics["loss"] = jax.device_get(metrics["loss"])
 
@@ -266,18 +272,21 @@ class FlaxTrainer(TrainerBase):
     def _evaluate_step(self, state: train_state.TrainState) -> Dict:
         """ Runs an evaluation step """
 
-        metrics = {"mae": [], "r2": [], "loss": []}
+        metrics = {"mae": [], "r2": [], "loss": [], "rmse": []}
         for data in self._test_dataloader:
             inputs, targets, _, _ = data
             _, _metrics = self._model_eval_step(state, inputs, targets, config=self._flax_model_config_eval)
             metrics["mae"].append(_metrics["mae"])
             metrics["r2"].append(_metrics["r2"])
+            metrics["rmse"].append(_metrics["rmse"])
             metrics["loss"].append(_metrics["loss"])
 
         metrics["mae"] = jnp.mean(jnp.array(metrics["mae"]))
         metrics["mae"] = jax.device_get(metrics["mae"])
         metrics["r2"] = jnp.mean(jnp.array(metrics["r2"]))
         metrics["r2"] = jax.device_get(metrics["r2"])
+        metrics["rmse"] = jnp.mean(jnp.array(metrics["rmse"]))
+        metrics["rmse"] = jax.device_get(metrics["rmse"])
         metrics["loss"] = jnp.mean(jnp.array(metrics["loss"]))
         metrics["loss"] = jax.device_get(metrics["loss"])
 

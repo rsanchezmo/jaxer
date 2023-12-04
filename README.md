@@ -24,6 +24,7 @@ Render of a transformer model as a hologram, projecting from a digital device, w
 - Add a logger to the trainer class ✔️
 - Add a lr scheduler to the trainer class: warmup cosine scheduler ✔️
 - Make the prediction head output a distribution instead of a single value to cover uncertainaty ✔️
+- Include Time2Vec as time embedding ✔️
 
 ## Installation
 
@@ -55,7 +56,7 @@ The dataset has been downloaded from [Yahoo Finance](https://es.finance.yahoo.co
 
 The available information is:
 - Low/High price
-- Close price -> Open price will not be used as it is the same as the previous close price. We want to avoid redundant information.
+- Close price: Open price will not be used as it is the very similar to the previous close price. I want to avoid redundant information.
 - Volume
 - Adjusted close price
 
@@ -64,7 +65,7 @@ The dataset class is implemented in PyTorch due to the easyness of creating a da
 The test set is not randomly computed across the entire dataset. For better generalization capabilities understanding, the test set is taken from the last dataset components; simulating real world prediction. 
 
 #### Normalization
-Data must be normalized to avoid exploding gradients during training. Two normalization methods are implemented. First, a minmax normalization across the entire dataset. Second, a window minmax normalization. The second one seems more suitable to avoid losing too much resolution and also to ensure to work over time and not become obsolete (BTC may surpass the current max BTC price or volume). However, this approach can introduce inconsistencies in data scaling across different windows, potentially affecting the model's performance and its ability to generalize to new data.
+Data must be normalized to avoid exploding gradients during training. Two normalization methods are implemented. First, a normalization across the entire dataset. Second, a window normalization. The second one seems more suitable to avoid losing too much resolution and also to ensure to work over time and not become obsolete (BTC may surpass the current max BTC price or volume). However, this approach can introduce inconsistencies in data scaling across different windows, potentially affecting the model's performance and its ability to generalize to new data. For each approach, two normalizers are implemented: a min-max scaler and a standard scaler.
 
 ### Model
 
@@ -109,20 +110,7 @@ pred = agent(x_test)
 ```
 
 ## Results
-In order to analyze and compare results, several metrics have been considered:
-- **NLL**: Negative Log Likelihood. The lower the value, the better the model as the model assigns more probability to the real value.
-- **MAE**: Mean Absolute Error. The lower the value, the better the model as the mean of the distribution is closer to the real value.
-- **R2**: R2 Score. The higher the value, the better the model as the model explains more variance of the data.
-
-The best test results are shown in the following table. Metrics are computed with normalized data. The evaluation is computed on the test set which is the 20% of the whole dataset.
-| Model | NLL | MAE | R2 | Normalization |
-|:-------:|:-----:|:-----:|:----:|:-------:|
-| Encoder | -0.8547 | 0.0704 | 0.8818 | window |
-| Encoder | - | - | -      | absolute | 
-| Encoder | - | - | - | none |
-
-
-Some of the predictions are shown below. As we are predicting a distirbution, the 95% confidence interval is shown in the plots in order to have a better understanding of the uncertainty of the model. The upper and lower bounds are computed as ```[mean + 1.96*std, mean - 1.96*std]``` respectively.
+Some of the predictions are shown below. As we are predicting a distribution, the 95% confidence interval is shown in the plots in order to have a better understanding of the uncertainty of the model. The upper and lower bounds are computed as ```[mean + 1.96*std, mean - 1.96*std]``` respectively.
 
 ![Jaxer Predictions 1](./data/1.png)
 

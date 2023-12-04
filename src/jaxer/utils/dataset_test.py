@@ -1,9 +1,9 @@
-from .dataset import Dataset
+from jaxer.utils.dataset import Dataset
 from matplotlib import pyplot as plt
 import numpy as np
 from torch.utils.data import DataLoader
 
-dataset = Dataset('./data/BTCUSD.csv', seq_len=20)
+dataset = Dataset('./data/BTCUSD.csv', seq_len=2000, norm_mode='global_minmax', initial_date='2017-01-01')
 train_dataset, test_dataset = dataset.get_train_test_split(test_size=0.1)
 
 # dataloader

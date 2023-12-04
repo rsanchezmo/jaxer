@@ -21,11 +21,11 @@ class Dataset(torch.utils.data.Dataset):
 
         self._seq_len = seq_len
 
-        if norm_mode not in ["window_minmax", "window_meanstd", "global", "none"]:
-            raise ValueError("norm_mode must be one of ['window_minmax', 'window_meanstd', 'global', 'none']")
+        if norm_mode not in ["window_minmax", "window_meanstd", "global_minmax", 'global_meanstd', "none"]:
+            raise ValueError("norm_mode must be one of ['window_minmax', 'window_meanstd', 'global_minmax', 'global_meanstd', 'none']")
         
         self._norm_mode = norm_mode
-        if self._norm_mode == "global":
+        if self._norm_mode == "global_minmax":
             self._global_normalizer = dict(
                 price=dict(min_val=self._data[['Close', 'High', 'Low', 'Adj Close']].min().min(), 
                            max_val=self._data[['Close', 'High', 'Low', 'Adj Close']].max().max(),
@@ -33,6 +33,15 @@ class Dataset(torch.utils.data.Dataset):
                 volume=dict(min_val=self._data['Volume'].min().min(), 
                             max_val=self._data['Volume'].max().max(), 
                             mode="minmax")
+            )
+        elif self._norm_mode == "global_meanstd":
+            self._global_normalizer = dict(
+                price=dict(mean_val=self._data[['Close', 'High', 'Low', 'Adj Close']].mean().max(), 
+                           std_val=self._data[['Close', 'High', 'Low', 'Adj Close']].std().max(),
+                           mode="meanstd"),
+                volume=dict(mean_val=self._data['Volume'].mean().max(), 
+                            std_val=self._data['Volume'].std().max(), 
+                            mode="meanstd")
             )
         elif self._norm_mode == 'none':
             self._global_normalizer = dict(
@@ -82,7 +91,6 @@ class Dataset(torch.utils.data.Dataset):
         sequence_data = np.array(sequence_data_price.join(sequence_data_volume), dtype=np.float32)
 
         label = np.array([label], dtype=np.float32)
-
 
         # get the initial timestep
         timestep = self._data.iloc[start_idx].name
@@ -143,6 +151,9 @@ def normalize(data: Union[np.ndarray, jnp.ndarray], normalizer: dict) -> Union[n
     
     raise ValueError("mode must be one of ['minmax', 'meanstd']")
 
+
+def denormalize_wrapper(data: Union[np.ndarray, jnp.ndarray], normalizer: dict, component: str = "price") -> Union[np.ndarray, jnp.ndarray]:
+    return denormalize(data, normalizer[component])
 
 
 def denormalize(data: Union[np.ndarray, jnp.ndarray], normalizer: dict,) -> Union[np.ndarray, jnp.ndarray]:

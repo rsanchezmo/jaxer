@@ -3,14 +3,14 @@ import jax.numpy as jnp
 import time
 from jaxer.utils.dataset import Dataset, jax_collate_fn
 from torch.utils.data import DataLoader
-from jaxer.utils.plotter import plot_predictions
+from jaxer.utils.plotter import plot_predictions, predict_entire_dataset
 from jaxer.utils.config import get_best_model
 
 
 
 if __name__ == '__main__':
     """ LOAD THE AGENT """
-    experiment = "distribution_v2_window_meanstd"
+    experiment = "global_minmax_larger"
     agent = Agent(experiment=experiment, model_name=get_best_model(experiment))
 
     """ LOAD SOME DATA """
@@ -23,11 +23,18 @@ if __name__ == '__main__':
 
     # get the dataloaders from training
     """ Dataloaders """
-    dataset = Dataset('./data/BTCUSD.csv', agent.config.model_config["max_seq_len"], norm_mode=agent.config.normalizer_mode)
+    dataset = Dataset('./data/BTCUSD.csv', agent.config.model_config["max_seq_len"], norm_mode=agent.config.normalizer_mode,
+                      initial_date='2017-01-01')
     train_ds, test_ds = dataset.get_train_test_split(test_size=agent.config.test_split)
+
+
+    # infer entire dataset
+    predict_entire_dataset(agent, test_ds, mode='test')
+    predict_entire_dataset(agent, train_ds, mode='train')
+
+    # infer once
     train_dataloader = DataLoader(train_ds, batch_size=1, shuffle=True, collate_fn=jax_collate_fn)
     test_dataloader = DataLoader(test_ds, batch_size=1, shuffle=True, collate_fn=jax_collate_fn)
-
 
     for batch in test_dataloader:
         input, label, normalizer, initial_date = batch

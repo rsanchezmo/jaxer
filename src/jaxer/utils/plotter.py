@@ -4,7 +4,12 @@ import jax.numpy as jnp
 import numpy as np
 from dataclasses import dataclass
 from typing import Optional, Dict
-from .dataset import denormalize
+from .dataset import denormalize, denormalize_wrapper
+from .agent import Agent
+import torch
+from .dataset import jax_collate_fn
+import torch.utils.data
+import jax
 
 
 @dataclass
@@ -16,6 +21,50 @@ class Color:
     purple = np.array([114, 62, 148]) / 255.
     yellow = np.array([255, 195, 0]) / 255.
     red = np.array([205, 92, 92]) / 255.
+
+
+def predict_entire_dataset(agent: Agent, dataset: torch.utils.data.Dataset, foldername=None, mode='test'):
+    """ Predict entire dataset """
+    
+    # create a dataloader for the entire dataset and infere all at once
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=len(dataset), shuffle=False, collate_fn=jax_collate_fn) 
+
+    for batch in dataloader:
+        input, label, normalizer, initial_date = batch
+        y_pred, variances = agent(input)
+
+    fig = plt.figure(figsize=(20, 12))
+    plt.style.use('ggplot')
+
+    # normalizer_array = jnp.array(normalizer)
+    # denormalize_elementwise = jax.vmap(denormalize_wrapper, in_axes=(0, 0))
+    # close_preds = denormalize_elementwise(y_pred, normalizer_array, "price")
+    close_preds = [denormalize(y_pred[i], normalizer[i]["price"]) for i in range(len(y_pred))]
+    close_inputs = [denormalize(input[i, 0, 0], normalizer[i]["price"]) for i in range(len(input))] + denormalize(input[-1, 1:, 0], normalizer[-1]["price"]).tolist()
+
+    # close_inputs (batch_size, max_seq_len, 1)
+    # close_preds (batch_size, 1, 1)
+    batch_size = input.shape[0]
+    seq_len = input.shape[1]
+    base_input = jnp.arange(len(close_inputs)) 
+    base_pred = jnp.arange(batch_size) + seq_len 
+
+    plt.plot(base_pred,close_preds, label='Close Price Pred', color=Color.green, linewidth=3, marker='o', markersize=4)
+    
+    # plot close_inputs
+    plt.plot(base_input, close_inputs, label='Close Price Real', color=Color.blue, linewidth=3, marker='o', markersize=4)
+
+    plt.suptitle(f"Predictions [{mode}]", fontsize=20, fontweight='bold')
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    
+    if foldername is not None:
+        plt.savefig(f"{foldername}/dataset_{mode}_prediction.png") 
+    else:
+        plt.show()
+    plt.close()
+
 
 def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, y_pred: jnp.ndarray, variances: jnp.ndarray, name: str, foldername: Optional[str] = None,
                      normalizer: Optional[Dict] = None, initial_date: Optional[str] = None) -> None:
