@@ -107,7 +107,7 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, y_pred: jnp.ndarra
     base_pred = jnp.array([len(sequence_data)-1, len(sequence_data)])
     error = jnp.abs(real_data[-1] - prediction_data[-1])
 
-    #open_data = denormalize(input[:, 0], normalizer["price"])
+    open_data = denormalize(input[:, 1], normalizer["price"])
 
     """ Plot close price """
     ax0.plot(base, sequence_data, label='Close Price', color=Color.blue,  linewidth=linewidth, marker='o', markersize=marker_size)
@@ -132,8 +132,8 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, y_pred: jnp.ndarra
 
 
     """ Plot high/low price """
-    high_data = denormalize(input[:, 1], normalizer["price"])
-    low_data = denormalize(input[:, 2], normalizer["price"])
+    high_data = denormalize(input[:, 2], normalizer["price"])
+    low_data = denormalize(input[:, 3], normalizer["price"])
     ax1.plot(base, high_data, label='High Price', color=Color.pink,  linewidth=linewidth, marker='o', markersize=marker_size)
     ax1.plot(base, low_data, label='Low Price', color=Color.purple,  linewidth=linewidth, marker='o', markersize=marker_size)
     ax1.set_ylabel('High/Low Price [$]', fontsize=18, fontweight='bold')
@@ -147,10 +147,9 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, y_pred: jnp.ndarra
     ax2.set_xlabel('Date [Sequence]', fontsize=18, fontweight='bold')
     ax2.legend()
 
-    """ Plot adj close price """
-    adj_close_data = denormalize(input[:, 3], normalizer["price"])
-    ax3.plot(base, adj_close_data, label='Adj Close Price', color=Color.orange,  linewidth=linewidth, marker='o', markersize=marker_size)
-    ax3.set_ylabel('Adj Close Price [$]', fontsize=18, fontweight='bold')
+    """ Plot open price """
+    ax3.plot(base, open_data, label='Open Price', color=Color.orange,  linewidth=linewidth, marker='o', markersize=marker_size)
+    ax3.set_ylabel('Open Price [$]', fontsize=18, fontweight='bold')
     ax3.set_xlabel('Date [Sequence]', fontsize=18, fontweight='bold')
     ax3.legend()
     

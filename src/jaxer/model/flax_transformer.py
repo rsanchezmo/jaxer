@@ -155,7 +155,7 @@ class Time2Vec(nn.Module):
             self.dtype,
         )
 
-        mean = jnp.mean(x, axis=-1)
+        mean = jnp.mean(x[:, :, :-1], axis=-1)  # do not consider the last dimension (volume)
 
         time_linear = weights_linear * mean + bias_linear
 

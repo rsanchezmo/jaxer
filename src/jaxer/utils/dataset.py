@@ -27,8 +27,8 @@ class Dataset(torch.utils.data.Dataset):
         self._norm_mode = norm_mode
         if self._norm_mode == "global_minmax":
             self._global_normalizer = dict(
-                price=dict(min_val=self._data[['Close', 'High', 'Low', 'Adj Close']].min().min(), 
-                           max_val=self._data[['Close', 'High', 'Low', 'Adj Close']].max().max(),
+                price=dict(min_val=self._data[['Close', 'Open', 'High', 'Low']].min().min(), 
+                           max_val=self._data[['Close', 'Open', 'High', 'Low']].max().max(),
                            mode="minmax"),
                 volume=dict(min_val=self._data['Volume'].min().min(), 
                             max_val=self._data['Volume'].max().max(), 
@@ -36,8 +36,8 @@ class Dataset(torch.utils.data.Dataset):
             )
         elif self._norm_mode == "global_meanstd":
             self._global_normalizer = dict(
-                price=dict(mean_val=self._data[['Close', 'High', 'Low', 'Adj Close']].mean().max(), 
-                           std_val=self._data[['Close', 'High', 'Low', 'Adj Close']].std().max(),
+                price=dict(mean_val=self._data[['Close', 'Open', 'High', 'Low']].mean().max(), 
+                           std_val=self._data[['Close', 'Open', 'High', 'Low']].std().max(),
                            mode="meanstd"),
                 volume=dict(mean_val=self._data['Volume'].mean().max(), 
                             std_val=self._data['Volume'].std().max(), 
@@ -53,7 +53,7 @@ class Dataset(torch.utils.data.Dataset):
     def __getitem__(self, index) -> Tuple[np.ndarray, np.ndarray, dict]:
         start_idx = index
         end_idx = index + self._seq_len
-        sequence_data_price = self._data.iloc[start_idx:end_idx][['Close', 'High', 'Low', 'Adj Close']] 
+        sequence_data_price = self._data.iloc[start_idx:end_idx][['Close', 'Open', 'High', 'Low']] 
         sequence_data_volume = self._data.iloc[start_idx:end_idx][['Volume']]
 
         if self._norm_mode == "window_minmax":

@@ -56,9 +56,9 @@ The dataset has been downloaded from [Yahoo Finance](https://es.finance.yahoo.co
 
 The available information is:
 - Low/High price
-- Close price: Open price will not be used as it is the very similar to the previous close price. I want to avoid redundant information.
+- Close/Open price
 - Volume
-- Adjusted close price
+- Adjusted close price: I decided not to use this information as in BTC is the same as the close price. Must avoid redundant information.
 
 The dataset class is implemented in PyTorch due to the easyness of creating a dataloader. However, as we are working with jax arrays, it was necessary to pass a function to the dataloader to map the torch tensors to jax.ndarrays.
 
