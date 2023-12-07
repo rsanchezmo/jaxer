@@ -128,10 +128,9 @@ Some of the predictions are shown below. As we are predicting a distribution, th
 
 ![Jaxer Predictions 3](./data/2.png)
 
-Now, the model is following the mean of the window input data. I am trying to fix it by adjusting the model arch and the hyperparameters. This is not good, because if the model just learns the mean, then an AI model is not useful at all here.
-
+Now, the model is either predicting the window mean or lagging the input sequence. It is related to model size and hp and hope to fix it soon. 
 ![Jaxer Predictions Test](./data/mean_test.png)
-![Jaxer Predictions Train](./data/mean_train.png)
+![Jaxer Predictions Train](./data/mean_test_2.png)
 
 ## Conclusions
 - Jax and Flax are easy to use once you learn the basics. I have tried to make the code as simple as possible so it can be easily understood, encapsulating the complexity of the libraries.

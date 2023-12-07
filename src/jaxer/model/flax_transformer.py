@@ -215,15 +215,14 @@ class FeatureExtractor(nn.Module):
         )
 
         # some residual blocks
-        # x = ResidualBlock(feature_dim=self.config.d_model,
-        #                   dtype=self.config.dtype,
-        #                   kernel_init=self.config.kernel_init,
-        #                   bias_init=self.config.bias_init)(x)
-        # x = nn.Dropout(rate=self.config.dropout)(
-        #     x, deterministic=self.config.deterministic
-        # )
-
-        # x = ResidualBlock(feature_dim=self.config.d_model,
+        x = ResidualBlock(feature_dim=self.config.d_model,
+                          dtype=self.config.dtype,
+                          kernel_init=self.config.kernel_init,
+                          bias_init=self.config.bias_init)(x)
+        x = nn.Dropout(rate=self.config.dropout)(
+            x, deterministic=self.config.deterministic
+        )
+       # x = ResidualBlock(feature_dim=self.config.d_model,
         #                   dtype=self.config.dtype,
         #                   kernel_init=self.config.kernel_init,
         #                   bias_init=self.config.bias_init)(x)
@@ -264,15 +263,15 @@ class EncoderBlock(nn.Module):
 
         """ Feed Forward Block """
         y = nn.LayerNorm(dtype=self.config.dtype)(x)
-        # y = FeedForwardBlockConv1D(
-        #     config=self.config,
-        #     out_dim=self.config.d_model
-        # )(y)
-
-        y = FeedForwardBlock(
+        y = FeedForwardBlockConv1D(
             config=self.config,
             out_dim=self.config.d_model
         )(y)
+
+        # y = FeedForwardBlock(
+        #     config=self.config,
+        #     out_dim=self.config.d_model
+        # )(y)
 
         return x + y
 

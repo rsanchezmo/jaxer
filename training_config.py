@@ -3,12 +3,12 @@ from jaxer.utils.config import ModelConfig, Config
 
 model_config = ModelConfig(
     d_model=256,
-    num_layers=6,
+    num_layers=4,
     head_layers=2,
-    n_heads=8,
+    n_heads=4,
     dim_feedforward=4*256,  # 4 * d_model
-    dropout=0.05,
-    max_seq_len=15,
+    dropout=0.0,
+    max_seq_len=7,
     input_features=5,
     flatten_encoder_output=False
 )
