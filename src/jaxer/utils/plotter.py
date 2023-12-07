@@ -95,8 +95,13 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, y_pred: jnp.ndarra
     marker_size = 4
 
     sequence_data = denormalize(input[:, 0], normalizer["price"])
+
+    mean_avg = denormalize(np.mean(input[:, 0]), normalizer["price"])
+
     prediction_data = jnp.append(sequence_data[-1], denormalize(y_pred[0], normalizer["price"]))
     real_data = jnp.append(sequence_data[-1], denormalize(y_true[0], normalizer["price"]))
+    mean_avg_data = jnp.append(sequence_data[-1], mean_avg)
+
     base = jnp.arange(len(sequence_data))
 
     base_pred = jnp.array([len(sequence_data)-1, len(sequence_data)])
@@ -108,6 +113,7 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, y_pred: jnp.ndarra
     ax0.plot(base, sequence_data, label='Close Price', color=Color.blue,  linewidth=linewidth, marker='o', markersize=marker_size)
     ax0.plot(base_pred, real_data, label='Next Day Real', color=Color.orange, linewidth=linewidth, marker='o', markersize=marker_size)
     ax0.plot(base_pred, prediction_data, label='Next Day Pred', color=Color.green, linewidth=linewidth, marker='o', markersize=marker_size)
+    ax0.plot(base_pred, mean_avg_data, label='Next Day Window Avg', color=Color.purple, linewidth=linewidth, marker='o', markersize=marker_size)
     #ax0.plot(base, open_data, label='Open Price', color=Color.red,  linewidth=linewidth, marker='o', markersize=marker_size)
 
 

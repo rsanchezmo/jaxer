@@ -54,7 +54,7 @@ class TrainerBase:
 
         """ Dataloaders """
         dataset = Dataset(self._config.dataset_path, self._config.model_config.max_seq_len, norm_mode=self._config.normalizer_mode,
-                          initial_date='2017-01-01')
+                          initial_date=self._config.initial_date)
         self._train_ds, self._test_ds = dataset.get_train_test_split(test_size=self._config.test_split)
         self._train_dataloader = DataLoader(self._train_ds, batch_size=self._config.batch_size, shuffle=True, collate_fn=jax_collate_fn)
         self._test_dataloader = DataLoader(self._test_ds, batch_size=self._config.batch_size, shuffle=True, collate_fn=jax_collate_fn)
@@ -147,8 +147,8 @@ class FlaxTrainer(TrainerBase):
             self.logger.info(f"Epoch: {epoch} \n"
                 f"                  Learning Rate: {metrics['lr']:.2e} \n"
                 f"                  Train Loss:  {metrics['loss']:>8.4f}    Test Loss: {test_metrics['loss']:>8.4f} \n"
-                f"                  Train MAE:   {metrics['mae']:>8.4f}    Test MAE: {test_metrics['mae']:>8.4f} \n"
-                f"                  Train R2:    {metrics['r2']:>8.4f}    Test R2: {test_metrics['r2']:>8.4f}\n"
+                f"                  Train MAE:   {metrics['mae']:>8.4f}    Test MAE:  {test_metrics['mae']:>8.4f} \n"
+                f"                  Train R2:    {metrics['r2']:>8.4f}    Test R2:   {test_metrics['r2']:>8.4f}\n"
                 f"                  Train RMSE:  {metrics['rmse']:>8.4f}    Test RMSE: {test_metrics['rmse']:>8.4f}\n"
                 f"                  Train MAPE:  {metrics['mape']:>8.4f} %  Test MAPE: {test_metrics['mape']:>8.4f} % \n"
                 f"                  Elapsed time: {delta_time:.2f} seconds")

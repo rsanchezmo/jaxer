@@ -26,7 +26,7 @@ def rmse(y_true: jnp.ndarray, y_pred: jnp.ndarray) -> jnp.ndarray:
 
 @jax.jit
 def gaussian_negative_log_likelihood(mean: jnp.ndarray, variance: jnp.ndarray, targets: jnp.ndarray):
-    mean_coef = 0.2
+    mean_coef = 0.8
     var_coef = 1. - mean_coef
     return jnp.mean(mean_coef * jnp.log(2 * jnp.pi * variance) + var_coef * ((targets - mean) ** 2) / (variance + 1.e-8))
 

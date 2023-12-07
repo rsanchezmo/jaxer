@@ -10,7 +10,7 @@ from jaxer.utils.config import get_best_model
 
 if __name__ == '__main__':
     """ LOAD THE AGENT """
-    experiment = "global_minmax_larger_2"
+    experiment = "step_by_step"
     agent = Agent(experiment=experiment, model_name=get_best_model(experiment))
 
     """ LOAD SOME DATA """
@@ -24,17 +24,19 @@ if __name__ == '__main__':
     # get the dataloaders from training
     """ Dataloaders """
     dataset = Dataset('./data/BTCUSD.csv', agent.config.model_config["max_seq_len"], norm_mode=agent.config.normalizer_mode,
-                      initial_date='2017-01-01')
+                      initial_date=agent.config.initial_date)
     train_ds, test_ds = dataset.get_train_test_split(test_size=agent.config.test_split)
 
 
     # infer entire dataset
-    predict_entire_dataset(agent, test_ds, mode='test')
-    predict_entire_dataset(agent, train_ds, mode='train')
+    plot_entire_dataset = True
+    if plot_entire_dataset:
+        predict_entire_dataset(agent, test_ds, mode='test')
+        predict_entire_dataset(agent, train_ds, mode='train')
 
     # infer once
     train_dataloader = DataLoader(train_ds, batch_size=1, shuffle=True, collate_fn=jax_collate_fn)
-    test_dataloader = DataLoader(test_ds, batch_size=1, shuffle=True, collate_fn=jax_collate_fn)
+    test_dataloader = DataLoader(test_ds, batch_size=1, shuffle=False, collate_fn=jax_collate_fn)
 
     for batch in test_dataloader:
         input, label, normalizer, initial_date = batch

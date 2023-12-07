@@ -25,6 +25,7 @@ class Config:
     learning_rate: float
     warmup_epochs: int
     dataset_path: str
+    initial_date: str
     batch_size: int
     test_split: float
     seed: int

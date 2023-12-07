@@ -96,6 +96,7 @@ An agent class has been created so you can load a model and use it to predict to
 ```python
 from jaxer.utils.agent import Agent
 from jaxer.utils.config import get_best_model
+from jaxer.utils.plotter import predict_entire_dataset
 import jax.numpy as jnp
 
 # the experiment in the "results" folder
@@ -107,6 +108,15 @@ x_test = jnp.ones((1, agent.config.model_config["max_seq_len"], agent.config.mod
 
 # predict
 pred = agent(x_test)
+
+# plot the test set predictions
+dataset = Dataset('./data/BTCUSD.csv', agent.config.model_config["max_seq_len"], 
+                    norm_mode=agent.config.normalizer_mode, 
+                    initial_date=agent.config.initial_date)
+
+train_ds, test_ds = dataset.get_train_test_split(test_size=agent.config.test_split)
+
+predict_entire_dataset(agent, test_ds, mode='test')
 ```
 
 ## Results
