@@ -41,6 +41,7 @@ def predict_entire_dataset(agent: Agent, dataset: torch.utils.data.Dataset, fold
     # close_preds = denormalize_elementwise(y_pred, normalizer_array, "price")
     close_preds = [denormalize(y_pred[i], normalizer[i]["price"]) for i in range(len(y_pred))]
     close_inputs = [denormalize(input[i, 0, 0], normalizer[i]["price"]) for i in range(len(input))] + denormalize(input[-1, 1:, 0], normalizer[-1]["price"]).tolist()
+    mean_avg = [denormalize(np.mean(input[i, :, 0]), normalizer[i]["price"]) for i in range(len(input))]
 
     # close_inputs (batch_size, max_seq_len, 1)
     # close_preds (batch_size, 1, 1)
@@ -53,6 +54,9 @@ def predict_entire_dataset(agent: Agent, dataset: torch.utils.data.Dataset, fold
     
     # plot close_inputs
     plt.plot(base_input, close_inputs, label='Close Price Real', color=Color.blue, linewidth=3, marker='o', markersize=4)
+
+    # plot mean
+    plt.plot(base_pred, mean_avg, label='Close Price Avg', color=Color.orange, linewidth=3, marker='o', markersize=4)
 
     plt.suptitle(f"Predictions [{mode}]", fontsize=20, fontweight='bold')
     plt.legend()
