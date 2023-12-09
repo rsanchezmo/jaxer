@@ -19,6 +19,9 @@ class TransformerConfig:
     bias_init: Callable = nn.initializers.normal(stddev=1e-6)
     deterministic: bool = False
     flatten_encoder_output: bool = False
+    feature_extractor_residual_blocks: int = 2
+    use_time2vec: bool = True
+
 
 class FeedForwardBlock(nn.Module):
     config: TransformerConfig
@@ -172,12 +175,17 @@ class ResidualBlock(nn.Module):
     feature_dim: int
     kernel_init: Callable
     bias_init: Callable
+    norm: bool = True
+    norm_prev: bool = False  # Noticed that the normalization should be done after the residual connection, if not, divergence occurs
 
     @nn.compact
     def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
         inputs = x
         
         assert x.shape[-1] == self.feature_dim, f"Expected x to have {self.feature_dim} dimensions, got {x.shape[-1]}"
+
+        if self.norm and self.norm_prev:
+            x = nn.LayerNorm()(x)
 
         x = nn.Dense(
             features=self.feature_dim,
@@ -190,7 +198,8 @@ class ResidualBlock(nn.Module):
 
         x = inputs + x
 
-        x = nn.LayerNorm()(x)
+        if self.norm and not self.norm_prev:
+            x = nn.LayerNorm()(x)
 
         return x
 
@@ -203,8 +212,9 @@ class FeatureExtractor(nn.Module):
         """ Feature extractor based on residual MLP networks """
 
         # first part of the network to get to the right dimension
+        features_dim = self.config.d_model if not self.config.use_time2vec else self.config.d_model - 2
         x = nn.Dense(
-            features=self.config.d_model,
+            features=features_dim,  # time embeddings will be concatenated later
             dtype=self.config.dtype,
             kernel_init=self.config.kernel_init,
             bias_init=self.config.bias_init,
@@ -215,20 +225,15 @@ class FeatureExtractor(nn.Module):
         )
 
         # some residual blocks
-        x = ResidualBlock(feature_dim=self.config.d_model,
-                          dtype=self.config.dtype,
-                          kernel_init=self.config.kernel_init,
-                          bias_init=self.config.bias_init)(x)
-        x = nn.Dropout(rate=self.config.dropout)(
-            x, deterministic=self.config.deterministic
-        )
-       # x = ResidualBlock(feature_dim=self.config.d_model,
-        #                   dtype=self.config.dtype,
-        #                   kernel_init=self.config.kernel_init,
-        #                   bias_init=self.config.bias_init)(x)
-        # x = nn.Dropout(rate=self.config.dropout)(
-        #     x, deterministic=self.config.deterministic
-        # )
+        for _ in range(self.config.feature_extractor_residual_blocks):
+            x = ResidualBlock(
+                dtype=self.config.dtype,
+                feature_dim=features_dim,  # time embeddings will be concatenated later
+                kernel_init=self.config.kernel_init,
+                bias_init=self.config.bias_init,
+                norm=True,
+                norm_prev=False
+            )(x)
 
         return x
     
@@ -263,15 +268,15 @@ class EncoderBlock(nn.Module):
 
         """ Feed Forward Block """
         y = nn.LayerNorm(dtype=self.config.dtype)(x)
-        y = FeedForwardBlockConv1D(
-            config=self.config,
-            out_dim=self.config.d_model
-        )(y)
-
-        # y = FeedForwardBlock(
+        # y = FeedForwardBlockConv1D(
         #     config=self.config,
         #     out_dim=self.config.d_model
         # )(y)
+
+        y = FeedForwardBlock(
+            config=self.config,
+            out_dim=self.config.d_model
+        )(y)
 
         return x + y
 
@@ -283,25 +288,26 @@ class Encoder(nn.Module):
         """ Applies the encoder module """
 
         """ Time2Vec """
-        time_embeddings = Time2Vec(
-            dtype=self.config.dtype,
-            kernel_init=self.config.kernel_init,
-            bias_init=self.config.bias_init,
-            max_seq_len=self.config.max_seq_len
-        )(x)
-
-        """ Concatenate """
-        x = jnp.concatenate([x, time_embeddings], axis=-1)
+        if self.config.use_time2vec:
+            time_embeddings = Time2Vec(
+                dtype=self.config.dtype,
+                kernel_init=self.config.kernel_init,
+                bias_init=self.config.bias_init,
+                max_seq_len=self.config.max_seq_len
+            )(x)
 
         """ Feature Embeddings"""
         x = FeatureExtractor(
                 config=self.config
         )(x)
 
-        # """ Positional Encoding """
-        # x = AddPositionalEncoding(
-        #     config=self.config
-        # )(x)
+        """ Concatenate the time embeddings """
+        if self.config.use_time2vec:
+            x = jnp.concatenate([x, time_embeddings], axis=-1)
+        else:
+            x = AddPositionalEncoding(
+                config=self.config
+            )(x)
 
         """ Encoder Blocks """
         for _ in range(self.config.num_layers):
@@ -329,7 +335,9 @@ class PredictionHead(nn.Module):
             x = ResidualBlock(feature_dim=self.config.d_model,
                                 dtype=self.config.dtype,
                                 kernel_init=self.config.kernel_init,
-                                bias_init=self.config.bias_init)(x)
+                                bias_init=self.config.bias_init,
+                                norm=True,
+                                norm_prev=False)(x)
             
         x = nn.Dense(
             features=2,  # predict the mean and the variance

@@ -99,7 +99,9 @@ class FlaxTrainer(TrainerBase):
             max_seq_len=self._config.model_config.max_seq_len,
             dtype=jnp.float32,
             deterministic=False,
-            flatten_encoder_output=self._config.model_config.flatten_encoder_output
+            flatten_encoder_output=self._config.model_config.flatten_encoder_output,
+            feature_extractor_residual_blocks=self._config.model_config.feature_extractor_residual_blocks,
+            use_time2vec=self._config.model_config.use_time2vec
         )
 
         self._flax_model_config_eval = self._flax_model_config.replace(deterministic=True)
