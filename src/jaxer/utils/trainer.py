@@ -156,8 +156,8 @@ class FlaxTrainer(TrainerBase):
                 f"                  Elapsed time: {delta_time:.2f} seconds")
 
 
-            if test_metrics["loss"] < best_loss:
-                best_loss = test_metrics["loss"]
+            if test_metrics["mape"] < best_loss:
+                best_loss = test_metrics["mape"]
                 self._save_best_model(epoch, train_state, test_metrics)
                 # self.best_model_test()
 

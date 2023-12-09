@@ -3,11 +3,11 @@ import jax
 
 
 @jax.jit
-def r2(y_true: jnp.ndarray, y_pred: jnp.ndarray) -> jnp.ndarray:
+def r2(y_true: jnp.ndarray, y_pred: jnp.ndarray, eps: float = 1e-6) -> jnp.ndarray:
     """ R2 metric """
     SS_res = jnp.sum(jnp.square(y_true - y_pred), axis=0)
     SS_tot = jnp.sum(jnp.square(y_true - jnp.mean(y_true, axis=0)), axis=0)
-    return 1 - SS_res / (SS_tot + 1.e-8)
+    return 1 - SS_res / jnp.maximum(SS_tot, eps)
 
 @jax.jit
 def mae(y_true: jnp.ndarray, y_pred: jnp.ndarray) -> jnp.ndarray:
@@ -25,13 +25,14 @@ def rmse(y_true: jnp.ndarray, y_pred: jnp.ndarray) -> jnp.ndarray:
     return jnp.sqrt(mse(y_true, y_pred))
 
 @jax.jit
-def gaussian_negative_log_likelihood(mean: jnp.ndarray, variance: jnp.ndarray, targets: jnp.ndarray):
-    mean_coef = 0.8
-    var_coef = 1. - mean_coef
-    return jnp.mean(mean_coef * jnp.log(2 * jnp.pi * variance) + var_coef * ((targets - mean) ** 2) / (variance + 1.e-8))
+def gaussian_negative_log_likelihood(mean: jnp.ndarray, variance: jnp.ndarray, targets: jnp.ndarray, eps: float = 1e-6) -> jnp.ndarray:
+    first_term = jnp.log(jnp.maximum(2 * jnp.pi * variance, eps))
+    second_term = jnp.square((targets - mean)) / jnp.maximum(variance, eps)
+    return jnp.mean(0.5 * (first_term + second_term))
 
 
 @jax.jit
-def mape(y_true: jnp.ndarray, y_pred: jnp.ndarray) -> jnp.ndarray:
+def mape(y_true: jnp.ndarray, y_pred: jnp.ndarray, eps: float = 1e-6) -> jnp.ndarray:
     """ Mean Absolute Percentage Error """
-    return jnp.mean(jnp.abs((y_true - y_pred) / (y_true + 1.e-8))) * 100
+    # TODO: CHECK THIS!
+    return jnp.mean(jnp.abs((y_true - y_pred) / jnp.maximum(y_true, eps))) * 100

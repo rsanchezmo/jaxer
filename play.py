@@ -10,7 +10,7 @@ from jaxer.utils.config import get_best_model
 
 if __name__ == '__main__':
     """ LOAD THE AGENT """
-    experiment = "step_by_step_x2"
+    experiment = "overfit"
     agent = Agent(experiment=experiment, model_name=get_best_model(experiment))
 
     """ LOAD SOME DATA """
