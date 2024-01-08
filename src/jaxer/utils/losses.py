@@ -3,24 +3,24 @@ import jax
 
 
 @jax.jit
-def r2(y_true: jnp.ndarray, y_pred: jnp.ndarray, eps: float = 1e-6) -> jnp.ndarray:
+def r2(y_pred: jnp.ndarray, y_true: jnp.ndarray, eps: float = 1e-6) -> jnp.ndarray:
     """ R2 metric """
     SS_res = jnp.sum(jnp.square(y_true - y_pred), axis=0)
     SS_tot = jnp.sum(jnp.square(y_true - jnp.mean(y_true, axis=0)), axis=0)
     return 1 - SS_res / jnp.clip(SS_tot, a_min=eps)
 
 @jax.jit
-def mae(y_true: jnp.ndarray, y_pred: jnp.ndarray) -> jnp.ndarray:
+def mae(y_pred: jnp.ndarray, y_true: jnp.ndarray) -> jnp.ndarray:
     """ Mean Absolute Error """
     return jnp.mean(jnp.abs(y_true - y_pred))
 
 @jax.jit
-def mse(y_true: jnp.ndarray, y_pred: jnp.ndarray) -> jnp.ndarray:
+def mse(y_pred: jnp.ndarray, y_true: jnp.ndarray) -> jnp.ndarray:
     """ Mean Squared Error """
     return jnp.mean(jnp.square(y_true - y_pred))
 
 @jax.jit
-def rmse(y_true: jnp.ndarray, y_pred: jnp.ndarray) -> jnp.ndarray:
+def rmse(y_pred: jnp.ndarray, y_true: jnp.ndarray) -> jnp.ndarray:
     """ Root Mean Squared Error """
     return jnp.sqrt(mse(y_true, y_pred))
 
@@ -32,7 +32,7 @@ def gaussian_negative_log_likelihood(mean: jnp.ndarray, variance: jnp.ndarray, t
 
 
 @jax.jit
-def mape(y_true: jnp.ndarray, y_pred: jnp.ndarray, eps: float = 1e-6) -> jnp.ndarray:
+def mape(y_pred: jnp.ndarray, y_true: jnp.ndarray, eps: float = 1e-6) -> jnp.ndarray:
     """ Mean Absolute Percentage Error """
     # TODO: CHECK THIS!
     return jnp.mean(jnp.abs(y_true - y_pred) / jnp.clip(jnp.abs(y_true), a_min=eps)) * 100
