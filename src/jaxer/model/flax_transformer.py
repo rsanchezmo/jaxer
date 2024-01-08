@@ -21,6 +21,7 @@ class TransformerConfig:
     flatten_encoder_output: bool = False
     feature_extractor_residual_blocks: int = 2
     use_time2vec: bool = True
+    output_distribution: bool = True
 
 
 class FeedForwardBlock(nn.Module):
@@ -92,9 +93,8 @@ class FeedForwardBlockConv1D(nn.Module):
 def sinusoidal_init(max_len: int = 2048, min_scale: float = 1.0, max_scale: float = 10000.0) -> Callable:
   """ 1D Sinusoidal Position Embedding Initializer """
 
-  def init(key, shape, dtype=np.float32):
+  def init(shape):
     """ Sinusoidal init """
-    del key, dtype
     d_feature = shape[-1]
     pe = np.zeros((max_len, d_feature), dtype=np.float32)
     position = np.arange(0, max_len)[:, np.newaxis]
@@ -117,7 +117,7 @@ class AddPositionalEncoding(nn.Module):
 
         pos_embed_shape = (1, self.config.max_seq_len, x.shape[-1])
         pos_embedding = sinusoidal_init(self.config.max_seq_len)(
-            None, pos_embed_shape, None
+            pos_embed_shape
         )
 
         pe = pos_embedding[:, :x.shape[1], :]
@@ -339,8 +339,13 @@ class PredictionHead(nn.Module):
                                 norm=True,
                                 norm_prev=False)(x)
             
+        if self.config.output_distribution:
+            output_dim = 2
+        else:
+            output_dim = 1
+
         x = nn.Dense(
-            features=2,  # predict the mean and the variance
+            features=output_dim,
             dtype=self.config.dtype,
             kernel_init=self.config.kernel_init,
             bias_init=self.config.bias_init,
@@ -373,7 +378,9 @@ class Transformer(nn.Module):
         x = PredictionHead(config=self.config)(x)
 
         """ output a probability distribution """
-        mean, log_variance = jnp.split(x, 2, axis=-1)
-        variance = jnp.exp(log_variance)
-
-        return mean, variance
+        if self.config.output_distribution:
+            mean, log_variance = jnp.split(x, 2, axis=-1)
+            variance = jnp.exp(log_variance)
+            return mean, variance
+        
+        return x

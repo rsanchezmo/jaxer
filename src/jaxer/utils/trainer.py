@@ -41,7 +41,9 @@ class TrainerBase:
         """ Training logs """
         self._log_dir = os.path.join(os.getcwd(), self._config.log_dir, self._config.experiment_name)
         os.makedirs(self._log_dir, exist_ok=True)
-        self._summary_writer = SummaryWriter(os.path.join(self._log_dir, "tensorboard"))
+        os.makedirs(os.path.join(self._log_dir, "tensorboard"), exist_ok=True)
+        # get num of experiments inside the folder
+        self._summary_writer = SummaryWriter(os.path.join(self._log_dir, "tensorboard", self._config_to_str(self._config)))
 
         """ Checkpoints """
         self._ckpts_dir = os.path.join(self._log_dir, "ckpt")
@@ -67,6 +69,18 @@ class TrainerBase:
         self._best_model_state: Optional[train_state.TrainState] = None
 
         self.logger = Logger("Trainer")
+
+    def _config_to_str(self, config: Config) -> str:
+        """ Converts a config to a string """
+        return f"lr_{config.learning_rate}_bs_{config.batch_size}_ep_{config.num_epochs}_warmup_{config.warmup_epochs}_seed_{config.seed}_" \
+                f"d_model_{config.model_config.d_model}_n_layers_{config.model_config.num_layers}_head_l_{config.model_config.head_layers}_" \
+                f"n_heads_{config.model_config.n_heads}_dim_ff_{config.model_config.dim_feedforward}_drpt_{config.model_config.dropout}_" \
+                f"max_seq_len_{config.model_config.max_seq_len}_in_features_{config.model_config.input_features}_flat_enc_out_{config.model_config.flatten_encoder_output}_" \
+                f"fe_resblocks_{config.model_config.feature_extractor_residual_blocks}_use_t2v_{config.model_config.use_time2vec}_" \
+                f"norm_{config.normalizer_mode}_" \
+                f"t_split_{config.test_split}_" \
+                f"i_date_{config.initial_date}_" \
+                f"out_dist_{config.model_config.output_distribution}"
 
 
     def train_and_evaluate(self) -> None:
@@ -101,7 +115,8 @@ class FlaxTrainer(TrainerBase):
             deterministic=False,
             flatten_encoder_output=self._config.model_config.flatten_encoder_output,
             feature_extractor_residual_blocks=self._config.model_config.feature_extractor_residual_blocks,
-            use_time2vec=self._config.model_config.use_time2vec
+            use_time2vec=self._config.model_config.use_time2vec,
+            output_distribution=self._config.model_config.output_distribution,
         )
 
         self._flax_model_config_eval = self._flax_model_config.replace(deterministic=True)
@@ -206,30 +221,48 @@ class FlaxTrainer(TrainerBase):
     
 
     @staticmethod
-    @jax.jit
-    def _compute_metrics(predictions: jnp.ndarray, targets: jnp.ndarray) -> Dict:
+    def _compute_metrics(predictions: jnp.ndarray, targets: jnp.ndarray, output_dist: bool) -> Dict:
         """ Computes metrics """
-        means, variances = predictions
-        loss = gaussian_negative_log_likelihood(means, variances, targets)
+
+        if output_dist:
+            means, variances = predictions
+        else:
+            means = predictions
+
         mae_ = mae(means, targets)
         rmse_ = rmse(means, targets)
         r2_ = r2(means, targets)
         mape_ = mape(means, targets)
+
+        if output_dist:
+            loss = gaussian_negative_log_likelihood(means, variances, targets)
+        else:
+            loss = rmse_
+
         return {"mae": mae_, "r2": r2_, "loss": loss, "rmse": rmse_, "mape": mape_}
 
     @staticmethod
-    @jax.jit
     def _model_train_step(state: train_state.TrainState, inputs: jnp.ndarray, targets: jnp.ndarray, 
-                     rng: jax.random.PRNGKey) -> jnp.ndarray:
+                     rng: jax.random.PRNGKey, output_dist: bool) -> jnp.ndarray:
 
         def loss_fn(params):
-            means, variances = state.apply_fn(params, inputs, rngs={"dropout": rng})
-            loss = gaussian_negative_log_likelihood(means, variances, targets)
+            predictions = state.apply_fn(params, inputs, rngs={"dropout": rng})
+
+            if output_dist:
+                means, variances = predictions
+            else:
+                means = predictions
 
             mae_ = mae(means, targets)
             r2_ = r2(means, targets)
             rmse_ = rmse(means, targets)
             mape_ = mape(means, targets)
+
+            if output_dist:
+                loss = gaussian_negative_log_likelihood(means, variances, targets)
+            else:
+                loss = rmse_
+
             return loss, (mae_, r2_, rmse_, mape_)
 
         (loss, (mae_, r2_, rmse_, mape_)), grads  = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
@@ -243,7 +276,7 @@ class FlaxTrainer(TrainerBase):
         
         predictions = self._eval_model.apply(state.params, inputs)
 
-        metrics = self._compute_metrics(predictions, targets)
+        metrics = self._compute_metrics(predictions, targets, self._config.model_config.output_distribution)
 
         return state, metrics  
 
@@ -255,7 +288,7 @@ class FlaxTrainer(TrainerBase):
             inputs, targets, _, _ = data
             step = state.step
             lr = self._learning_rate_fn(step)
-            state, _metrics = self._model_train_step(state, inputs, targets, rng)
+            state, _metrics = self._model_train_step(state, inputs, targets, rng, self._config.model_config.output_distribution)
             metrics["mae"].append(_metrics["mae"])
             metrics["r2"].append(_metrics["r2"])
             metrics["rmse"].append(_metrics["rmse"])

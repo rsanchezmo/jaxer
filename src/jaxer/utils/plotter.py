@@ -3,8 +3,8 @@ from matplotlib import gridspec
 import jax.numpy as jnp
 import numpy as np
 from dataclasses import dataclass
-from typing import Optional, Dict
-from .dataset import denormalize, denormalize_wrapper
+from typing import Optional, Dict, Union, Tuple
+from .dataset import denormalize
 from .agent import Agent
 import torch
 from .dataset import jax_collate_fn
@@ -31,14 +31,16 @@ def predict_entire_dataset(agent: Agent, dataset: torch.utils.data.Dataset, fold
 
     for batch in dataloader:
         input, label, normalizer, initial_date = batch
-        y_pred, variances = agent(input)
+        output = agent(input)
+
+    if isinstance(output, tuple):
+        y_pred, _ = output
+    else:
+        y_pred = output
 
     fig = plt.figure(figsize=(20, 12))
     plt.style.use('ggplot')
 
-    # normalizer_array = jnp.array(normalizer)
-    # denormalize_elementwise = jax.vmap(denormalize_wrapper, in_axes=(0, 0))
-    # close_preds = denormalize_elementwise(y_pred, normalizer_array, "price")
     close_preds = [denormalize(y_pred[i], normalizer[i]["price"]) for i in range(len(y_pred))]
     close_inputs = [denormalize(input[i, 0, 0], normalizer[i]["price"]) for i in range(len(input))] + denormalize(input[-1, 1:, 0], normalizer[-1]["price"]).tolist()
     mean_avg = [denormalize(np.mean(input[i, :, 0]), normalizer[i]["price"]) for i in range(len(input))]
@@ -70,9 +72,17 @@ def predict_entire_dataset(agent: Agent, dataset: torch.utils.data.Dataset, fold
     plt.close()
 
 
-def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, y_pred: jnp.ndarray, variances: jnp.ndarray, name: str, foldername: Optional[str] = None,
+def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, output: Union[jnp.ndarray, Tuple[jnp.ndarray, jnp.ndarray]], name: str, foldername: Optional[str] = None,
                      normalizer: Optional[Dict] = None, initial_date: Optional[str] = None) -> None:
     """ Function to plot prediction and results """
+
+    if isinstance(output, tuple):
+        y_pred, variances = output
+        y_pred = y_pred.squeeze(0)
+        variances = variances.squeeze(0)
+    else:
+        y_pred = output.squeeze(0)
+        variances = None
 
     if normalizer is None:
         normalizer = {key: dict(min_val=0, max_val=1, mode="minmax") for key in ["price", "volume"]}
@@ -118,13 +128,14 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, y_pred: jnp.ndarra
 
 
     # Add error bars
-    variances = denormalize(variances, normalizer=normalizer["price"])
-    std_dev = jnp.sqrt(variances)
-    upper_bound = [sequence_data[-1], float(prediction_data[-1]) + 1.96 * float(std_dev)]  # 95% confidence interval
-    lower_bound = [sequence_data[-1], float(prediction_data[-1]) - 1.96 * float(std_dev)]  # 95% confidence interval
+    if variances is not None:
+        variances = denormalize(variances, normalizer=normalizer["price"])
+        std_dev = jnp.sqrt(variances)
+        upper_bound = [sequence_data[-1], float(prediction_data[-1]) + 1.96 * float(std_dev)]  # 95% confidence interval
+        lower_bound = [sequence_data[-1], float(prediction_data[-1]) - 1.96 * float(std_dev)]  # 95% confidence interval
 
-    ax0.errorbar(base_pred[1], prediction_data[1], yerr=std_dev*1.96, color=Color.green, capsize=5, linewidth=2)
-    ax0.fill_between(base_pred, upper_bound, lower_bound, alpha=0.2, color=Color.green)
+        ax0.errorbar(base_pred[1], prediction_data[1], yerr=std_dev*1.96, color=Color.green, capsize=5, linewidth=2)
+        ax0.fill_between(base_pred, upper_bound, lower_bound, alpha=0.2, color=Color.green)
 
 
     ax0.set_ylabel('Close Price [$]', fontsize=18, fontweight='bold')

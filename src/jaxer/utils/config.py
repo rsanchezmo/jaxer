@@ -17,6 +17,7 @@ class ModelConfig:
     flatten_encoder_output: int
     feature_extractor_residual_blocks: int
     use_time2vec: bool
+    output_distribution: bool
 
 @dataclass
 class Config:
