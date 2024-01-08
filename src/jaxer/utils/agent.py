@@ -29,7 +29,8 @@ class Agent:
             flatten_encoder_output=self.config.model_config["flatten_encoder_output"],
             head_layers=self.config.model_config["head_layers"],
             feature_extractor_residual_blocks=self.config.model_config["feature_extractor_residual_blocks"],
-            use_time2vec=self.config.model_config["use_time2vec"]
+            use_time2vec=self.config.model_config["use_time2vec"],
+            output_distribution=self.config.model_config["output_distribution"]
         )
 
         """ Create an orbax checkpointer to restore the model"""
