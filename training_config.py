@@ -3,9 +3,9 @@ from jaxer.utils.config import ModelConfig, Config
 
 model_config = ModelConfig(
     d_model=128,
-    num_layers=1,
+    num_layers=2,
     head_layers=1,
-    n_heads=4,
+    n_heads=8,
     dim_feedforward=4*128,  # 4 * d_model
     dropout=0.0,
     max_seq_len=10,
@@ -13,7 +13,7 @@ model_config = ModelConfig(
     flatten_encoder_output=False,
     feature_extractor_residual_blocks=0,
     use_time2vec=False,
-    output_distribution=False
+    output_distribution=True
 )
 
 config = Config(
@@ -21,7 +21,7 @@ config = Config(
     log_dir="results",
     experiment_name="overfit",
     num_epochs=1000,
-    learning_rate=1e-4,
+    learning_rate=1e-5,
     warmup_epochs=20,
     dataset_path="./data/BTCUSD.csv",
     initial_date='2021-01-01',

@@ -161,7 +161,7 @@ class FlaxTrainer(TrainerBase):
             for key, value in test_metrics.items():
                 self._summary_writer.add_scalar(f"test/{key}", value, epoch)
             
-            self.logger.info(f"Epoch: {epoch} \n"
+            self.logger.info(f" Epoch: {epoch}/{self._config.num_epochs} \n"
                 f"                  Learning Rate: {metrics['lr']:.2e} \n"
                 f"                  Train Loss:  {metrics['loss']:>8.4f}    Test Loss: {test_metrics['loss']:>8.4f} \n"
                 f"                  Train MAE:   {metrics['mae']:>8.4f}    Test MAE:  {test_metrics['mae']:>8.4f} \n"

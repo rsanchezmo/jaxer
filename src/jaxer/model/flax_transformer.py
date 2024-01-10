@@ -338,20 +338,25 @@ class PredictionHead(nn.Module):
                                 bias_init=self.config.bias_init,
                                 norm=True,
                                 norm_prev=False)(x)
-            
-        if self.config.output_distribution:
-            output_dim = 2
-        else:
-            output_dim = 1
 
-        x = nn.Dense(
-            features=output_dim,
+        mean = nn.Dense(
+            features=1,
             dtype=self.config.dtype,
             kernel_init=self.config.kernel_init,
             bias_init=self.config.bias_init,
         )(x)
 
-        return x
+        if not self.config.output_distribution:
+            return mean
+            
+        log_variance = nn.Dense(
+            features=1,
+            dtype=self.config.dtype,
+            kernel_init=self.config.kernel_init,
+            bias_init=self.config.bias_init,
+        )(x)
+
+        return mean, log_variance
 
 class Transformer(nn.Module):
     config: TransformerConfig
@@ -379,7 +384,7 @@ class Transformer(nn.Module):
 
         """ output a probability distribution """
         if self.config.output_distribution:
-            mean, log_variance = jnp.split(x, 2, axis=-1)
+            mean, log_variance = x
             variance = jnp.exp(log_variance)
             return mean, variance
         
