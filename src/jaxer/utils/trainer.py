@@ -49,7 +49,7 @@ class TrainerBase:
         self._ckpts_dir = os.path.join(self._log_dir, "ckpt")
         os.makedirs(self._ckpts_dir, exist_ok=True)
         self._orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
-        options = orbax.checkpoint.CheckpointManagerOptions(max_to_keep=5, create=True)
+        options = orbax.checkpoint.CheckpointManagerOptions(max_to_keep=100, create=True)
         self._checkpoint_manager = orbax.checkpoint.CheckpointManager(
             self._ckpts_dir, self._orbax_checkpointer, options)
         
@@ -142,6 +142,7 @@ class FlaxTrainer(TrainerBase):
 
         best_loss = float("inf")
         self.logger.info("Starting training...")
+        begin_time = time.time()
         for epoch in range(self._config.num_epochs):
             init_time = time.time() 
             rng, key = jax.random.split(rng) # creates a new subkey
@@ -168,7 +169,8 @@ class FlaxTrainer(TrainerBase):
                 f"                  Train R2:    {metrics['r2']:>8.4f}    Test R2:   {test_metrics['r2']:>8.4f}\n"
                 f"                  Train RMSE:  {metrics['rmse']:>8.4f}    Test RMSE: {test_metrics['rmse']:>8.4f}\n"
                 f"                  Train MAPE:  {metrics['mape']:>8.4f} %  Test MAPE: {test_metrics['mape']:>8.4f} % \n"
-                f"                  Elapsed time: {delta_time:.2f} seconds")
+                f"                  Epcoh time: {delta_time:.2f} seconds\n"
+                f"                  Total elapsed time: {(end_time - begin_time)/60:.2f} min\n")
 
 
             if test_metrics["mape"] < best_loss:
