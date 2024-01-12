@@ -196,9 +196,7 @@ class FlaxTrainer(TrainerBase):
             """ Save model """
             if test_metrics["loss"] < best_loss:
                 best_loss = test_metrics["loss"]
-                if self._config.save_weights:
-                    self._save_best_model(epoch, train_state, test_metrics)
-                # self.best_model_test()
+                self._save_best_model(epoch, train_state, test_metrics)
 
 
         self.logger.info("Training finished!")
@@ -207,7 +205,6 @@ class FlaxTrainer(TrainerBase):
 
 
     def _save_best_model(self, epoch: int, state: train_state.TrainState, metrics: Dict) -> None:
-        self._save_model(epoch, state)
         self._best_model_state = state
 
         for key, value in metrics.items():
@@ -218,6 +215,10 @@ class FlaxTrainer(TrainerBase):
         metrics["subfolder"] = self._config_to_str(self._config)
         with open(os.path.join(self._log_dir, "best_model_train.json"), 'w') as f:
             f.write(json.dumps(metrics, indent=4))
+
+        if self._config.save_weights:
+            self._save_model(epoch, state)
+
 
 
     def _create_train_state(self, rng: jax.random.PRNGKey) -> train_state.TrainState:
