@@ -62,8 +62,10 @@ class TrainerBase:
         self._test_dataloader = DataLoader(self._test_ds, batch_size=self._config.batch_size, shuffle=True, collate_fn=jax_collate_fn)
 
 
+        os.makedirs(os.path.join(self._log_dir, 'configs', self._config_to_str(self._config)), exist_ok=True)
+
         """ Save config """
-        self._config.save_config(os.path.join(self._log_dir, "config.json"))
+        self._config.save_config(os.path.join(self._log_dir, 'configs', self._config_to_str(self._config), "config.json"))
 
         """ Best model state: eval purposes """
         self._best_model_state: Optional[train_state.TrainState] = None

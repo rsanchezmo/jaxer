@@ -13,15 +13,13 @@ class Agent:
         self.experiment_path = os.path.join("results", experiment)
         subfolder, self.model_name = model_name
 
-        if subfolder is not None:
-            self.ckpt_path = os.path.join(self.experiment_path, 'ckpt', subfolder, self.model_name, 'default')
-        else:
-            self.ckpt_path = os.path.join(self.experiment_path, 'ckpt', self.model_name, 'default')
+
+        self.ckpt_path = os.path.join(self.experiment_path, 'ckpt', subfolder, self.model_name, 'default')
 
         assert os.path.exists(self.experiment_path), f"Experiment {experiment} does not exist in results folder"
         assert os.path.exists(self.ckpt_path), f"Model {self.model_name} does not exist in experiment {experiment} with subfolder {subfolder}"
 
-        self.config = Config.load_config(f"{self.experiment_path}/config.json")
+        self.config = Config.load_config(os.path.join(self.experiment_path,'configs', subfolder, 'config.json'))
 
         self._flax_config = TransformerConfig(
             d_model=self.config.model_config["d_model"],
