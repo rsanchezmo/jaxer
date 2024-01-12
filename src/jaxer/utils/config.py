@@ -28,6 +28,7 @@ class Config:
     experiment_name: str
     num_epochs: int
     learning_rate: float
+    lr_mode: str
     warmup_epochs: int
     dataset_path: str
     initial_date: str

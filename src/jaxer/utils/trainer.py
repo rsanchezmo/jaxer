@@ -18,8 +18,8 @@ from jaxer.utils.logger import Logger
 from jaxer.utils.losses import gaussian_negative_log_likelihood, mae, r2, rmse, mape
 
 
-def create_learning_rate_schedule(learning_rate: float, warmup_epochs: int, num_epochs: int, steps_per_epoch: int) -> optax.Schedule:
-    """Creates learning rate schedule."""
+def create_warmup_cosine_schedule(learning_rate: float, warmup_epochs: int, num_epochs: int, steps_per_epoch: int) -> optax.Schedule:
+    """Creates learning rate cosine schedule."""
     warmup_fn = optax.linear_schedule(
         init_value=0., end_value=learning_rate,
         transition_steps=warmup_epochs * steps_per_epoch)
@@ -72,7 +72,7 @@ class TrainerBase:
 
     def _config_to_str(self, config: Config) -> str:
         """ Converts a config to a string """
-        return f"lr_{config.learning_rate}_bs_{config.batch_size}_ep_{config.num_epochs}_wmp_{config.warmup_epochs}_seed_{config.seed}_" \
+        return f"lr_{config.learning_rate}_mode_{config.lr_mode}_bs_{config.batch_size}_ep_{config.num_epochs}_wmp_{config.warmup_epochs}_seed_{config.seed}_" \
                 f"d_model_{config.model_config.d_model}_n_layers_{config.model_config.num_layers}_n_hd_l_{config.model_config.head_layers}_" \
                 f"n_hds_{config.model_config.n_heads}_dim_ff_{config.model_config.dim_feedforward}_drpt_{config.model_config.dropout}_" \
                 f"max_len_{config.model_config.max_seq_len}_in_feat_{config.model_config.input_features}_flat_out_{config.model_config.flatten_encoder_output}_" \
@@ -216,8 +216,14 @@ class FlaxTrainer(TrainerBase):
 
         """ Create lr scheduler """
         steps_per_epoch = len(self._train_dataloader)
-        self._learning_rate_fn = create_learning_rate_schedule(learning_rate=self._config.learning_rate, warmup_epochs=self._config.warmup_epochs,
-                                                               num_epochs=self._config.num_epochs, steps_per_epoch=steps_per_epoch)
+        if self._config.lr_mode == 'cosine':
+            self._learning_rate_fn = create_warmup_cosine_schedule(learning_rate=self._config.learning_rate, warmup_epochs=self._config.warmup_epochs,
+                                                                num_epochs=self._config.num_epochs, steps_per_epoch=steps_per_epoch)
+        elif self._config.lr_mode == 'linear':
+            self._learning_rate_fn = optax.linear_schedule(init_value=self._config.learning_rate, end_value=0.0,
+                                                        transition_steps=self._config.num_epochs * steps_per_epoch)
+        else:
+            raise NotImplementedError(f"Learning rate mode {self._config.lr_mode} not implemented")
 
         """ Create optimizer """
         tx = optax.adamw(self._learning_rate_fn)

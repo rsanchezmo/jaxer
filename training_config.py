@@ -24,6 +24,7 @@ config = Config(
     experiment_name="output_mean",
     num_epochs=1500,
     learning_rate=5e-5,
+    lr_mode='linear',  # 'cosine 
     warmup_epochs=20,
     dataset_path="./data/BTCUSD.csv",
     initial_date='2020-01-01',
