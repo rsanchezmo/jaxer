@@ -2,24 +2,26 @@ from jaxer.utils.config import ModelConfig, Config
 
 
 model_config = ModelConfig(
-    d_model=32,
+    d_model=256,
     num_layers=1,
     head_layers=1,
     n_heads=4,
-    dim_feedforward=4*32,  # 4 * d_model
+    dim_feedforward=4*256,  # 4 * d_model
     dropout=0.0,
-    max_seq_len=10,
+    max_seq_len=5,
     input_features=5,
     flatten_encoder_output=False,
-    feature_extractor_residual_blocks=0,
-    use_time2vec=True,
-    output_distribution=True
+    fe_blocks=1,
+    use_time2vec=False,
+    output_distribution=False,
+    use_resblocks_in_head=False,
+    use_resblocks_in_fe=False
 )
 
 config = Config(
     model_config=model_config,
     log_dir="results",
-    experiment_name="overfit",
+    experiment_name="output_mean",
     num_epochs=1500,
     learning_rate=5e-5,
     warmup_epochs=20,

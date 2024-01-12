@@ -19,9 +19,11 @@ class TransformerConfig:
     bias_init: Callable = nn.initializers.normal(stddev=1e-6)
     deterministic: bool = False
     flatten_encoder_output: bool = False
-    feature_extractor_residual_blocks: int = 2
+    fe_blocks: int = 2
     use_time2vec: bool = True
     output_distribution: bool = True
+    use_resblocks_in_head: bool = True
+    use_resblocks_in_fe: bool = True
 
 
 class FeedForwardBlock(nn.Module):
@@ -225,15 +227,24 @@ class FeatureExtractor(nn.Module):
         )
 
         # some residual blocks
-        for _ in range(self.config.feature_extractor_residual_blocks):
-            x = ResidualBlock(
-                dtype=self.config.dtype,
-                feature_dim=features_dim,  # time embeddings will be concatenated later
-                kernel_init=self.config.kernel_init,
-                bias_init=self.config.bias_init,
-                norm=True,
-                norm_prev=False
-            )(x)
+        for _ in range(self.config.fe_blocks):
+            if self.config.use_resblocks_in_fe:
+                x = ResidualBlock(
+                    dtype=self.config.dtype,
+                    feature_dim=features_dim,  # time embeddings will be concatenated later
+                    kernel_init=self.config.kernel_init,
+                    bias_init=self.config.bias_init,
+                    norm=True,
+                    norm_prev=False
+                )(x)
+            else:
+                x = nn.Dense(
+                    features=features_dim,  # time embeddings will be concatenated later
+                    dtype=self.config.dtype,
+                    kernel_init=self.config.kernel_init,
+                    bias_init=self.config.bias_init,
+                )(x)
+                x = nn.gelu(x)
 
         return x
     
@@ -332,12 +343,19 @@ class PredictionHead(nn.Module):
             x = nn.relu(x)
                         
         for _ in range(self.config.head_layers - 1):
-            x = ResidualBlock(feature_dim=self.config.d_model,
-                                dtype=self.config.dtype,
-                                kernel_init=self.config.kernel_init,
-                                bias_init=self.config.bias_init,
-                                norm=True,
-                                norm_prev=False)(x)
+            if self.config.use_resblocks_in_head:
+                x = ResidualBlock(feature_dim=self.config.d_model,
+                                    dtype=self.config.dtype,
+                                    kernel_init=self.config.kernel_init,
+                                    bias_init=self.config.bias_init,
+                                    norm=True,
+                                    norm_prev=False)(x)
+            else:
+                x = nn.Dense(features=self.config.d_model,
+                            dtype=self.config.dtype,
+                            kernel_init=self.config.kernel_init,
+                            bias_init=self.config.bias_init)(x)
+                x = nn.relu(x)
 
         mean = nn.Dense(
             features=1,

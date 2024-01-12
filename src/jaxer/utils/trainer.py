@@ -72,15 +72,17 @@ class TrainerBase:
 
     def _config_to_str(self, config: Config) -> str:
         """ Converts a config to a string """
-        return f"lr_{config.learning_rate}_bs_{config.batch_size}_ep_{config.num_epochs}_warmup_{config.warmup_epochs}_seed_{config.seed}_" \
-                f"d_model_{config.model_config.d_model}_n_layers_{config.model_config.num_layers}_head_l_{config.model_config.head_layers}_" \
-                f"n_heads_{config.model_config.n_heads}_dim_ff_{config.model_config.dim_feedforward}_drpt_{config.model_config.dropout}_" \
-                f"max_seq_len_{config.model_config.max_seq_len}_in_features_{config.model_config.input_features}_flat_enc_out_{config.model_config.flatten_encoder_output}_" \
-                f"fe_resblocks_{config.model_config.feature_extractor_residual_blocks}_use_t2v_{config.model_config.use_time2vec}_" \
+        return f"lr_{config.learning_rate}_bs_{config.batch_size}_ep_{config.num_epochs}_wmp_{config.warmup_epochs}_seed_{config.seed}_" \
+                f"d_model_{config.model_config.d_model}_n_layers_{config.model_config.num_layers}_n_hd_l_{config.model_config.head_layers}_" \
+                f"n_hds_{config.model_config.n_heads}_dim_ff_{config.model_config.dim_feedforward}_drpt_{config.model_config.dropout}_" \
+                f"max_len_{config.model_config.max_seq_len}_in_feat_{config.model_config.input_features}_flat_out_{config.model_config.flatten_encoder_output}_" \
+                f"fe_blk_{config.model_config.fe_blocks}_t2v_{config.model_config.use_time2vec}_" \
                 f"norm_{config.normalizer_mode}_" \
-                f"t_split_{config.test_split}_" \
-                f"i_date_{config.initial_date}_" \
-                f"out_dist_{config.model_config.output_distribution}"
+                f"t_splt_{config.test_split}_" \
+                f"date_{config.initial_date}_" \
+                f"out_dist_{config.model_config.output_distribution}_" \
+                f"res_hd_{config.model_config.use_resblocks_in_head}_" \
+                f"res_fe_{config.model_config.use_resblocks_in_fe}"
 
 
     def train_and_evaluate(self) -> None:
@@ -114,9 +116,11 @@ class FlaxTrainer(TrainerBase):
             dtype=jnp.float32,
             deterministic=False,
             flatten_encoder_output=self._config.model_config.flatten_encoder_output,
-            feature_extractor_residual_blocks=self._config.model_config.feature_extractor_residual_blocks,
+            fe_blocks=self._config.model_config.fe_blocks,
             use_time2vec=self._config.model_config.use_time2vec,
             output_distribution=self._config.model_config.output_distribution,
+            use_resblocks_in_head=self._config.model_config.use_resblocks_in_head,
+            use_resblocks_in_fe=self._config.model_config.use_resblocks_in_fe
         )
 
         self._flax_model_config_eval = self._flax_model_config.replace(deterministic=True)
@@ -173,8 +177,8 @@ class FlaxTrainer(TrainerBase):
                 f"                  Total elapsed time: {(end_time - begin_time)/60:.2f} min\n")
 
 
-            if test_metrics["mape"] < best_loss:
-                best_loss = test_metrics["mape"]
+            if test_metrics["loss"] < best_loss:
+                best_loss = test_metrics["loss"]
                 self._save_best_model(epoch, train_state, test_metrics)
                 # self.best_model_test()
 
@@ -349,8 +353,8 @@ class FlaxTrainer(TrainerBase):
         counter = 0
         for i, data in enumerate(test_dataloader):
             inputs, targets, normalizer, _ = data
-            means, variances = self._eval_model.apply(self._best_model_state.params, inputs)
-            plot_predictions(inputs.squeeze(0), targets.squeeze(0), means.squeeze(0), variances.squeeze(0), i, save_folder, normalizer=normalizer[0])
+            output = self._eval_model.apply(self._best_model_state.params, inputs)
+            plot_predictions(inputs.squeeze(0), targets.squeeze(0), output, i, save_folder, normalizer=normalizer[0])
             counter += 1
             if counter == max_seqs:
                 break

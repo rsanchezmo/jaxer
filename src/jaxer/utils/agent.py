@@ -28,9 +28,11 @@ class Agent:
             deterministic=True,
             flatten_encoder_output=self.config.model_config["flatten_encoder_output"],
             head_layers=self.config.model_config["head_layers"],
-            feature_extractor_residual_blocks=self.config.model_config["feature_extractor_residual_blocks"],
+            fe_blocks=self.config.model_config["fe_blocks"],
             use_time2vec=self.config.model_config["use_time2vec"],
-            output_distribution=self.config.model_config["output_distribution"]
+            output_distribution=self.config.model_config["output_distribution"],
+            use_resblocks_in_head=self.config.model_config["use_resblocks_in_head"],
+            use_resblocks_in_fe=self.config.model_config["use_resblocks_in_fe"]
         )
 
         """ Create an orbax checkpointer to restore the model"""

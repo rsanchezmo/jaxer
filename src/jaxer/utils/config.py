@@ -15,9 +15,11 @@ class ModelConfig:
     max_seq_len: int
     input_features: int
     flatten_encoder_output: int
-    feature_extractor_residual_blocks: int
+    fe_blocks: int
     use_time2vec: bool
     output_distribution: bool
+    use_resblocks_in_head: bool
+    use_resblocks_in_fe: bool
 
 @dataclass
 class Config:
