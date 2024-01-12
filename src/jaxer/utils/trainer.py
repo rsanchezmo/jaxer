@@ -16,6 +16,7 @@ import json
 from jaxer.utils.plotter import plot_predictions
 from jaxer.utils.logger import Logger
 from jaxer.utils.losses import gaussian_negative_log_likelihood, mae, r2, rmse, mape
+from jaxer.utils.early_stopper import EarlyStopper
 
 
 def create_warmup_cosine_schedule(learning_rate: float, warmup_epochs: int, num_epochs: int, steps_per_epoch: int) -> optax.Schedule:
@@ -149,6 +150,12 @@ class FlaxTrainer(TrainerBase):
         best_loss = float("inf")
         self.logger.info("Starting training...")
         begin_time = time.time()
+
+        if self._config.early_stopper > 0:
+            early_stopper = EarlyStopper(self._config.early_stopper)
+        else:
+            early_stopper = None
+
         for epoch in range(self._config.num_epochs):
             init_time = time.time() 
             rng, key = jax.random.split(rng) # creates a new subkey
@@ -175,10 +182,18 @@ class FlaxTrainer(TrainerBase):
                 f"                  Train R2:    {metrics['r2']:>8.4f}    Test R2:   {test_metrics['r2']:>8.4f}\n"
                 f"                  Train RMSE:  {metrics['rmse']:>8.4f}    Test RMSE: {test_metrics['rmse']:>8.4f}\n"
                 f"                  Train MAPE:  {metrics['mape']:>8.4f} %  Test MAPE: {test_metrics['mape']:>8.4f} % \n"
-                f"                  Epcoh time: {delta_time:.2f} seconds\n"
-                f"                  Total elapsed time: {(end_time - begin_time)/60:.2f} min\n")
+                f"                  Epoch time: {delta_time:.2f} seconds\n"
+                f"                  Total training time: {(end_time - begin_time)/60:.2f} min\n")
 
 
+            # TODO: get this back to test_metrics, but for intended purposes no I leave for training metrics
+            should_stop = early_stopper(metrics["loss"]) if early_stopper is not None else False
+
+            if should_stop:
+                self.logger.warning(f"Early stopping at epoch {epoch}! Did not improve for {self._config.early_stopper} epochs")               
+                break
+
+            """ Save model """
             if test_metrics["loss"] < best_loss:
                 best_loss = test_metrics["loss"]
                 if self._config.save_weights:

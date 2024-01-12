@@ -37,6 +37,7 @@ class Config:
     seed: int
     normalizer_mode: str
     save_weights: bool
+    early_stopper: int
 
     def save_config(self, path):
         config = asdict(self)

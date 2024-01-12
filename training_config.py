@@ -32,5 +32,6 @@ config = Config(
     test_split=0.1,
     seed=0,
     normalizer_mode="global_minmax",
-    save_weights=True
+    save_weights=True,
+    early_stopper=200
 )

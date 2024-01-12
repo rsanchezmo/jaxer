@@ -27,8 +27,9 @@ Render of a transformer model as a hologram, projecting from a digital device, w
 - Add a lr scheduler to the trainer class: warmup cosine scheduler ✔️
 - Make the prediction head output a distribution instead of a single value to cover uncertainaty ✔️
 - Include Time2Vec as time embedding ✔️
-- Select output head format [resnet, mlp, etc]
-- Select input feature extractor format [resnet, mlp, etc]
+- Select output head format [resblocks, mlp, etc] ✔️
+- Select input feature extractor format [resblocks, mlp, etc] ✔️
+- Create HP tuner ✔️
 
 ## Installation
 

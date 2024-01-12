@@ -33,10 +33,11 @@ if __name__ == '__main__':
     n_trainings = 20
     trained_set = set()
 
+    counter_trains = 0
     logger = Logger(name='HP SEARCHER')
 
-    for i in range(n_trainings):
-        logger.info(f"Training {i+1}/{n_trainings}")
+    while counter_trains < n_trainings:
+        logger.info(f"Training {counter_trains+1}/{n_trainings}")
 
         d_model = int(np.random.choice(model_config_ranges['d_model']))
         num_layers = int(np.random.choice(model_config_ranges['num_layers']))
@@ -67,6 +68,7 @@ if __name__ == '__main__':
             logger.warning(f"Already trained {params}, skipping...")
             continue
 
+        counter_trains += 1
         trained_set.add(params)
 
         model_config = ModelConfig(
@@ -99,7 +101,8 @@ if __name__ == '__main__':
                         test_split=0.1,
                         seed=0,
                         normalizer_mode=normalizer_mode,
-                        save_weights=False)
+                        save_weights=False,
+                        early_stopper=100)
                         
         trainer = Trainer(config=config)
         trainer.train_and_evaluate()
