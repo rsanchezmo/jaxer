@@ -5,16 +5,21 @@ import os
 import jax.numpy as jnp
 import jax
 import orbax.checkpoint
+from typing import Tuple, Optional
 
 
 class Agent:
-    def __init__(self, experiment: str, model_name: str) -> None:
+    def __init__(self, experiment: str, model_name: Tuple[Optional[str], str]) -> None:
         self.experiment_path = os.path.join("results", experiment)
-        self.model_name = model_name
-        self.ckpt_path = os.path.join(self.experiment_path, "ckpt", model_name, 'default')
+        subfolder, self.model_name = model_name
+
+        if subfolder is not None:
+            self.ckpt_path = os.path.join(self.experiment_path, 'ckpt', subfolder, self.model_name, 'default')
+        else:
+            self.ckpt_path = os.path.join(self.experiment_path, 'ckpt', self.model_name, 'default')
 
         assert os.path.exists(self.experiment_path), f"Experiment {experiment} does not exist in results folder"
-        assert os.path.exists(self.ckpt_path), f"Model {model_name} does not exist in experiment {experiment}"
+        assert os.path.exists(self.ckpt_path), f"Model {self.model_name} does not exist in experiment {experiment} with subfolder {subfolder}"
 
         self.config = Config.load_config(f"{self.experiment_path}/config.json")
 
@@ -36,12 +41,15 @@ class Agent:
         )
 
         """ Create an orbax checkpointer to restore the model"""
+        assert self.config.save_weights, "Weights were not saved during training, cannot restore model"
+
         orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
         restored_state = orbax_checkpointer.restore(self.ckpt_path)
         self.params = restored_state["model"]["params"]
 
         """ Do a warmup of the model """
         self.model = Transformer(self._flax_config)
+
         self.model.apply(self.params, jnp.ones((1, self.config.model_config["max_seq_len"], self.config.model_config["input_features"])))
 
 

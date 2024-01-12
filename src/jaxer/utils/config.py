@@ -36,6 +36,7 @@ class Config:
     test_split: float
     seed: int
     normalizer_mode: str
+    save_weights: bool
 
     def save_config(self, path):
         config = asdict(self)
@@ -57,5 +58,5 @@ def get_best_model(experiment_name: str) -> str:
     with open(complete_path, 'r') as f:
         best_model = json.load(f)
 
-    return str(best_model["ckpt"])
+    return best_model.get("subfolder", None), str(best_model["ckpt"])
 

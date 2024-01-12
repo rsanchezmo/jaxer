@@ -46,10 +46,10 @@ class TrainerBase:
         self._summary_writer = SummaryWriter(os.path.join(self._log_dir, "tensorboard", self._config_to_str(self._config)))
 
         """ Checkpoints """
-        self._ckpts_dir = os.path.join(self._log_dir, "ckpt")
+        self._ckpts_dir = os.path.join(self._log_dir, "ckpt", self._config_to_str(self._config))
         os.makedirs(self._ckpts_dir, exist_ok=True)
         self._orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
-        options = orbax.checkpoint.CheckpointManagerOptions(max_to_keep=100, create=True)
+        options = orbax.checkpoint.CheckpointManagerOptions(max_to_keep=20, create=True)
         self._checkpoint_manager = orbax.checkpoint.CheckpointManager(
             self._ckpts_dir, self._orbax_checkpointer, options)
         
@@ -179,7 +179,8 @@ class FlaxTrainer(TrainerBase):
 
             if test_metrics["loss"] < best_loss:
                 best_loss = test_metrics["loss"]
-                self._save_best_model(epoch, train_state, test_metrics)
+                if self._config.save_weights:
+                    self._save_best_model(epoch, train_state, test_metrics)
                 # self.best_model_test()
 
 
@@ -197,6 +198,7 @@ class FlaxTrainer(TrainerBase):
 
         # save metrics in a json file
         metrics["ckpt"] = epoch
+        metrics["subfolder"] = self._config_to_str(self._config)
         with open(os.path.join(self._log_dir, "best_model_train.json"), 'w') as f:
             f.write(json.dumps(metrics, indent=4))
 
@@ -207,9 +209,12 @@ class FlaxTrainer(TrainerBase):
         """ Instance of the model. However, we could do this anywhere, as the state is saved outside of the model """
         model = Transformer(self._flax_model_config) 
 
+
         input_shape = (1, self._flax_model_config.max_seq_len, self._config.model_config.input_features)
 
         key_dropout, key_params = jax.random.split(rng)
+
+        self.logger.info(model.tabulate({"dropout": key_dropout, "params": key_params}, jnp.ones(input_shape), console_kwargs={'width': 120}))
 
         """ call the init func, that returns a pytree with the model params. Have to initialize the dropouts too """
         params =  model.init({"dropout": key_dropout, "params": key_params}, jnp.ones((input_shape), dtype=jnp.float32))
@@ -353,7 +358,7 @@ class FlaxTrainer(TrainerBase):
 
         # get test dataloader but with batch == 1
         test_dataloader = DataLoader(self._test_ds, batch_size=1, collate_fn=jax_collate_fn, shuffle=True)
-        save_folder = os.path.join(self._log_dir, "best_model_test")
+        save_folder = os.path.join(self._log_dir, "best_model_test", self._config_to_str(self._config))
         os.makedirs(save_folder, exist_ok=True)
 
         counter = 0

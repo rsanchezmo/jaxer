@@ -34,5 +34,4 @@ def gaussian_negative_log_likelihood(mean: jnp.ndarray, variance: jnp.ndarray, t
 @jax.jit
 def mape(y_pred: jnp.ndarray, y_true: jnp.ndarray, eps: float = 1e-6) -> jnp.ndarray:
     """ Mean Absolute Percentage Error """
-    # TODO: CHECK THIS!
     return jnp.mean(jnp.abs(y_true - y_pred) / jnp.clip(jnp.abs(y_true), a_min=eps)) * 100
