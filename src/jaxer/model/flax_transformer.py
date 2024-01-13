@@ -15,6 +15,7 @@ class TransformerConfig:
     max_seq_len: int = 256
     dropout: float = 0.0
     dtype: jnp.dtype = jnp.float32
+    input_features: int = 7
     kernel_init: Callable = nn.initializers.xavier_uniform()
     bias_init: Callable = nn.initializers.normal(stddev=1e-6)
     deterministic: bool = False
@@ -131,6 +132,7 @@ class Time2Vec(nn.Module):
     kernel_init: Callable
     bias_init: Callable
     max_seq_len: int
+    feature_dim: int
 
     @nn.compact
     def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
@@ -138,36 +140,32 @@ class Time2Vec(nn.Module):
         weights_linear = self.param(
             "weights_linear",
             nn.initializers.uniform(),
-            (self.max_seq_len,),
+            (self.max_seq_len, self.feature_dim),
             self.dtype,
         )
         weights_periodic = self.param(
             "weights_periodic",
             nn.initializers.uniform(),
-            (self.max_seq_len,),
+            (self.max_seq_len, self.feature_dim),
             self.dtype,
         )
         bias_linear = self.param(
             "bias_linear",
             nn.initializers.uniform(),
-            (1,),
+            (self.feature_dim,),
             self.dtype,
         )
         bias_periodic = self.param(
             "bias_periodic",
             nn.initializers.uniform(),
-            (1,),
+            (self.feature_dim,),
             self.dtype,
         )
 
-        mean = jnp.mean(x[:, :, :-1], axis=-1)  # do not consider the last dimension (volume)
+        # TODO: check if this shoould be like this or use the mean as before
+        time_linear = weights_linear * x + bias_linear
 
-        time_linear = weights_linear * mean + bias_linear
-
-        time_periodic = jnp.sin(weights_periodic * mean + bias_periodic)   
-
-        time_linear = jnp.expand_dims(time_linear, axis=-1)
-        time_periodic = jnp.expand_dims(time_periodic, axis=-1) 
+        time_periodic = jnp.sin(weights_periodic * x + bias_periodic)   
 
         return jnp.concatenate([time_linear, time_periodic], axis=-1)
     
@@ -214,9 +212,8 @@ class FeatureExtractor(nn.Module):
         """ Feature extractor based on residual MLP networks """
 
         # first part of the network to get to the right dimension
-        features_dim = self.config.d_model if not self.config.use_time2vec else self.config.d_model - 2
         x = nn.Dense(
-            features=features_dim,  # time embeddings will be concatenated later
+            features=self.config.d_model,  # time embeddings will be concatenated later
             dtype=self.config.dtype,
             kernel_init=self.config.kernel_init,
             bias_init=self.config.bias_init,
@@ -231,7 +228,7 @@ class FeatureExtractor(nn.Module):
             if self.config.use_resblocks_in_fe:
                 x = ResidualBlock(
                     dtype=self.config.dtype,
-                    feature_dim=features_dim,  # time embeddings will be concatenated later
+                    feature_dim=self.config.d_model,  # time embeddings will be concatenated later
                     kernel_init=self.config.kernel_init,
                     bias_init=self.config.bias_init,
                     norm=True,
@@ -239,7 +236,7 @@ class FeatureExtractor(nn.Module):
                 )(x)
             else:
                 x = nn.Dense(
-                    features=features_dim,  # time embeddings will be concatenated later
+                    features=self.config.d_model,  # time embeddings will be concatenated later
                     dtype=self.config.dtype,
                     kernel_init=self.config.kernel_init,
                     bias_init=self.config.bias_init,
@@ -298,14 +295,18 @@ class Encoder(nn.Module):
     def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
         """ Applies the encoder module """
 
+        # TODO: test before the FE or after the FE
         """ Time2Vec """
         if self.config.use_time2vec:
             time_embeddings = Time2Vec(
                 dtype=self.config.dtype,
                 kernel_init=self.config.kernel_init,
                 bias_init=self.config.bias_init,
-                max_seq_len=self.config.max_seq_len
+                max_seq_len=self.config.max_seq_len,
+                feature_dim=self.config.input_features
             )(x)
+
+            x = jnp.concatenate([x, time_embeddings], axis=-1)  # (B, T, F + 2*F)
 
         """ Feature Embeddings"""
         x = FeatureExtractor(
@@ -313,9 +314,7 @@ class Encoder(nn.Module):
         )(x)
 
         """ Concatenate the time embeddings """
-        if self.config.use_time2vec:
-            x = jnp.concatenate([x, time_embeddings], axis=-1)
-        else:
+        if not self.config.use_time2vec:
             x = AddPositionalEncoding(
                 config=self.config
             )(x)

@@ -118,6 +118,7 @@ class FlaxTrainer(TrainerBase):
             max_seq_len=self._config.model_config.max_seq_len,
             dtype=jnp.float32,
             deterministic=False,
+            input_features=self._config.model_config.input_features,
             flatten_encoder_output=self._config.model_config.flatten_encoder_output,
             fe_blocks=self._config.model_config.fe_blocks,
             use_time2vec=self._config.model_config.use_time2vec,

@@ -13,7 +13,7 @@ if __name__ == '__main__':
         'dim_feedforward': [4, 8, 16],
         'dropout': [0.0],
         'max_seq_len': [5, 10, 20],
-        'input_features': [5],
+        'input_features': [7],
         'flatten_encoder_output': [False],
         'fe_blocks': [1, 2, 3],
         'use_time2vec': [False, True],

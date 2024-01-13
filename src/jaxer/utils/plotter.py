@@ -38,8 +38,11 @@ def predict_entire_dataset(agent: Agent, dataset: torch.utils.data.Dataset, fold
     else:
         y_pred = output
 
-    fig = plt.figure(figsize=(20, 12))
     plt.style.use('ggplot')
+    fig = plt.figure(figsize=(20, 12))
+    gs = gridspec.GridSpec(3, 1, height_ratios=[1, 1, 1])
+    ax0 = plt.subplot(gs[0:2, 0])  
+    ax1 = plt.subplot(gs[2, 0]) 
 
     close_preds = [denormalize(y_pred[i], normalizer[i]["price"]) for i in range(len(y_pred))]
     close_inputs = [denormalize(input[i, 0, 0], normalizer[i]["price"]) for i in range(len(input))] + denormalize(input[-1, 1:, 0], normalizer[-1]["price"]).tolist()
@@ -52,19 +55,26 @@ def predict_entire_dataset(agent: Agent, dataset: torch.utils.data.Dataset, fold
     base_input = jnp.arange(len(close_inputs)) 
     base_pred = jnp.arange(batch_size) + seq_len 
 
-    plt.plot(base_pred,close_preds, label='Close Price Pred', color=Color.green, linewidth=3, marker='o', markersize=4)
+    ax0.plot(base_pred, close_preds, label='Close Price Pred', color=Color.green, linewidth=3, marker='o', markersize=4)
     
     # plot close_inputs
-    plt.plot(base_input, close_inputs, label='Close Price Real', color=Color.blue, linewidth=3, marker='o', markersize=4)
+    ax0.plot(base_input, close_inputs, label='Close Price Real', color=Color.blue, linewidth=3, marker='o', markersize=4)
 
     # plot mean
-    plt.plot(base_pred, mean_avg, label='Close Price Avg', color=Color.orange, linewidth=3, marker='o', markersize=4)
+    ax0.plot(base_pred, mean_avg, label='Close Price Avg', color=Color.orange, linewidth=3, marker='o', markersize=4)
+    ax0.set_ylabel('Close Price [$]', fontsize=18, fontweight='bold')
+
+    ax0.legend()
+
+    """ plot the errors """
+    errors = [100 * (close_inputs[i+seq_len-1] - close_preds[i])/close_inputs[i+seq_len-1] for i in range(len(close_preds))]
+    ax1.stem(base_pred, errors, label='Error')
+    ax1.legend()
+    ax1.set_ylabel('Error [%]', fontsize=18, fontweight='bold')
 
     plt.suptitle(f"Predictions [{mode}]", fontsize=20, fontweight='bold')
-    plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    
     if foldername is not None:
         plt.savefig(f"{foldername}/dataset_{mode}_prediction.png") 
     else:
@@ -95,10 +105,10 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, output: Union[jnp.
     gs = gridspec.GridSpec(2, 3, height_ratios=[1, 1])
 
     # Añadir subplots
-    ax0 = plt.subplot(gs[0, :])  # El primer gráfico abarca todas las columnas
-    ax1 = plt.subplot(gs[1, 0])  # Segundo gráfico (inferior izquierdo)
-    ax2 = plt.subplot(gs[1, 1])  # Tercer gráfico (inferior central)
-    ax3 = plt.subplot(gs[1, 2])  # Cuarto gráfico (inferior derecho)
+    ax0 = plt.subplot(gs[0, :])  
+    ax1 = plt.subplot(gs[1, 0]) 
+    ax2 = plt.subplot(gs[1, 1]) 
+    ax3 = plt.subplot(gs[1, 2])
 
 
     linewidth = 3
@@ -121,6 +131,7 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, output: Union[jnp.
 
     """ Plot close price """
     ax0.plot(base, sequence_data, label='Close Price', color=Color.blue,  linewidth=linewidth, marker='o', markersize=marker_size)
+    ax0.plot(base, open_data, label='Open Price', color=Color.pink,  linewidth=linewidth, marker='o', markersize=marker_size)
     ax0.plot(base_pred, real_data, label='Next Day Real', color=Color.orange, linewidth=linewidth, marker='o', markersize=marker_size)
     ax0.plot(base_pred, prediction_data, label='Next Day Pred', color=Color.green, linewidth=linewidth, marker='o', markersize=marker_size)
     ax0.plot(base_pred, mean_avg_data, label='Next Day Window Avg', color=Color.purple, linewidth=linewidth, marker='o', markersize=marker_size)
@@ -148,7 +159,6 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, output: Union[jnp.
     ax1.plot(base, high_data, label='High Price', color=Color.pink,  linewidth=linewidth, marker='o', markersize=marker_size)
     ax1.plot(base, low_data, label='Low Price', color=Color.purple,  linewidth=linewidth, marker='o', markersize=marker_size)
     ax1.set_ylabel('High/Low Price [$]', fontsize=18, fontweight='bold')
-    ax1.set_xlabel('Date [Sequence]', fontsize=18, fontweight='bold')
     ax1.legend()
 
     """ Plot volume """
@@ -158,9 +168,10 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, output: Union[jnp.
     ax2.set_xlabel('Date [Sequence]', fontsize=18, fontweight='bold')
     ax2.legend()
 
-    """ Plot open price """
-    ax3.plot(base, open_data, label='Open Price', color=Color.orange,  linewidth=linewidth, marker='o', markersize=marker_size)
-    ax3.set_ylabel('Open Price [$]', fontsize=18, fontweight='bold')
+    """ Plot trades """
+    trades_data = denormalize(input[:, 5], normalizer["trades"])
+    ax3.plot(base, trades_data, label='Trades', color=Color.blue,  linewidth=linewidth, marker='o', markersize=marker_size)
+    ax3.set_ylabel('Trades', fontsize=18, fontweight='bold')
     ax3.set_xlabel('Date [Sequence]', fontsize=18, fontweight='bold')
     ax3.legend()
     

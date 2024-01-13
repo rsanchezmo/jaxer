@@ -10,7 +10,7 @@ from jaxer.utils.config import get_best_model
 
 if __name__ == '__main__':
     """ LOAD THE AGENT """
-    experiment = "output_mean"
+    experiment = "output_mean_new"
     agent = Agent(experiment=experiment, model_name=get_best_model(experiment))
 
     """ LOAD SOME DATA """
@@ -22,7 +22,7 @@ if __name__ == '__main__':
     print(f"Time taken: {1e3*(time.time() - init_t):.2f} ms")
 
     """ DATALOADERS """
-    dataset = Dataset('./data/BTCUSD.csv', agent.config.model_config["max_seq_len"], norm_mode=agent.config.normalizer_mode,
+    dataset = Dataset(agent.config.dataset_path, agent.config.model_config["max_seq_len"], norm_mode=agent.config.normalizer_mode,
                       initial_date=agent.config.initial_date)
     train_ds, test_ds = dataset.get_train_test_split(test_size=agent.config.test_split)
 

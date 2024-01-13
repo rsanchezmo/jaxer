@@ -29,6 +29,7 @@ class Agent:
             dropout=self.config.model_config["dropout"],
             max_seq_len=self.config.model_config["max_seq_len"],
             deterministic=True,
+            input_features=self.config.model_config["input_features"],
             flatten_encoder_output=self.config.model_config["flatten_encoder_output"],
             head_layers=self.config.model_config["head_layers"],
             fe_blocks=self.config.model_config["fe_blocks"],

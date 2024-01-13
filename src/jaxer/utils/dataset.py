@@ -11,9 +11,9 @@ class Dataset(torch.utils.data.Dataset):
     def __init__(self, datapath: str, seq_len: int, norm_mode: str = 'window', initial_date: Optional[str] = None) -> None:
         """ Reads a csv file """
         self._datapath = datapath
-        self._data = pd.read_csv(self._datapath)
-        self._data['Date'] = pd.to_datetime(self._data['Date'])
-        self._data.set_index('Date', inplace=True)
+        self._data = pd.read_json(self._datapath)
+        self._data['date'] = pd.to_datetime(self._data['date'])
+        self._data.set_index('date', inplace=True)
         self._data.sort_index(inplace=True)
 
         if initial_date is not None:
@@ -27,34 +27,42 @@ class Dataset(torch.utils.data.Dataset):
         self._norm_mode = norm_mode
         if self._norm_mode == "global_minmax":
             self._global_normalizer = dict(
-                price=dict(min_val=self._data[['Close', 'Open', 'High', 'Low']].min().min(), 
-                           max_val=self._data[['Close', 'Open', 'High', 'Low']].max().max(),
+                price=dict(min_val=self._data[['close', 'open', 'high', 'low']].min().min(), 
+                           max_val=self._data[['close', 'open', 'high', 'low']].max().max(),
                            mode="minmax"),
-                volume=dict(min_val=self._data['Volume'].min().min(), 
-                            max_val=self._data['Volume'].max().max(), 
-                            mode="minmax")
+                volume=dict(min_val=self._data['volume'].min().min(), 
+                            max_val=self._data['volume'].max().max(), 
+                            mode="minmax"),
+                trades=dict(min_val=self._data['tradesDone'].min().min(),
+                                        max_val=self._data['tradesDone'].max().max(),
+                                        mode="minmax")
             )
         elif self._norm_mode == "global_meanstd":
             self._global_normalizer = dict(
-                price=dict(mean_val=self._data[['Close', 'Open', 'High', 'Low']].mean().max(), 
-                           std_val=self._data[['Close', 'Open', 'High', 'Low']].std().max(),
+                price=dict(mean_val=self._data[['close', 'open', 'high', 'low']].mean().max(), 
+                           std_val=self._data[['close', 'open', 'high', 'low']].std().max(),
                            mode="meanstd"),
-                volume=dict(mean_val=self._data['Volume'].mean().max(), 
-                            std_val=self._data['Volume'].std().max(), 
-                            mode="meanstd")
+                volume=dict(mean_val=self._data['volume'].mean().max(), 
+                            std_val=self._data['volume'].std().max(), 
+                            mode="meanstd"),
+                trades=dict(mean_val=self._data['tradesDone'].mean().max(),
+                                        std_val=self._data['tradesDone'].std().max(),
+                                        mode="meanstd")
             )
         elif self._norm_mode == 'none':
             self._global_normalizer = dict(
                 price=dict(min_val=0, max_val=1, mode="minmax"),
-                volume=dict(min_val=0, max_val=1, mode="minmax")
+                volume=dict(min_val=0, max_val=1, mode="minmax"),
+                trades=dict(min_val=0, max_val=1, mode="minmax")
             )
 
 
     def __getitem__(self, index) -> Tuple[np.ndarray, np.ndarray, dict]:
         start_idx = index
         end_idx = index + self._seq_len
-        sequence_data_price = self._data.iloc[start_idx:end_idx][['Close', 'Open', 'High', 'Low']] 
-        sequence_data_volume = self._data.iloc[start_idx:end_idx][['Volume']]
+        sequence_data_price = self._data.iloc[start_idx:end_idx][['close', 'open', 'high', 'low']] 
+        sequence_data_volume = self._data.iloc[start_idx:end_idx][['volume']]
+        sequence_data_trades = self._data.iloc[start_idx:end_idx][['tradesDone']]
 
         if self._norm_mode == "window_minmax":
             min_vals = sequence_data_price.min().min()
@@ -64,6 +72,11 @@ class Dataset(torch.utils.data.Dataset):
             min_vals = sequence_data_volume.min().min()
             max_vals = sequence_data_volume.max().max()
             normalizer_volume = dict(min_val=min_vals, max_val=max_vals, mode="minmax")
+
+            min_vals = sequence_data_trades.min().min()
+            max_vals = sequence_data_trades.max().max()
+            normalizer_trades = dict(min_val=min_vals, max_val=max_vals, mode="minmax")
+
         elif self._norm_mode == "window_meanstd":
             mean_vals = sequence_data_price.mean().max()
             std_vals = sequence_data_price.std().max()
@@ -72,23 +85,30 @@ class Dataset(torch.utils.data.Dataset):
             mean_vals = sequence_data_volume.mean().max()
             std_vals = sequence_data_volume.std().max()
             normalizer_volume = dict(mean_val=mean_vals, std_val=std_vals, mode="meanstd")
+
+            mean_vals = sequence_data_trades.mean().max()
+            std_vals = sequence_data_trades.std().max()
+            normalizer_trades = dict(mean_val=mean_vals, std_val=std_vals, mode="meanstd")
+
         else:
             normalizer_price = self._global_normalizer['price']
             normalizer_volume = self._global_normalizer['volume']
+            normalizer_trades = self._global_normalizer['trades']
 
         sequence_data_price = normalize(sequence_data_price, normalizer_price)
         sequence_data_volume = normalize(sequence_data_volume, normalizer_volume)
+        sequence_data_trades = normalize(sequence_data_trades, normalizer_trades)
 
         # Extract the label
         label_idx = index + self._seq_len
-        label = self._data.iloc[label_idx]['Close']
+        label = self._data.iloc[label_idx]['close']
         label = normalize(label, normalizer_price)
     
         # Create a normalizer dict
-        normalizer = dict(price=normalizer_price, volume=normalizer_volume)
+        normalizer = dict(price=normalizer_price, volume=normalizer_volume, trades=normalizer_trades)
 
         # Convert to NumPy arrays
-        sequence_data = np.array(sequence_data_price.join(sequence_data_volume), dtype=np.float32)
+        sequence_data = np.concatenate([sequence_data_price, sequence_data_volume, sequence_data_trades], axis=1, dtype=np.float32)
 
         label = np.array([label], dtype=np.float32)
 
