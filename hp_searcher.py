@@ -12,7 +12,7 @@ if __name__ == '__main__':
         'n_heads': [4, 8, 16],
         'dim_feedforward': [4, 8, 16],
         'dropout': [0.0],
-        'max_seq_len': [5, 10, 20],
+        'max_seq_len': [5, 10, 20, 40],
         'input_features': [7],
         'flatten_encoder_output': [False],
         'fe_blocks': [1, 2, 3],
@@ -23,9 +23,9 @@ if __name__ == '__main__':
     }
 
     training_ranges = {
-        'learning_rate': [1e-4, 5e-4, 1e-5],
+        'learning_rate': [1e-4, 1e-5, 1e-6],
         'lr_mode': ['linear', 'cosine'],
-        'warmup_epochs': [20, 50, 100],
+        'warmup_epochs': [5, 10, 20],
         'batch_size': [64, 128, 256],
         'normalizer_mode': ['global_minmax']
     }

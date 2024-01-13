@@ -36,7 +36,9 @@ class Agent:
             use_time2vec=self.config.model_config["use_time2vec"],
             output_distribution=self.config.model_config["output_distribution"],
             use_resblocks_in_head=self.config.model_config["use_resblocks_in_head"],
-            use_resblocks_in_fe=self.config.model_config["use_resblocks_in_fe"]
+            use_resblocks_in_fe=self.config.model_config["use_resblocks_in_fe"],
+            average_encoder_output=self.config.model_config["average_encoder_output"],
+            norm_encoder_prev=self.config.model_config["norm_encoder_prev"]
         )
 
         """ Create an orbax checkpointer to restore the model"""

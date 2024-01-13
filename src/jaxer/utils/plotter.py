@@ -131,11 +131,13 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, output: Union[jnp.
     open_data = denormalize(input[:, 1], normalizer["price"])
 
     """ Plot close price """
+    ax0.axvline(x=len(sequence_data)-1, color=Color.red, linewidth=2, linestyle='--')
+
     ax0.plot(base, sequence_data, label='Close Price', color=Color.blue,  linewidth=linewidth, marker='o', markersize=marker_size)
     ax0.plot(base, open_data, label='Open Price', color=Color.pink,  linewidth=linewidth, marker='o', markersize=marker_size)
-    ax0.plot(base_pred, real_data, label='Next Day Real', color=Color.orange, linewidth=linewidth, marker='o', markersize=marker_size)
-    ax0.plot(base_pred, prediction_data, label='Next Day Pred', color=Color.green, linewidth=linewidth, marker='o', markersize=marker_size)
-    ax0.plot(base_pred, mean_avg_data, label='Next Day Window Avg', color=Color.purple, linewidth=linewidth, marker='o', markersize=marker_size)
+    ax0.plot(base_pred, real_data, label='Next Day Real', color=Color.orange, linewidth=linewidth, marker='o', markersize=marker_size, linestyle='--')
+    ax0.plot(base_pred, prediction_data, label='Next Day Pred', color=Color.green, linewidth=linewidth, marker='o', markersize=marker_size, linestyle='--')
+    ax0.plot(base_pred, mean_avg_data, label='Next Day Window Avg', color=Color.purple, linewidth=linewidth, marker='o', markersize=marker_size, linestyle='--')
     #ax0.plot(base, open_data, label='Open Price', color=Color.red,  linewidth=linewidth, marker='o', markersize=marker_size)
 
 
@@ -149,6 +151,8 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, output: Union[jnp.
         ax0.errorbar(base_pred[1], prediction_data[1], yerr=std_dev*1.96, color=Color.green, capsize=5, linewidth=2)
         ax0.fill_between(base_pred, upper_bound, lower_bound, alpha=0.2, color=Color.green)
 
+    else:
+        ax0.fill_between(base_pred, prediction_data, real_data, alpha=0.2, color=Color.yellow)
 
     ax0.set_ylabel('Close Price [$]', fontsize=18, fontweight='bold')
     ax0.legend()

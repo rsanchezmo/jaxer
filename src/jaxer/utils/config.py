@@ -20,6 +20,8 @@ class ModelConfig:
     output_distribution: bool
     use_resblocks_in_head: bool
     use_resblocks_in_fe: bool
+    average_encoder_output: bool
+    norm_encoder_prev: bool
 
 @dataclass
 class Config:

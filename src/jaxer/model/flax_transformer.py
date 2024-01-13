@@ -25,6 +25,8 @@ class TransformerConfig:
     output_distribution: bool = True
     use_resblocks_in_head: bool = True
     use_resblocks_in_fe: bool = True
+    average_encoder_output: bool = False
+    norm_encoder_prev: bool = False
 
 
 class FeedForwardBlock(nn.Module):
@@ -259,10 +261,11 @@ class EncoderBlock(nn.Module):
         assert inputs.ndim == 3, f"Expected x to have 3 dimensions, got {inputs.ndim}"
 
         """ Self Attention Block"""
-        x = nn.LayerNorm(dtype=self.config.dtype)(inputs)
+        if self.config.norm_encoder_prev:
+            x = nn.LayerNorm(dtype=self.config.dtype)(inputs)
+        else:
+            x = inputs
 
-        # nn.SelfAttention because the input is from the same source [self], 
-        # nn.MultiHeadDotProductAttention if the input is from different sources
         x = nn.SelfAttention(
             num_heads=self.config.n_heads,
             dtype=self.config.dtype,
@@ -280,8 +283,14 @@ class EncoderBlock(nn.Module):
 
         x = x + inputs
 
+        if not self.config.norm_encoder_prev:
+            x = nn.LayerNorm(dtype=self.config.dtype)(x)
+
         """ Feed Forward Block """
-        y = nn.LayerNorm(dtype=self.config.dtype)(x)
+        if self.config.norm_encoder_prev:
+            y = nn.LayerNorm(dtype=self.config.dtype)(x)
+        else:
+            y = x
         # y = FeedForwardBlockConv1D(
         #     config=self.config,
         #     out_dim=self.config.d_model
@@ -292,7 +301,12 @@ class EncoderBlock(nn.Module):
             out_dim=self.config.d_model
         )(y)
 
-        return x + y
+        result = x + y
+
+        if not self.config.norm_encoder_prev:
+            result = nn.LayerNorm(dtype=self.config.dtype)(result)
+
+        return result
 
 class Encoder(nn.Module):
     config: TransformerConfig
@@ -398,8 +412,10 @@ class Transformer(nn.Module):
         if self.config.flatten_encoder_output:
             x = x.reshape((x.shape[0], -1))
         else:
-            #x = jnp.mean(x, axis=1)  # average over the time dimension [Global Average Pooling 1D]
-            x = x[:, -1, :]  # get the last element of the sequence
+            if self.config.average_encoder_output:
+                x = jnp.mean(x, axis=1)
+            else:
+                x = x[:, -1, :]  # get the last element of the sequence
 
         x = PredictionHead(config=self.config)(x)
 

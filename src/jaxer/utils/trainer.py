@@ -75,17 +75,16 @@ class TrainerBase:
 
     def _config_to_str(self, config: Config) -> str:
         """ Converts a config to a string """
-        return f"lr_{config.learning_rate}_mode_{config.lr_mode}_bs_{config.batch_size}_ep_{config.num_epochs}_wmp_{config.warmup_epochs}_seed_{config.seed}_" \
+        return f"{config.learning_rate}_{config.lr_mode}_bs_{config.batch_size}_ep_{config.num_epochs}_wmp_{config.warmup_epochs}_seed_{config.seed}_" \
                 f"d_model_{config.model_config.d_model}_n_layers_{config.model_config.num_layers}_n_hd_l_{config.model_config.head_layers}_" \
                 f"n_hds_{config.model_config.n_heads}_dim_ff_{config.model_config.dim_feedforward}_drpt_{config.model_config.dropout}_" \
-                f"max_len_{config.model_config.max_seq_len}_in_feat_{config.model_config.input_features}_flat_out_{config.model_config.flatten_encoder_output}_" \
-                f"fe_blk_{config.model_config.fe_blocks}_t2v_{config.model_config.use_time2vec}_" \
-                f"norm_{config.normalizer_mode}_" \
-                f"t_splt_{config.test_split}_" \
-                f"date_{config.initial_date}_" \
+                f"max_len_{config.model_config.max_seq_len}_in_feat_{config.model_config.input_features}_flat_{config.model_config.flatten_encoder_output}_" \
+                f"fe_blk_{config.model_config.fe_blocks}_t2v_{config.model_config.use_time2vec}_{config.normalizer_mode}_" \
+                f"t_splt_{config.test_split}_{config.initial_date}_" \
                 f"out_dist_{config.model_config.output_distribution}_" \
                 f"res_hd_{config.model_config.use_resblocks_in_head}_" \
-                f"res_fe_{config.model_config.use_resblocks_in_fe}"
+                f"res_fe_{config.model_config.use_resblocks_in_fe}_" \
+                f"av_out_{config.model_config.average_encoder_output}_normprev_{config.model_config.norm_encoder_prev}"
 
 
     def train_and_evaluate(self) -> None:
@@ -124,7 +123,9 @@ class FlaxTrainer(TrainerBase):
             use_time2vec=self._config.model_config.use_time2vec,
             output_distribution=self._config.model_config.output_distribution,
             use_resblocks_in_head=self._config.model_config.use_resblocks_in_head,
-            use_resblocks_in_fe=self._config.model_config.use_resblocks_in_fe
+            use_resblocks_in_fe=self._config.model_config.use_resblocks_in_fe,
+            average_encoder_output=self._config.model_config.average_encoder_output,
+            norm_encoder_prev=self._config.model_config.norm_encoder_prev
         )
 
         self._flax_model_config_eval = self._flax_model_config.replace(deterministic=True)
