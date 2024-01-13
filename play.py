@@ -28,7 +28,7 @@ if __name__ == '__main__':
 
 
     # infer entire dataset
-    plot_entire_dataset = True
+    plot_entire_dataset = False
     if plot_entire_dataset:
         predict_entire_dataset(agent, test_ds, mode='test')
         predict_entire_dataset(agent, train_ds, mode='train')

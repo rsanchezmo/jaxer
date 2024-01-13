@@ -132,7 +132,6 @@ class Time2Vec(nn.Module):
     kernel_init: Callable
     bias_init: Callable
     max_seq_len: int
-    feature_dim: int
 
     @nn.compact
     def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
@@ -140,32 +139,35 @@ class Time2Vec(nn.Module):
         weights_linear = self.param(
             "weights_linear",
             nn.initializers.uniform(),
-            (self.max_seq_len, self.feature_dim),
+            (self.max_seq_len,),
             self.dtype,
         )
         weights_periodic = self.param(
             "weights_periodic",
             nn.initializers.uniform(),
-            (self.max_seq_len, self.feature_dim),
+            (self.max_seq_len,),
             self.dtype,
         )
         bias_linear = self.param(
             "bias_linear",
             nn.initializers.uniform(),
-            (self.feature_dim,),
+            (1,),
             self.dtype,
         )
         bias_periodic = self.param(
             "bias_periodic",
             nn.initializers.uniform(),
-            (self.feature_dim,),
+            (1,),
             self.dtype,
         )
 
-        # TODO: check if this shoould be like this or use the mean as before
-        time_linear = weights_linear * x + bias_linear
+        time_linear = weights_linear * x[:, :, -1] + bias_linear
 
-        time_periodic = jnp.sin(weights_periodic * x + bias_periodic)   
+        time_periodic = jnp.sin(weights_periodic * x[:, :, -1] + bias_periodic)  
+
+        # add a dimension
+        time_linear = time_linear[:, :, None]
+        time_periodic = time_periodic[:, :, None] 
 
         return jnp.concatenate([time_linear, time_periodic], axis=-1)
     
@@ -295,29 +297,26 @@ class Encoder(nn.Module):
     def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
         """ Applies the encoder module """
 
-        # TODO: test before the FE or after the FE
         """ Time2Vec """
         if self.config.use_time2vec:
             time_embeddings = Time2Vec(
                 dtype=self.config.dtype,
                 kernel_init=self.config.kernel_init,
                 bias_init=self.config.bias_init,
-                max_seq_len=self.config.max_seq_len,
-                feature_dim=self.config.input_features
+                max_seq_len=self.config.max_seq_len
             )(x)
 
-            x = jnp.concatenate([x, time_embeddings], axis=-1)  # (B, T, F + 2*F)
+            x = jnp.concatenate([x, time_embeddings], axis=-1)
 
         """ Feature Embeddings"""
         x = FeatureExtractor(
                 config=self.config
         )(x)
-
-        """ Concatenate the time embeddings """
-        if not self.config.use_time2vec:
-            x = AddPositionalEncoding(
-                config=self.config
-            )(x)
+    
+        # TODO: check if the positional encoding is needed when using time2vec as it already contains the time information relationship
+        x = AddPositionalEncoding(
+            config=self.config
+        )(x)
 
         """ Encoder Blocks """
         for _ in range(self.config.num_layers):

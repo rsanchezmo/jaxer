@@ -95,7 +95,7 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, output: Union[jnp.
         variances = None
 
     if normalizer is None:
-        normalizer = {key: dict(min_val=0, max_val=1, mode="minmax") for key in ["price", "volume"]}
+        normalizer = {key: dict(min_val=0, max_val=1, mode="minmax") for key in ["price", "volume", "trades"]}
 
     plt.style.use('ggplot')
 
@@ -126,6 +126,7 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, output: Union[jnp.
 
     base_pred = jnp.array([len(sequence_data)-1, len(sequence_data)])
     error = jnp.abs(real_data[-1] - prediction_data[-1])
+    percent_error = 100 * error / real_data[-1]
 
     open_data = denormalize(input[:, 1], normalizer["price"])
 
@@ -176,9 +177,9 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, output: Union[jnp.
     ax3.legend()
     
     if initial_date is not None:
-        title = f'Jaxer Predictor || Error {error:.2f} $ || Initial Date: {initial_date}' 
+        title = f'Jaxer Predictor || Error {error:.2f} $ ({percent_error:.1f}) % || Initial Date: {initial_date}' 
     else:
-        title = f'Jaxer Predictor || Error {error:.2f} $'
+        title = f'Jaxer Predictor || Error {error:.2f} $ ({percent_error:.1f}) %'
     plt.suptitle(title, fontsize=20, fontweight='bold')
     plt.grid(True)
     plt.tight_layout()

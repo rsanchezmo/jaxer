@@ -63,6 +63,7 @@ class Dataset(torch.utils.data.Dataset):
         sequence_data_price = self._data.iloc[start_idx:end_idx][['close', 'open', 'high', 'low']] 
         sequence_data_volume = self._data.iloc[start_idx:end_idx][['volume']]
         sequence_data_trades = self._data.iloc[start_idx:end_idx][['tradesDone']]
+        sequence_data_time = np.array([idx / len(self._data) for idx in range(start_idx, end_idx)])[:, None]
 
         if self._norm_mode == "window_minmax":
             min_vals = sequence_data_price.min().min()
@@ -108,7 +109,7 @@ class Dataset(torch.utils.data.Dataset):
         normalizer = dict(price=normalizer_price, volume=normalizer_volume, trades=normalizer_trades)
 
         # Convert to NumPy arrays
-        sequence_data = np.concatenate([sequence_data_price, sequence_data_volume, sequence_data_trades], axis=1, dtype=np.float32)
+        sequence_data = np.concatenate([sequence_data_price, sequence_data_volume, sequence_data_trades, sequence_data_time], axis=1, dtype=np.float32)
 
         label = np.array([label], dtype=np.float32)
 
