@@ -256,52 +256,81 @@ class FlaxTrainer(TrainerBase):
         """ wrap params, apply_fn and tx in a TrainState, to not keep passing them around """
         return train_state.TrainState.create(apply_fn=model.apply, params=params, tx=tx)
     
-
     @staticmethod
-    def _compute_metrics(predictions: jnp.ndarray, targets: jnp.ndarray, output_dist: bool) -> Dict:
+    @jax.jit
+    def _compute_metrics_dist(predictions: jnp.ndarray, targets: jnp.ndarray) -> Dict:
         """ Computes metrics """
 
-        if output_dist:
-            means, variances = predictions
-        else:
-            means = predictions
+        means, variances = predictions
+
+        mae_ = mae(means, targets)
+        rmse_ = rmse(means, targets)
+        r2_ = r2(means, targets)
+        mape_ = mape(means, targets)
+        
+        loss = gaussian_negative_log_likelihood(means, variances, targets)
+
+        return {"mae": mae_, "r2": r2_, "loss": loss, "rmse": rmse_, "mape": mape_}
+    
+    @staticmethod
+    @jax.jit
+    def _compute_metrics_mean(predictions: jnp.ndarray, targets: jnp.ndarray) -> Dict:
+        """ Computes metrics """
+        means = predictions
 
         mae_ = mae(means, targets)
         rmse_ = rmse(means, targets)
         r2_ = r2(means, targets)
         mape_ = mape(means, targets)
 
-        if output_dist:
-            loss = gaussian_negative_log_likelihood(means, variances, targets)
-        else:
-            loss = rmse_
+        loss = rmse_
 
         return {"mae": mae_, "r2": r2_, "loss": loss, "rmse": rmse_, "mape": mape_}
 
+
     @staticmethod
-    def _model_train_step(state: train_state.TrainState, inputs: jnp.ndarray, targets: jnp.ndarray, 
-                     rng: jax.random.PRNGKey, output_dist: bool) -> jnp.ndarray:
+    @jax.jit
+    def _model_train_step_mean(state: train_state.TrainState, inputs: jnp.ndarray, targets: jnp.ndarray, 
+                     rng: jax.random.PRNGKey) -> jnp.ndarray:
 
         def loss_fn(params):
             predictions = state.apply_fn(params, inputs, rngs={"dropout": rng})
 
-            if output_dist:
-                means, variances = predictions
-            else:
-                means = predictions
+            means = predictions
 
             mae_ = mae(means, targets)
             r2_ = r2(means, targets)
             rmse_ = rmse(means, targets)
             mape_ = mape(means, targets)
 
-            if output_dist:
-                loss = gaussian_negative_log_likelihood(means, variances, targets)
-            else:
-                loss = rmse_
+            loss = rmse_
 
             return loss, (mae_, r2_, rmse_, mape_)
 
+        (loss, (mae_, r2_, rmse_, mape_)), grads  = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
+        state = state.apply_gradients(grads=grads)
+        metrics = {"mae": mae_, "r2": r2_, "loss": loss, "rmse": rmse_, "mape": mape_}
+        return state, metrics
+    
+    @staticmethod
+    @jax.jit
+    def _model_train_step_dist(state: train_state.TrainState, inputs: jnp.ndarray, targets: jnp.ndarray,
+                        rng: jax.random.PRNGKey) -> jnp.ndarray:
+        
+        def loss_fn(params):
+            predictions = state.apply_fn(params, inputs, rngs={"dropout": rng})
+
+            means, variances = predictions
+
+            mae_ = mae(means, targets)
+            r2_ = r2(means, targets)
+            rmse_ = rmse(means, targets)
+            mape_ = mape(means, targets)
+
+            loss = gaussian_negative_log_likelihood(means, variances, targets)
+
+            return loss, (mae_, r2_, rmse_, mape_)
+        
         (loss, (mae_, r2_, rmse_, mape_)), grads  = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
         state = state.apply_gradients(grads=grads)
         metrics = {"mae": mae_, "r2": r2_, "loss": loss, "rmse": rmse_, "mape": mape_}
@@ -313,7 +342,10 @@ class FlaxTrainer(TrainerBase):
         
         predictions = self._eval_model.apply(state.params, inputs)
 
-        metrics = self._compute_metrics(predictions, targets, self._config.model_config.output_distribution)
+        if config.output_distribution:
+            metrics = self._compute_metrics_dist(predictions, targets)
+        else:
+            metrics = self._compute_metrics_mean(predictions, targets)
 
         return state, metrics  
 
@@ -325,7 +357,10 @@ class FlaxTrainer(TrainerBase):
             inputs, targets, _, _ = data
             step = state.step
             lr = self._learning_rate_fn(step)
-            state, _metrics = self._model_train_step(state, inputs, targets, rng, self._config.model_config.output_distribution)
+            if self._flax_model_config.output_distribution:
+                state, _metrics = self._model_train_step_dist(state, inputs, targets, rng)
+            else:
+                state, _metrics = self._model_train_step_mean(state, inputs, targets, rng)
             metrics["mae"].append(_metrics["mae"])
             metrics["r2"].append(_metrics["r2"])
             metrics["rmse"].append(_metrics["rmse"])

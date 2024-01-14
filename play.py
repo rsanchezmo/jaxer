@@ -10,7 +10,7 @@ from jaxer.utils.config import get_best_model
 
 if __name__ == '__main__':
     """ LOAD THE AGENT """
-    experiment = "output_mean_new"
+    experiment = "output_mean"
     agent = Agent(experiment=experiment, model_name=get_best_model(experiment))
 
     """ LOAD SOME DATA """
@@ -23,12 +23,12 @@ if __name__ == '__main__':
 
     """ DATALOADERS """
     dataset = Dataset(agent.config.dataset_path, agent.config.model_config["max_seq_len"], norm_mode=agent.config.normalizer_mode,
-                      initial_date=agent.config.initial_date)
+                      initial_date='2019-01-01')#agent.config.initial_date)
     train_ds, test_ds = dataset.get_train_test_split(test_size=agent.config.test_split)
 
 
     # infer entire dataset
-    plot_entire_dataset = False
+    plot_entire_dataset = True
     if plot_entire_dataset:
         predict_entire_dataset(agent, test_ds, mode='test')
         predict_entire_dataset(agent, train_ds, mode='train')
