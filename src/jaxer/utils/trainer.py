@@ -50,7 +50,7 @@ class TrainerBase:
         self._ckpts_dir = os.path.join(self._log_dir, "ckpt", self._config_to_str(self._config))
         os.makedirs(self._ckpts_dir, exist_ok=True)
         self._orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
-        options = orbax.checkpoint.CheckpointManagerOptions(max_to_keep=20, create=True)
+        options = orbax.checkpoint.CheckpointManagerOptions(create=True, max_to_keep=5)
         self._checkpoint_manager = orbax.checkpoint.CheckpointManager(
             self._ckpts_dir, self._orbax_checkpointer, options)
         
@@ -196,8 +196,8 @@ class FlaxTrainer(TrainerBase):
                 break
 
             """ Save model """
-            if test_metrics["loss"] < best_loss:
-                best_loss = test_metrics["loss"]
+            if metrics["loss"] < best_loss:
+                best_loss = metrics["loss"]
                 self._save_best_model(epoch, train_state, test_metrics)
 
 
@@ -366,7 +366,6 @@ class FlaxTrainer(TrainerBase):
             metrics["rmse"].append(_metrics["rmse"])
             metrics["loss"].append(_metrics["loss"])
             metrics["mape"].append(_metrics["mape"])
-
 
         metrics["lr"] = jax.device_get(lr)
         metrics["mae"] = jnp.mean(jnp.array(metrics["mae"]))

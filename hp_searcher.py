@@ -7,19 +7,21 @@ from jaxer.utils.logger import Logger
 if __name__ == '__main__':
     model_config_ranges = {
         'd_model': [64, 128, 256, 512],
-        'num_layers': [1, 2, 3],
+        'num_layers': [1, 2, 3, 4],
         'head_layers': [1, 2, 3],
         'n_heads': [4, 8, 16],
         'dim_feedforward': [4, 8, 16],
         'dropout': [0.0],
-        'max_seq_len': [5, 10, 20, 40],
+        'max_seq_len': [16, 24, 32, 40],
         'input_features': [7],
         'flatten_encoder_output': [False],
         'fe_blocks': [1, 2, 3],
         'use_time2vec': [False, True],
         'output_distribution': [False, True],
         'use_resblocks_in_head': [False, True],
-        'use_resblocks_in_fe': [False, True]
+        'use_resblocks_in_fe': [False, True],
+        'average_encoder_output': [False, True],
+        'norm_encoder_prev': [False, True]
     }
 
     training_ranges = {
@@ -53,6 +55,9 @@ if __name__ == '__main__':
         output_distribution = bool(np.random.choice(model_config_ranges['output_distribution']))
         use_resblocks_in_head = bool(np.random.choice(model_config_ranges['use_resblocks_in_head']))
         use_resblocks_in_fe = bool(np.random.choice(model_config_ranges['use_resblocks_in_fe']))
+        average_encoder_output = bool(np.random.choice(model_config_ranges['average_encoder_output']))
+        norm_encoder_prev = bool(np.random.choice(model_config_ranges['norm_encoder_prev']))
+
 
         learning_rate = float(np.random.choice(training_ranges['learning_rate']))
         lr_mode = str(np.random.choice(training_ranges['lr_mode']))
@@ -85,24 +90,26 @@ if __name__ == '__main__':
             use_time2vec=use_time2vec,
             output_distribution=output_distribution,
             use_resblocks_in_head=use_resblocks_in_head,
-            use_resblocks_in_fe=use_resblocks_in_fe
+            use_resblocks_in_fe=use_resblocks_in_fe,
+            average_encoder_output=average_encoder_output,
+            norm_encoder_prev=norm_encoder_prev
         )
 
         config = Config(model_config=model_config,
                         log_dir="hp_search",
                         experiment_name='output_mean' if not output_distribution else 'output_distribution',
-                        num_epochs=1500,
+                        num_epochs=200,
                         learning_rate=learning_rate,
                         lr_mode=lr_mode,
                         warmup_epochs=warmup_epochs,
-                        dataset_path="./data/BTCUSD.csv",
-                        initial_date='2020-01-01',
+                        dataset_path="./data/btc_usd_4h.json",
+                        initial_date='2018-01-01',
                         batch_size=batch_size,
                         test_split=0.1,
                         seed=0,
                         normalizer_mode=normalizer_mode,
                         save_weights=False,
-                        early_stopper=100)
+                        early_stopper=20)
                         
         trainer = Trainer(config=config)
         trainer.train_and_evaluate()

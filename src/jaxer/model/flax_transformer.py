@@ -219,20 +219,30 @@ class FeatureExtractor(nn.Module):
         """ Feature extractor based on residual MLP networks """
 
         # first part of the network to get to the right dimension
-        feature_dim = self.config.d_model
+        step_dim = 1
+        if self.config.fe_blocks == 0:
+            feature_dim = self.config.d_model
+        else:
+            step_dim = self.config.d_model // (self.config.fe_blocks + 1)
+            feature_dim = step_dim
+            residual = (self.config.d_model % (self.config.fe_blocks + 1)) * self.config.fe_blocks
+
         x = nn.Dense(
             features=feature_dim,  # time embeddings will be concatenated later
             dtype=self.config.dtype,
             kernel_init=self.config.kernel_init,
             bias_init=self.config.bias_init,
         )(x)
-        x = nn.gelu(x)
-        x = nn.Dropout(rate=self.config.dropout)(
-            x, deterministic=self.config.deterministic
-        )
+        x = nn.relu(x)
+        # x = nn.Dropout(rate=self.config.dropout)(
+        #     x, deterministic=self.config.deterministic
+        # )
 
         # some residual blocks
-        for _ in range(self.config.fe_blocks):
+        """
+        I think the use of RB may not be relevant here, as the input is not very complex at this point
+        """
+        for i in range(self.config.fe_blocks):
             if self.config.use_resblocks_in_fe:
                 x = ResidualBlock(
                     dtype=self.config.dtype,
@@ -243,13 +253,26 @@ class FeatureExtractor(nn.Module):
                     norm_prev=False
                 )(x)
             else:
+                feature_dim += step_dim
+                if i == self.config.fe_blocks - 1:
+                    feature_dim += residual
+                    
                 x = nn.Dense(
                     features=feature_dim,  # time embeddings will be concatenated later
                     dtype=self.config.dtype,
                     kernel_init=self.config.kernel_init,
                     bias_init=self.config.bias_init,
                 )(x)
-                x = nn.gelu(x)
+                x = nn.relu(x)
+        
+        if self.config.use_resblocks_in_fe: 
+            x = nn.Dense(
+                features=self.config.d_model,  # time embeddings will be concatenated later
+                dtype=self.config.dtype,
+                kernel_init=self.config.kernel_init,
+                bias_init=self.config.bias_init,
+            )(x)
+            x = nn.relu(x)
 
         return x
     
