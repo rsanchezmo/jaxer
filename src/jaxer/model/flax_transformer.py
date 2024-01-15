@@ -225,7 +225,7 @@ class FeatureExtractor(nn.Module):
         else:
             step_dim = self.config.d_model // (self.config.fe_blocks + 1)
             feature_dim = step_dim
-            residual = (self.config.d_model % (self.config.fe_blocks + 1)) * self.config.fe_blocks
+            residual = (self.config.d_model % (self.config.fe_blocks + 1))
 
         x = nn.Dense(
             features=feature_dim,  # time embeddings will be concatenated later
@@ -256,7 +256,7 @@ class FeatureExtractor(nn.Module):
                 feature_dim += step_dim
                 if i == self.config.fe_blocks - 1:
                     feature_dim += residual
-                    
+
                 x = nn.Dense(
                     features=feature_dim,  # time embeddings will be concatenated later
                     dtype=self.config.dtype,

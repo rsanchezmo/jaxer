@@ -6,8 +6,8 @@ from jaxer.utils.logger import Logger
 
 if __name__ == '__main__':
     model_config_ranges = {
-        'd_model': [64, 128, 256, 512],
-        'num_layers': [1, 2, 3, 4],
+        'd_model': [128, 256, 512],
+        'num_layers': [1, 2, 3, 4, 6],
         'head_layers': [1, 2, 3],
         'n_heads': [4, 8, 16],
         'dim_feedforward': [4, 8, 16],
@@ -25,7 +25,7 @@ if __name__ == '__main__':
     }
 
     training_ranges = {
-        'learning_rate': [1e-4, 1e-5, 1e-6],
+        'learning_rate': [1e-3, 1e-4, 1e-5],
         'lr_mode': ['linear', 'cosine'],
         'warmup_epochs': [5, 10, 20],
         'batch_size': [64, 128, 256],

@@ -73,18 +73,23 @@ class TrainerBase:
 
         self.logger = Logger("Trainer")
 
+
+    @staticmethod
+    def to_binary(val: bool):
+        return 1 if val else 0
+
     def _config_to_str(self, config: Config) -> str:
         """ Converts a config to a string """
         return f"{config.learning_rate}_{config.lr_mode}_bs_{config.batch_size}_ep_{config.num_epochs}_wmp_{config.warmup_epochs}_seed_{config.seed}_" \
-                f"d_model_{config.model_config.d_model}_n_layers_{config.model_config.num_layers}_n_hd_l_{config.model_config.head_layers}_" \
-                f"n_hds_{config.model_config.n_heads}_dim_ff_{config.model_config.dim_feedforward}_drpt_{config.model_config.dropout}_" \
-                f"max_len_{config.model_config.max_seq_len}_in_feat_{config.model_config.input_features}_flat_{config.model_config.flatten_encoder_output}_" \
-                f"fe_blk_{config.model_config.fe_blocks}_t2v_{config.model_config.use_time2vec}_{config.normalizer_mode}_" \
-                f"t_splt_{config.test_split}_{config.initial_date}_" \
-                f"out_dist_{config.model_config.output_distribution}_" \
-                f"res_hd_{config.model_config.use_resblocks_in_head}_" \
-                f"res_fe_{config.model_config.use_resblocks_in_fe}_" \
-                f"av_out_{config.model_config.average_encoder_output}_normprev_{config.model_config.norm_encoder_prev}"
+                f"dmodel_{config.model_config.d_model}_nlayers_{config.model_config.num_layers}_nhdl_{config.model_config.head_layers}_" \
+                f"nhds_{config.model_config.n_heads}_dimff_{config.model_config.dim_feedforward}_drpt_{config.model_config.dropout}_" \
+                f"maxlen_{config.model_config.max_seq_len}_infeat_{config.model_config.input_features}_flat_{self.to_binary(config.model_config.flatten_encoder_output)}_" \
+                f"feblk_{config.model_config.fe_blocks}_t2v_{self.to_binary(config.model_config.use_time2vec)}_{config.normalizer_mode}_" \
+                f"ds_{config.test_split}_{config.initial_date}_" \
+                f"outdst_{self.to_binary(config.model_config.output_distribution)}_" \
+                f"reshd_{self.to_binary(config.model_config.use_resblocks_in_head)}_" \
+                f"resfe_{self.to_binary(config.model_config.use_resblocks_in_fe)}_" \
+                f"avout_{self.to_binary(config.model_config.average_encoder_output)}_nrmpre_{self.to_binary(config.model_config.norm_encoder_prev)}"
 
 
     def train_and_evaluate(self) -> None:
