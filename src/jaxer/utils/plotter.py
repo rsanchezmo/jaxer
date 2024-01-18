@@ -151,8 +151,7 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, output: Union[jnp.
         ax0.errorbar(base_pred[1], prediction_data[1], yerr=std_dev*1.96, color=Color.green, capsize=5, linewidth=2)
         ax0.fill_between(base_pred, upper_bound, lower_bound, alpha=0.2, color=Color.green)
 
-    else:
-        ax0.fill_between(base_pred, prediction_data, real_data, alpha=0.2, color=Color.yellow)
+    ax0.fill_between(base_pred, prediction_data, real_data, alpha=0.2, color=Color.yellow)
 
     ax0.set_ylabel('Close Price [$]', fontsize=18, fontweight='bold')
     ax0.legend()

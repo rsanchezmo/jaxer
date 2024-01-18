@@ -96,9 +96,16 @@ class Dataset(torch.utils.data.Dataset):
             normalizer_volume = self._global_normalizer['volume']
             normalizer_trades = self._global_normalizer['trades']
 
+
+        # TODO: add indicators such as RSI, MACD, etc.
         sequence_data_price = normalize(sequence_data_price, normalizer_price)
         sequence_data_volume = normalize(sequence_data_volume, normalizer_volume)
         sequence_data_trades = normalize(sequence_data_trades, normalizer_trades)
+
+ 
+        # compute the returns between days
+        returns = np.diff(sequence_data_price['close']) / sequence_data_price['close'][1:]
+        returns = np.append(returns, 0)[:, np.newaxis]
 
         # Extract the label
         label_idx = index + self._seq_len
@@ -109,7 +116,7 @@ class Dataset(torch.utils.data.Dataset):
         normalizer = dict(price=normalizer_price, volume=normalizer_volume, trades=normalizer_trades)
 
         # Convert to NumPy arrays
-        sequence_data = np.concatenate([sequence_data_price, sequence_data_volume, sequence_data_trades, sequence_data_time], axis=1, dtype=np.float32)
+        sequence_data = np.concatenate([sequence_data_price, sequence_data_volume, sequence_data_trades, returns, sequence_data_time], axis=1, dtype=np.float32)
 
         label = np.array([label], dtype=np.float32)
 
