@@ -19,7 +19,6 @@ class ModelConfig:
     fe_blocks: int
     use_time2vec: bool
     output_mode: str
-    discrete_grid_levels: int
     use_resblocks_in_head: bool
     use_resblocks_in_fe: bool
     average_encoder_output: bool
@@ -35,7 +34,6 @@ class Config:
     lr_mode: str
     warmup_epochs: int
     dataset_path: str
-    dataset_mode: str
     dataset_discrete_levels: Optional[List[float]]
     initial_date: str
     batch_size: int

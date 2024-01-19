@@ -89,7 +89,7 @@ class TrainerBase:
                 f"maxlen_{config.model_config.max_seq_len}_infeat_{config.model_config.input_features}_flat_{self.to_binary(config.model_config.flatten_encoder_output)}_" \
                 f"feblk_{config.model_config.fe_blocks}_t2v_{self.to_binary(config.model_config.use_time2vec)}_{config.normalizer_mode}_" \
                 f"ds_{config.test_split}_{config.initial_date}_" \
-                f"outdst_{self.to_binary(config.model_config.output_distribution)}_" \
+                f"outmd_{self.to_binary(config.model_config.output_mode)}_" \
                 f"reshd_{self.to_binary(config.model_config.use_resblocks_in_head)}_" \
                 f"resfe_{self.to_binary(config.model_config.use_resblocks_in_fe)}_" \
                 f"avout_{self.to_binary(config.model_config.average_encoder_output)}_nrmpre_{self.to_binary(config.model_config.norm_encoder_prev)}"
@@ -130,7 +130,7 @@ class FlaxTrainer(TrainerBase):
             fe_blocks=self._config.model_config.fe_blocks,
             use_time2vec=self._config.model_config.use_time2vec,
             output_mode=self._config.model_config.output_mode,
-            discrete_grid_levels=len(self._config.discrete_grid_levels)-1 if self._config.discrete_grid_levels is not None else None,
+            discrete_grid_levels=len(self._config.dataset_discrete_levels)-1 if self._config.dataset_discrete_levels is not None else None,
             use_resblocks_in_head=self._config.model_config.use_resblocks_in_head,
             use_resblocks_in_fe=self._config.model_config.use_resblocks_in_fe,
             average_encoder_output=self._config.model_config.average_encoder_output,
