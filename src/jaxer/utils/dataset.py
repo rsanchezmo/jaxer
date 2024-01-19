@@ -4,11 +4,11 @@ from typing import Tuple
 import numpy as np
 import torch.utils.data
 import jax.numpy as jnp
-from typing import Union, Optional
+from typing import Union, Optional, List
 
 
 class Dataset(torch.utils.data.Dataset):
-    def __init__(self, datapath: str, seq_len: int, norm_mode: str = 'window', initial_date: Optional[str] = None) -> None:
+    def __init__(self, datapath: str, seq_len: int, norm_mode: str = 'window', initial_date: Optional[str] = None, output_mode: str = 'mean', discrete_grid_levels: Optional[List[float]] = None) -> None:
         """ Reads a csv file """
         self._datapath = datapath
         self._data = pd.read_json(self._datapath)
@@ -20,6 +20,11 @@ class Dataset(torch.utils.data.Dataset):
             self._data = self._data[self._data.index >= initial_date]
 
         self._seq_len = seq_len
+
+        self.output_mode = output_mode
+        self._discrete_grid_levels = discrete_grid_levels
+
+        assert discrete_grid_levels is not None, "discrete_grid_levels must be provided if output_mode is 'discrete_grid'"
 
         if norm_mode not in ["window_minmax", "window_meanstd", "global_minmax", 'global_meanstd', "none"]:
             raise ValueError("norm_mode must be one of ['window_minmax', 'window_meanstd', 'global_minmax', 'global_meanstd', 'none']")
@@ -97,7 +102,6 @@ class Dataset(torch.utils.data.Dataset):
             normalizer_trades = self._global_normalizer['trades']
 
 
-        # TODO: add indicators such as RSI, MACD, etc.
         sequence_data_price = normalize(sequence_data_price, normalizer_price)
         sequence_data_volume = normalize(sequence_data_volume, normalizer_volume)
         sequence_data_trades = normalize(sequence_data_trades, normalizer_trades)
@@ -110,15 +114,23 @@ class Dataset(torch.utils.data.Dataset):
         # Extract the label
         label_idx = index + self._seq_len
         label = self._data.iloc[label_idx]['close']
-        label = normalize(label, normalizer_price)
-    
+
+        if self.output_mode == 'mean' or self.output_mode == 'distribution':
+            label = normalize(label, normalizer_price)
+            label = np.array([label], dtype=np.float32)
+
+        else:
+            percent = label / sequence_data_price['close'][-1] * 100
+            label = np.digitize(percent, self._discrete_grid_levels)
+            # to one-hot
+            label = np.eye(len(self._discrete_grid_levels)-1)[label]
+
         # Create a normalizer dict
         normalizer = dict(price=normalizer_price, volume=normalizer_volume, trades=normalizer_trades)
 
         # Convert to NumPy arrays
         sequence_data = np.concatenate([sequence_data_price, sequence_data_volume, sequence_data_trades, returns, sequence_data_time], axis=1, dtype=np.float32)
 
-        label = np.array([label], dtype=np.float32)
 
         # get the initial timestep
         timestep = self._data.iloc[start_idx].name

@@ -22,7 +22,8 @@ class TransformerConfig:
     flatten_encoder_output: bool = False
     fe_blocks: int = 2
     use_time2vec: bool = True
-    output_distribution: bool = True
+    output_mode: str = "distribution"  # [distribution, mean, discrete_grid]
+    discrete_grid_levels: int = 2  # 1 level up, 1 level down
     use_resblocks_in_head: bool = True
     use_resblocks_in_fe: bool = True
     average_encoder_output: bool = False
@@ -397,6 +398,15 @@ class PredictionHead(nn.Module):
                             bias_init=self.config.bias_init)(x)
                 x = nn.relu(x)
 
+
+        if self.config.output_mode == 'discrete_grid':
+            x = nn.Dense(features=self.config.discrete_grid_levels,
+                        dtype=self.config.dtype,
+                        kernel_init=self.config.kernel_init,
+                        bias_init=self.config.bias_init)(x)
+            x = nn.softmax(x, axis=-1)
+            return x
+
         mean = nn.Dense(
             features=1,
             dtype=self.config.dtype,
@@ -404,7 +414,7 @@ class PredictionHead(nn.Module):
             bias_init=self.config.bias_init,
         )(x)
 
-        if not self.config.output_distribution:
+        if self.config.output_mode == 'mean':
             return mean
             
         log_variance = nn.Dense(
@@ -443,7 +453,7 @@ class Transformer(nn.Module):
         x = PredictionHead(config=self.config)(x)
 
         """ output a probability distribution """
-        if self.config.output_distribution:
+        if self.config.output_mode == 'distribution':
             mean, log_variance = x
             variance = jnp.exp(log_variance)
             return mean, variance

@@ -30,6 +30,7 @@ Render of a transformer model as a hologram, projecting from a digital device, w
 - Select output head format [resblocks, mlp, etc] ✔️
 - Select input feature extractor format [resblocks, mlp, etc] ✔️
 - Create HP tuner ✔️
+- Add support for outputting discrete ranges instead of a distribution or the mean ✔️
 
 ## Installation
 
@@ -115,11 +116,11 @@ x_test = jnp.ones((1, agent.config.model_config["max_seq_len"], agent.config.mod
 pred = agent(x_test)
 
 # plot the test set predictions
-dataset = Dataset(agent.config.dataset_path, agent.config.model_config["max_seq_len"], norm_mode=agent.config.normalizer_mode, initial_date=agent.config.initial_date)
+dataset = Dataset(agent.config.dataset_path, agent.config.model_config["max_seq_len"], norm_mode=agent.config.normalizer_mode, initial_date=agent.config.initial_date, output_mode=agent.model_config["output_mode"])
 
 train_ds, test_ds = dataset.get_train_test_split(test_size=agent.config.test_split)
 
-predict_entire_dataset(agent, test_ds, mode='test')
+predict_entire_dataset(agent, test_ds, mode='test', output_mode=agent.config.model_config["output_mode"])
 ```
 
 ## Results

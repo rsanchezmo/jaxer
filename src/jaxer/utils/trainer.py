@@ -15,7 +15,7 @@ import time
 import json
 from jaxer.utils.plotter import plot_predictions
 from jaxer.utils.logger import Logger
-from jaxer.utils.losses import gaussian_negative_log_likelihood, mae, r2, rmse, mape
+from jaxer.utils.losses import gaussian_negative_log_likelihood, mae, r2, rmse, mape, binary_cross_entropy
 from jaxer.utils.early_stopper import EarlyStopper
 
 
@@ -57,7 +57,10 @@ class TrainerBase:
 
         """ Dataloaders """
         dataset = Dataset(self._config.dataset_path, self._config.model_config.max_seq_len, norm_mode=self._config.normalizer_mode,
-                          initial_date=self._config.initial_date)
+                          initial_date=self._config.initial_date, 
+                          output_mode=self._config.model_config.output_mode,
+                          discrete_grid_levels=self._config.dataset_discrete_levels)
+        
         self._train_ds, self._test_ds = dataset.get_train_test_split(test_size=self._config.test_split)
         self._train_dataloader = DataLoader(self._train_ds, batch_size=self._config.batch_size, shuffle=True, collate_fn=jax_collate_fn)
         self._test_dataloader = DataLoader(self._test_ds, batch_size=self._config.batch_size, shuffle=True, collate_fn=jax_collate_fn)
@@ -126,7 +129,8 @@ class FlaxTrainer(TrainerBase):
             flatten_encoder_output=self._config.model_config.flatten_encoder_output,
             fe_blocks=self._config.model_config.fe_blocks,
             use_time2vec=self._config.model_config.use_time2vec,
-            output_distribution=self._config.model_config.output_distribution,
+            output_mode=self._config.model_config.output_mode,
+            discrete_grid_levels=len(self._config.discrete_grid_levels)-1 if self._config.discrete_grid_levels is not None else None,
             use_resblocks_in_head=self._config.model_config.use_resblocks_in_head,
             use_resblocks_in_fe=self._config.model_config.use_resblocks_in_fe,
             average_encoder_output=self._config.model_config.average_encoder_output,
@@ -177,21 +181,20 @@ class FlaxTrainer(TrainerBase):
             delta_time = end_time - init_time
 
             """ Logging """
+            train_msg = f"Epoch: {epoch}/{self._config.num_epochs} \n" \
+                        f"                  Learning Rate: {metrics['lr']:.2e} \n"
+            test_msg = ''
             for key, value in metrics.items():
                 self._summary_writer.add_scalar(f"train/{key}", value, epoch)
+                train_msg += f"                  Train {key}: {value:>8.4f} \n"
             for key, value in test_metrics.items():
                 self._summary_writer.add_scalar(f"test/{key}", value, epoch)
-            
-            self.logger.info(f" Epoch: {epoch}/{self._config.num_epochs} \n"
-                f"                  Learning Rate: {metrics['lr']:.2e} \n"
-                f"                  Train Loss:  {metrics['loss']:>8.4f}    Test Loss: {test_metrics['loss']:>8.4f} \n"
-                f"                  Train MAE:   {metrics['mae']:>8.4f}    Test MAE:  {test_metrics['mae']:>8.4f} \n"
-                f"                  Train R2:    {metrics['r2']:>8.4f}    Test R2:   {test_metrics['r2']:>8.4f}\n"
-                f"                  Train RMSE:  {metrics['rmse']:>8.4f}    Test RMSE: {test_metrics['rmse']:>8.4f}\n"
-                f"                  Train MAPE:  {metrics['mape']:>8.4f} %  Test MAPE: {test_metrics['mape']:>8.4f} % \n"
-                f"                  Epoch time: {delta_time:.2f} seconds\n"
-                f"                  Total training time: {(end_time - begin_time)/60:.2f} min\n")
+                test_msg += f"                  Test {key}: {value:>8.4f} \n"
 
+            time_msg = f"                  Epoch time: {delta_time:.2f} seconds\n" \
+                       f"                  Total training time: {(end_time - begin_time)/60:.2f} min\n"
+
+            self.logger.info(train_msg + test_msg + time_msg)
 
             # TODO: get this back to test_metrics, but for intended purposes no I leave for training metrics
             should_stop = early_stopper(metrics["loss"]) if early_stopper is not None else False
@@ -291,6 +294,18 @@ class FlaxTrainer(TrainerBase):
         loss = rmse_
 
         return {"mae": mae_, "r2": r2_, "loss": loss, "rmse": rmse_, "mape": mape_}
+    
+    @staticmethod
+    @jax.jit
+    def _compute_metrics_discrete(predictions: jnp.ndarray, targets: jnp.ndarray) -> Dict:
+        """ Computes metrics """
+        predictions = jnp.round(predictions)
+
+        accuracy = jnp.mean(jnp.equal(predictions, targets))
+
+        loss = binary_cross_entropy(y_pred=predictions, y_true=targets)
+
+        return {"accuracy": accuracy, "loss": loss}
 
 
     @staticmethod
@@ -341,16 +356,39 @@ class FlaxTrainer(TrainerBase):
         metrics = {"mae": mae_, "r2": r2_, "loss": loss, "rmse": rmse_, "mape": mape_}
         return state, metrics
     
+    @staticmethod
+    @jax.jit
+    def _model_train_step_discrete(state: train_state.TrainState, inputs: jnp.ndarray, targets: jnp.ndarray,
+                        rng: jax.random.PRNGKey) -> jnp.ndarray:
+        
+        def loss_fn(params):
+            predictions = state.apply_fn(params, inputs, rngs={"dropout": rng})
+
+            loss = binary_cross_entropy(y_pred=predictions, y_true=targets)
+
+            accuracy = jnp.mean(jnp.equal(predictions, targets))
+
+            return loss, (accuracy)
+        
+        (loss, (accuracy)), grads  = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
+        state = state.apply_gradients(grads=grads)
+        metrics = {"accuracy": accuracy, "loss": loss}
+        return state, metrics
+    
 
     def _model_eval_step(self, state: train_state.TrainState, inputs: jnp.ndarray, targets: jnp.ndarray, 
                      config: TransformerConfig) -> jnp.ndarray:
         
         predictions = self._eval_model.apply(state.params, inputs)
 
-        if config.output_distribution:
+        if config.output_mode == 'distribution':
             metrics = self._compute_metrics_dist(predictions, targets)
-        else:
+        elif config.output_mode == 'mean':
             metrics = self._compute_metrics_mean(predictions, targets)
+        elif config.output_mode == 'discrete_grid':
+            metrics = self._compute_metrics_discrete(predictions, targets)
+        else:
+            raise NotImplementedError(f"Output mode {config.output_mode} not implemented")
 
         return state, metrics  
 
@@ -366,23 +404,15 @@ class FlaxTrainer(TrainerBase):
                 state, _metrics = self._model_train_step_dist(state, inputs, targets, rng)
             else:
                 state, _metrics = self._model_train_step_mean(state, inputs, targets, rng)
-            metrics["mae"].append(_metrics["mae"])
-            metrics["r2"].append(_metrics["r2"])
-            metrics["rmse"].append(_metrics["rmse"])
-            metrics["loss"].append(_metrics["loss"])
-            metrics["mape"].append(_metrics["mape"])
+
+            for key, value in _metrics.items():
+                metrics[key].append(value)
+
+        for key, value in metrics.items():
+            metrics[key] = jnp.mean(jnp.array(value))
+            metrics[key] = jax.device_get(metrics[key])
 
         metrics["lr"] = jax.device_get(lr)
-        metrics["mae"] = jnp.mean(jnp.array(metrics["mae"]))
-        metrics["mae"] = jax.device_get(metrics["mae"])
-        metrics["r2"] = jnp.mean(jnp.array(metrics["r2"]))
-        metrics["r2"] = jax.device_get(metrics["r2"])
-        metrics["rmse"] = jnp.mean(jnp.array(metrics["rmse"]))
-        metrics["rmse"] = jax.device_get(metrics["rmse"])
-        metrics["loss"] = jnp.mean(jnp.array(metrics["loss"]))
-        metrics["loss"] = jax.device_get(metrics["loss"])
-        metrics["mape"] = jnp.mean(jnp.array(metrics["mape"]))
-        metrics["mape"] = jax.device_get(metrics["mape"])
 
         return state, metrics
 
@@ -393,22 +423,12 @@ class FlaxTrainer(TrainerBase):
         for data in self._test_dataloader:
             inputs, targets, _, _ = data
             _, _metrics = self._model_eval_step(state, inputs, targets, config=self._flax_model_config_eval)
-            metrics["mae"].append(_metrics["mae"])
-            metrics["r2"].append(_metrics["r2"])
-            metrics["rmse"].append(_metrics["rmse"])
-            metrics["loss"].append(_metrics["loss"])
-            metrics["mape"].append(_metrics["mape"])
+            for key, value in _metrics.items():
+                metrics[key].append(value)
 
-        metrics["mae"] = jnp.mean(jnp.array(metrics["mae"]))
-        metrics["mae"] = jax.device_get(metrics["mae"])
-        metrics["r2"] = jnp.mean(jnp.array(metrics["r2"]))
-        metrics["r2"] = jax.device_get(metrics["r2"])
-        metrics["rmse"] = jnp.mean(jnp.array(metrics["rmse"]))
-        metrics["rmse"] = jax.device_get(metrics["rmse"])
-        metrics["loss"] = jnp.mean(jnp.array(metrics["loss"]))
-        metrics["loss"] = jax.device_get(metrics["loss"])
-        metrics["mape"] = jnp.mean(jnp.array(metrics["mape"]))
-        metrics["mape"] = jax.device_get(metrics["mape"])
+        for key, value in metrics.items():
+            metrics[key] = jnp.mean(jnp.array(value))
+            metrics[key] = jax.device_get(metrics[key])
 
         return metrics
     

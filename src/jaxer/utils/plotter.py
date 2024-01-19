@@ -3,7 +3,7 @@ from matplotlib import gridspec
 import jax.numpy as jnp
 import numpy as np
 from dataclasses import dataclass
-from typing import Optional, Dict, Union, Tuple
+from typing import Optional, Dict, Union, Tuple, List
 from .dataset import denormalize
 from .agent import Agent
 import torch
@@ -21,10 +21,17 @@ class Color:
     purple = np.array([114, 62, 148]) / 255.
     yellow = np.array([255, 195, 0]) / 255.
     red = np.array([205, 92, 92]) / 255.
+    black = np.array([0, 0, 0]) / 255.
+
+    def to_list(self):
+        return [self.green, self.blue, self.pink, self.orange, self.purple, self.yellow, self.red, self.black]
 
 
 def predict_entire_dataset(agent: Agent, dataset: torch.utils.data.Dataset, foldername=None, mode='test'):
     """ Predict entire dataset """
+
+    if dataset.output_mode == 'discrete_grid':
+        return
     
     # create a dataloader for the entire dataset and infere all at once
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=len(dataset), shuffle=False, collate_fn=jax_collate_fn) 
@@ -83,10 +90,10 @@ def predict_entire_dataset(agent: Agent, dataset: torch.utils.data.Dataset, fold
 
 
 def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, output: Union[jnp.ndarray, Tuple[jnp.ndarray, jnp.ndarray]], name: str, foldername: Optional[str] = None,
-                     normalizer: Optional[Dict] = None, initial_date: Optional[str] = None) -> None:
+                     normalizer: Optional[Dict] = None, initial_date: Optional[str] = None, output_mode: str = 'mean', discrete_grid_levels: Optional[List[float]] = None) -> None:
     """ Function to plot prediction and results """
 
-    if isinstance(output, tuple):
+    if output_mode == 'distribution':
         y_pred, variances = output
         y_pred = y_pred.squeeze(0)
         variances = variances.squeeze(0)
@@ -118,15 +125,31 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, output: Union[jnp.
 
     mean_avg = denormalize(np.mean(input[:, 0]), normalizer["price"])
 
-    prediction_data = jnp.append(sequence_data[-1], denormalize(y_pred[0], normalizer["price"]))
     real_data = jnp.append(sequence_data[-1], denormalize(y_true[0], normalizer["price"]))
     mean_avg_data = jnp.append(sequence_data[-1], mean_avg)
 
     base = jnp.arange(len(sequence_data))
 
     base_pred = jnp.array([len(sequence_data)-1, len(sequence_data)])
-    error = jnp.abs(real_data[-1] - prediction_data[-1])
-    percent_error = 100 * error / real_data[-1]
+    if output_mode != 'discrete_grid':
+        prediction_data = jnp.append(sequence_data[-1], denormalize(y_pred[0], normalizer["price"]))
+        ax0.plot(base_pred, prediction_data, label='Next Day Pred', color=Color.green, linewidth=linewidth, marker='o', markersize=marker_size, linestyle='--')
+        error = jnp.abs(real_data[-1] - prediction_data[-1])
+        percent_error = 100 * error / real_data[-1]
+        ax0.fill_between(base_pred, prediction_data, real_data, alpha=0.2, color=Color.yellow)
+
+    else:
+        colors = Color().to_list()
+        for idx in range(1, len(discrete_grid_levels)-1):
+            ax0.fill_between(base_pred, discrete_grid_levels[idx], discrete_grid_levels[idx+1], alpha=0.2, color=colors[idx])
+
+        lower_idx = jnp.argmax(y_true)
+        upper_idx = lower_idx + 1
+        ax0.fill_between(base_pred, discrete_grid_levels[lower_idx], discrete_grid_levels[upper_idx], alpha=0.8, color=Color.orange, label='Next Day Real')
+        lower_idx = jnp.argmax(y_pred)
+        upper_idx = lower_idx + 1
+        ax0.fill_between(base_pred, discrete_grid_levels[lower_idx], discrete_grid_levels[upper_idx], alpha=0.8, color=Color.green, label='Next Day Pred')
+
 
     open_data = denormalize(input[:, 1], normalizer["price"])
 
@@ -136,7 +159,6 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, output: Union[jnp.
     ax0.plot(base, sequence_data, label='Close Price', color=Color.blue,  linewidth=linewidth, marker='o', markersize=marker_size)
     ax0.plot(base, open_data, label='Open Price', color=Color.pink,  linewidth=linewidth, marker='o', markersize=marker_size)
     ax0.plot(base_pred, real_data, label='Next Day Real', color=Color.orange, linewidth=linewidth, marker='o', markersize=marker_size, linestyle='--')
-    ax0.plot(base_pred, prediction_data, label='Next Day Pred', color=Color.green, linewidth=linewidth, marker='o', markersize=marker_size, linestyle='--')
     ax0.plot(base_pred, mean_avg_data, label='Next Day Window Avg', color=Color.purple, linewidth=linewidth, marker='o', markersize=marker_size, linestyle='--')
     #ax0.plot(base, open_data, label='Open Price', color=Color.red,  linewidth=linewidth, marker='o', markersize=marker_size)
 
@@ -151,7 +173,6 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, output: Union[jnp.
         ax0.errorbar(base_pred[1], prediction_data[1], yerr=std_dev*1.96, color=Color.green, capsize=5, linewidth=2)
         ax0.fill_between(base_pred, upper_bound, lower_bound, alpha=0.2, color=Color.green)
 
-    ax0.fill_between(base_pred, prediction_data, real_data, alpha=0.2, color=Color.yellow)
 
     ax0.set_ylabel('Close Price [$]', fontsize=18, fontweight='bold')
     ax0.legend()
@@ -180,9 +201,13 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, output: Union[jnp.
     ax3.legend()
     
     if initial_date is not None:
-        title = f'Jaxer Predictor || Error {error:.2f} $ ({percent_error:.1f}) % || Initial Date: {initial_date}' 
+        title = f'Jaxer Predictor || Initial Date: {initial_date}' 
+    
+    if output_mode != 'discrete_grid':
+        title += f'Error {error:.2f} $ ({percent_error:.1f}) %'
     else:
-        title = f'Jaxer Predictor || Error {error:.2f} $ ({percent_error:.1f}) %'
+        title += f'Right Prediction: {y_true == y_pred}'
+        
     plt.suptitle(title, fontsize=20, fontweight='bold')
     plt.grid(True)
     plt.tight_layout()

@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import json
 from dataclasses import asdict
 import os
+from typing import Optional, List
 
 
 @dataclass
@@ -17,7 +18,8 @@ class ModelConfig:
     flatten_encoder_output: int
     fe_blocks: int
     use_time2vec: bool
-    output_distribution: bool
+    output_mode: str
+    discrete_grid_levels: int
     use_resblocks_in_head: bool
     use_resblocks_in_fe: bool
     average_encoder_output: bool
@@ -33,6 +35,8 @@ class Config:
     lr_mode: str
     warmup_epochs: int
     dataset_path: str
+    dataset_mode: str
+    dataset_discrete_levels: Optional[List[float]]
     initial_date: str
     batch_size: int
     test_split: float

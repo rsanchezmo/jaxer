@@ -23,7 +23,9 @@ if __name__ == '__main__':
 
     """ DATALOADERS """
     dataset = Dataset(agent.config.dataset_path, agent.config.model_config["max_seq_len"], norm_mode=agent.config.normalizer_mode,
-                      initial_date='2019-01-01')#agent.config.initial_date)
+                      initial_date='2019-01-01', output_mode=agent.config.model_config["output_mode"], 
+                      discrete_grid_levels=agent.config.dataset_discrete_levels)
+    
     train_ds, test_ds = dataset.get_train_test_split(test_size=agent.config.test_split)
 
 
