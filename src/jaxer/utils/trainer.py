@@ -185,9 +185,10 @@ class FlaxTrainer(TrainerBase):
                         f"                  Learning Rate: {metrics['lr']:.2e} \n"
             test_msg = ''
             for key, value in metrics.items():
+                self._summary_writer.add_scalar(f"train/{key}", value, epoch)
+
                 if key == 'lr':
                     continue
-                self._summary_writer.add_scalar(f"train/{key}", value, epoch)
                 train_msg += f"                  Train {key}: {value:>8.4f} \n"
             for key, value in test_metrics.items():
                 self._summary_writer.add_scalar(f"test/{key}", value, epoch)
@@ -301,9 +302,8 @@ class FlaxTrainer(TrainerBase):
     @jax.jit
     def _compute_metrics_discrete(predictions: jnp.ndarray, targets: jnp.ndarray) -> Dict:
         """ Computes metrics """
-        predictions = jnp.round(predictions)
-
-        accuracy = jnp.mean(jnp.equal(predictions, targets))
+        
+        accuracy = jnp.mean(jnp.equal(jnp.argmax(predictions, axis=-1), jnp.argmax(targets, axis=-1)))
 
         loss = binary_cross_entropy(y_pred=predictions, y_true=targets)
 
@@ -368,7 +368,7 @@ class FlaxTrainer(TrainerBase):
 
             loss = binary_cross_entropy(y_pred=predictions, y_true=targets)
 
-            accuracy = jnp.mean(jnp.equal(predictions, targets))
+            accuracy = jnp.mean(jnp.equal(jnp.argmax(predictions, axis=-1), jnp.argmax(targets, axis=-1)))
 
             return loss, (accuracy)
         

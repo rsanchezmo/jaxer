@@ -93,8 +93,6 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, output: Union[jnp.
                      normalizer: Optional[Dict] = None, initial_date: Optional[str] = None, output_mode: str = 'mean', discrete_grid_levels: Optional[List[float]] = None) -> None:
     """ Function to plot prediction and results """
 
-    # TODO: TRANSFORM PERCENT FROM DISCRETE GRID LEVELS TO REAL VALUES USING LAST CLOSE PRICE
-
     if output_mode == 'distribution':
         y_pred, variances = output
         y_pred = y_pred.squeeze(0)
@@ -223,7 +221,7 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, output: Union[jnp.
     if output_mode != 'discrete_grid':
         title += f' || Error {error:.2f} $ ({percent_error:.1f}) %'
     else:
-        title += f' || Right Prediction: {jnp.any(y_true == y_pred)}'
+        title += f' || Right Prediction: {jnp.argmax(y_true) == jnp.argmax(y_pred)}'
 
     plt.suptitle(title, fontsize=20, fontweight='bold')
     plt.grid(True)
