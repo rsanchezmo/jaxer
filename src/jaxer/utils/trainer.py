@@ -185,6 +185,8 @@ class FlaxTrainer(TrainerBase):
                         f"                  Learning Rate: {metrics['lr']:.2e} \n"
             test_msg = ''
             for key, value in metrics.items():
+                if key == 'lr':
+                    continue
                 self._summary_writer.add_scalar(f"train/{key}", value, epoch)
                 train_msg += f"                  Train {key}: {value:>8.4f} \n"
             for key, value in test_metrics.items():
@@ -395,18 +397,24 @@ class FlaxTrainer(TrainerBase):
     def _train_epoch(self, state: train_state.TrainState, rng: jax.random.PRNGKey) -> Tuple[train_state.TrainState, Dict]:
         """ Runs a training step """
 
-        metrics = {"mae": [], "r2": [], "loss": [], "rmse": [], "mape": []}
+        metrics = {}
         for data in self._train_dataloader:
             inputs, targets, _, _ = data
             step = state.step
             lr = self._learning_rate_fn(step)
-            if self._flax_model_config.output_distribution:
+            if self._flax_model_config.output_mode == 'distribution':
                 state, _metrics = self._model_train_step_dist(state, inputs, targets, rng)
-            else:
+            elif self._flax_model_config.output_mode == 'mean':
                 state, _metrics = self._model_train_step_mean(state, inputs, targets, rng)
+            elif self._flax_model_config.output_mode == 'discrete_grid':
+                state, _metrics = self._model_train_step_discrete(state, inputs, targets, rng)
+            else:
+                raise NotImplementedError(f"Output mode {self._flax_model_config.output_mode} not implemented")
 
             for key, value in _metrics.items():
-                metrics[key].append(value)
+                metric_list = metrics.get(key, [])
+                metric_list.append(value)
+                metrics[key] = metric_list
 
         for key, value in metrics.items():
             metrics[key] = jnp.mean(jnp.array(value))
@@ -419,12 +427,14 @@ class FlaxTrainer(TrainerBase):
     def _evaluate_step(self, state: train_state.TrainState) -> Dict:
         """ Runs an evaluation step """
 
-        metrics = {"mae": [], "r2": [], "loss": [], "rmse": [], "mape": []}
+        metrics = {}
         for data in self._test_dataloader:
             inputs, targets, _, _ = data
             _, _metrics = self._model_eval_step(state, inputs, targets, config=self._flax_model_config_eval)
             for key, value in _metrics.items():
-                metrics[key].append(value)
+                metric_list = metrics.get(key, [])
+                metric_list.append(value)
+                metrics[key] = metric_list
 
         for key, value in metrics.items():
             metrics[key] = jnp.mean(jnp.array(value))
@@ -444,7 +454,8 @@ class FlaxTrainer(TrainerBase):
         for i, data in enumerate(test_dataloader):
             inputs, targets, normalizer, _ = data
             output = self._eval_model.apply(self._best_model_state.params, inputs)
-            plot_predictions(inputs.squeeze(0), targets.squeeze(0), output, i, save_folder, normalizer=normalizer[0])
+            plot_predictions(inputs.squeeze(0), targets.squeeze(0), output, i, save_folder, normalizer=normalizer[0], 
+                             output_mode=self._config.model_config.output_mode, discrete_grid_levels=self._config.dataset_discrete_levels)
             counter += 1
             if counter == max_seqs:
                 break

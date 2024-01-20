@@ -10,7 +10,7 @@ from jaxer.utils.config import get_best_model
 
 if __name__ == '__main__':
     """ LOAD THE AGENT """
-    experiment = "output_dist_search"
+    experiment = "output_discrete_grid"
     agent = Agent(experiment=experiment, model_name=get_best_model(experiment))
 
     """ LOAD SOME DATA """
@@ -42,6 +42,7 @@ if __name__ == '__main__':
     for batch in train_dataloader:
         input, label, normalizer, initial_date = batch
         output = agent(input)
-        plot_predictions(input.squeeze(0), label.squeeze(0), output, normalizer=normalizer[0], name='train', initial_date=initial_date[0])
+        plot_predictions(input.squeeze(0), label.squeeze(0), output, normalizer=normalizer[0], name='train', 
+                         initial_date=initial_date[0], output_mode=agent.config.model_config["output_mode"], discrete_grid_levels=agent.config.dataset_discrete_levels)
         
     

@@ -93,6 +93,8 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, output: Union[jnp.
                      normalizer: Optional[Dict] = None, initial_date: Optional[str] = None, output_mode: str = 'mean', discrete_grid_levels: Optional[List[float]] = None) -> None:
     """ Function to plot prediction and results """
 
+    # TODO: TRANSFORM PERCENT FROM DISCRETE GRID LEVELS TO REAL VALUES USING LAST CLOSE PRICE
+
     if output_mode == 'distribution':
         y_pred, variances = output
         y_pred = y_pred.squeeze(0)
@@ -140,15 +142,27 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, output: Union[jnp.
 
     else:
         colors = Color().to_list()
-        for idx in range(1, len(discrete_grid_levels)-1):
-            ax0.fill_between(base_pred, discrete_grid_levels[idx], discrete_grid_levels[idx+1], alpha=0.2, color=colors[idx])
+        for idx in range(0,len(discrete_grid_levels)-1):
+            lower_bound = [0.01 * discrete_grid_levels[idx] * sequence_data[-1] + sequence_data[-1], 0.01 * discrete_grid_levels[idx] * sequence_data[-1] + sequence_data[-1]]
+            upper_bound = [0.01 * discrete_grid_levels[idx+1] * sequence_data[-1] + sequence_data[-1], 0.01 * discrete_grid_levels[idx+1] * sequence_data[-1] + sequence_data[-1]]
+            lower_label = discrete_grid_levels[idx] if idx > 0 else 'Min'
+            upper_label = discrete_grid_levels[idx+1] if idx < len(discrete_grid_levels)-2 else 'Max'
+            label = f'[{lower_label}, {upper_label}) %'
+            ax0.fill_between(base_pred, lower_bound, upper_bound, alpha=0.2, color=colors[idx], 
+                             label=label)
+
+        last_open = sequence_data[-1]
 
         lower_idx = jnp.argmax(y_true)
         upper_idx = lower_idx + 1
-        ax0.fill_between(base_pred, discrete_grid_levels[lower_idx], discrete_grid_levels[upper_idx], alpha=0.8, color=Color.orange, label='Next Day Real')
+        lower_bound = [0.01 * discrete_grid_levels[lower_idx] * last_open + last_open, 0.01 * discrete_grid_levels[lower_idx] * last_open + last_open]
+        upper_bound = [0.01 * discrete_grid_levels[upper_idx] * last_open + last_open, 0.01 * discrete_grid_levels[upper_idx] * last_open + last_open]
+        ax0.fill_between(base_pred, lower_bound, upper_bound, alpha=0.7, color=Color.orange, label='Next Day Real')
         lower_idx = jnp.argmax(y_pred)
         upper_idx = lower_idx + 1
-        ax0.fill_between(base_pred, discrete_grid_levels[lower_idx], discrete_grid_levels[upper_idx], alpha=0.8, color=Color.green, label='Next Day Pred')
+        lower_bound = [0.01 * discrete_grid_levels[lower_idx] * last_open + last_open, 0.01 * discrete_grid_levels[lower_idx] * last_open + last_open]
+        upper_bound = [0.01 * discrete_grid_levels[upper_idx] * last_open + last_open, 0.01 *discrete_grid_levels[upper_idx] * last_open + last_open]
+        ax0.fill_between(base_pred, lower_bound, upper_bound, alpha=0.7, color=Color.green, label='Next Day Pred')
 
 
     open_data = denormalize(input[:, 1], normalizer["price"])
@@ -157,9 +171,10 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, output: Union[jnp.
     ax0.axvline(x=len(sequence_data)-1, color=Color.red, linewidth=2, linestyle='--')
 
     ax0.plot(base, sequence_data, label='Close Price', color=Color.blue,  linewidth=linewidth, marker='o', markersize=marker_size)
-    ax0.plot(base, open_data, label='Open Price', color=Color.pink,  linewidth=linewidth, marker='o', markersize=marker_size)
-    ax0.plot(base_pred, real_data, label='Next Day Real', color=Color.orange, linewidth=linewidth, marker='o', markersize=marker_size, linestyle='--')
-    ax0.plot(base_pred, mean_avg_data, label='Next Day Window Avg', color=Color.purple, linewidth=linewidth, marker='o', markersize=marker_size, linestyle='--')
+    #ax0.plot(base, open_data, label='Open Price', color=Color.pink,  linewidth=linewidth, marker='o', markersize=marker_size)
+    if output_mode != 'discrete_grid':
+        ax0.plot(base_pred, real_data, label='Next Day Real', color=Color.orange, linewidth=linewidth, marker='o', markersize=marker_size, linestyle='--')
+        ax0.plot(base_pred, mean_avg_data, label='Next Day Window Avg', color=Color.purple, linewidth=linewidth, marker='o', markersize=marker_size, linestyle='--')
     #ax0.plot(base, open_data, label='Open Price', color=Color.red,  linewidth=linewidth, marker='o', markersize=marker_size)
 
 
@@ -173,9 +188,10 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, output: Union[jnp.
         ax0.errorbar(base_pred[1], prediction_data[1], yerr=std_dev*1.96, color=Color.green, capsize=5, linewidth=2)
         ax0.fill_between(base_pred, upper_bound, lower_bound, alpha=0.2, color=Color.green)
 
+    ax0.set_ylim([np.min(sequence_data) - 0.05 * np.min(sequence_data), np.max(sequence_data) + 0.05 * np.max(sequence_data)])
 
     ax0.set_ylabel('Close Price [$]', fontsize=18, fontweight='bold')
-    ax0.legend()
+    ax0.legend(ncol=2)
 
 
     """ Plot high/low price """
@@ -184,6 +200,7 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, output: Union[jnp.
     ax1.plot(base, high_data, label='High Price', color=Color.pink,  linewidth=linewidth, marker='o', markersize=marker_size)
     ax1.plot(base, low_data, label='Low Price', color=Color.purple,  linewidth=linewidth, marker='o', markersize=marker_size)
     ax1.set_ylabel('High/Low Price [$]', fontsize=18, fontweight='bold')
+    ax1.set_xlabel('Date [Sequence]', fontsize=18, fontweight='bold')
     ax1.legend()
 
     """ Plot volume """
@@ -204,10 +221,10 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, output: Union[jnp.
         title = f'Jaxer Predictor || Initial Date: {initial_date}' 
     
     if output_mode != 'discrete_grid':
-        title += f'Error {error:.2f} $ ({percent_error:.1f}) %'
+        title += f' || Error {error:.2f} $ ({percent_error:.1f}) %'
     else:
-        title += f'Right Prediction: {y_true == y_pred}'
-        
+        title += f' || Right Prediction: {jnp.any(y_true == y_pred)}'
+
     plt.suptitle(title, fontsize=20, fontweight='bold')
     plt.grid(True)
     plt.tight_layout()

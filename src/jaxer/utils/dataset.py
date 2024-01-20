@@ -120,8 +120,9 @@ class Dataset(torch.utils.data.Dataset):
             label = np.array([label], dtype=np.float32)
 
         else:
-            percent = label / sequence_data_price['close'][-1] * 100
-            label = np.digitize(percent, self._discrete_grid_levels)
+            prev_close_price = self._data.iloc[label_idx-1]['close']
+            percent = (label - prev_close_price) / prev_close_price * 100
+            label = np.digitize(percent, self._discrete_grid_levels)-1
             # to one-hot
             label = np.eye(len(self._discrete_grid_levels)-1)[label]
 
