@@ -166,7 +166,7 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, output: Union[jnp.
     open_data = denormalize(input[:, 1], normalizer["price"])
 
     """ Plot close price """
-    ax0.axvline(x=len(sequence_data)-1, color=Color.red, linewidth=2, linestyle='--')
+    ax0.axvline(x=len(sequence_data)-1, color=Color.red, linewidth=2)
 
     ax0.plot(base, sequence_data, label='Close Price', color=Color.blue,  linewidth=linewidth, marker='o', markersize=marker_size)
     #ax0.plot(base, open_data, label='Open Price', color=Color.pink,  linewidth=linewidth, marker='o', markersize=marker_size)
@@ -217,6 +217,8 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, output: Union[jnp.
     
     if initial_date is not None:
         title = f'Jaxer Predictor || Initial Date: {initial_date}' 
+    else:
+        title = f'Jaxer Predictor'
     
     if output_mode != 'discrete_grid':
         title += f' || Error {error:.2f} $ ({percent_error:.1f}) %'

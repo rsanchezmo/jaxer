@@ -235,9 +235,9 @@ class FeatureExtractor(nn.Module):
             bias_init=self.config.bias_init,
         )(x)
         x = nn.relu(x)
-        # x = nn.Dropout(rate=self.config.dropout)(
-        #     x, deterministic=self.config.deterministic
-        # )
+        x = nn.Dropout(rate=self.config.dropout)(
+            x, deterministic=self.config.deterministic
+        )
 
         # some residual blocks
         """

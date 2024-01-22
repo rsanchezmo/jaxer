@@ -124,17 +124,28 @@ predict_entire_dataset(agent, test_ds, mode='test', output_mode=agent.config.mod
 ```
 
 ## Results
-Some of the predictions are shown below. As we are predicting a distribution, the 95% confidence interval is shown in the plots in order to have a better understanding of the uncertainty of the model. The upper and lower bounds are computed as ```[mean + 1.96*std, mean - 1.96*std]``` respectively.
+Some of the predictions are shown below. 
 
-![Jaxer Predictions 1](./data/1.png)
+## Output Distribution
+As we are predicting a distribution, the 95% confidence interval is shown in the plots in order to have a better understanding of the uncertainty of the model. The upper and lower bounds are computed as ```[mean + 1.96*std, mean - 1.96*std]``` respectively.
 
-![Jaxer Predictions 2](./data/4.png)
+![Jaxer Predictions Distribution 1](./data/1.png)
 
-![Jaxer Predictions 3](./data/2.png)
+![Jaxer Predictions Distribution 2](./data/4.png)
+
 
 Now, the model is either predicting the window mean or lagging the input sequence. It is related to model size and hp and hope to fix it soon. 
+
 ![Jaxer Predictions Test](./data/mean_test.png)
 ![Jaxer Predictions Train](./data/mean_test_2.png)
+
+## Output Mean
+![Jaxer Predictions Mean 1](./data/3.png)
+
+## Output Discrete Grid
+![Jaxer Predictions Discrete 1](./data/6.png)
+![Jaxer Predictions Discrete 2](./data/9.png)
+
 
 ## Conclusions
 - Jax and Flax are easy to use once you learn the basics. I have tried to make the code as simple as possible so it can be easily understood, encapsulating the complexity of the libraries.
