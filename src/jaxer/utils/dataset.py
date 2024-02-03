@@ -7,6 +7,7 @@ import jax.numpy as jnp
 from typing import Union, Optional, List
 from dataclasses import dataclass
 import os
+import itertools
 
 
 @dataclass
@@ -26,49 +27,61 @@ class Dataset(torch.utils.data.Dataset):
         """ Reads a csv file """
         self._datapath = os.path.join(dataset_config.datapath, dataset_config.resolution)
 
-        # TODO_1: Add support for multiple tickers
+        self._data = []
+        self._data_len = []
+        self._unrolled_len = []
+        cum_len = 0
+        for ticker in dataset_config.tickers:
+            data = pd.read_json(os.path.join(self._datapath, f"{ticker}_{dataset_config.resolution}.json"))
+            data['date'] = pd.to_datetime(data['date'])
+            data.set_index('date', inplace=True)
+            data.sort_index(inplace=True)
 
-        self._data = pd.read_json(self._datapath)
-        self._data['date'] = pd.to_datetime(self._data['date'])
-        self._data.set_index('date', inplace=True)
-        self._data.sort_index(inplace=True)
+            if dataset_config.initial_date is not None:
+                data = data[data.index >= dataset_config.initial_date]
 
-        if dataset_config.initial_date is not None:
-            self._data = self._data[self._data.index >= dataset_config.initial_date]
+            self._data.append(data)
+            self._data_len.append(len(data) - dataset_config.seq_len)
+
+            self._unrolled_len.append(cum_len + self._data_len[-1])
+            cum_len += self._data_len[-1]
 
         self._seq_len = dataset_config.seq_len
 
         self.output_mode = dataset_config.output_mode
         self._discrete_grid_levels = dataset_config.discrete_grid_levels
 
-        assert dataset_config.discrete_grid_levels is not None, "discrete_grid_levels must be provided if output_mode is 'discrete_grid'"
+        if dataset_config.discrete_grid_levels is None and dataset_config.output_mode == 'discrete_grid':
+            raise ValueError('discrete_grid_levels must be provided if output_mode is discrete_grid')
 
         if dataset_config.norm_mode not in ["window_minmax", "window_meanstd", "global_minmax", 'global_meanstd', "none"]:
             raise ValueError("norm_mode must be one of ['window_minmax', 'window_meanstd', 'global_minmax', 'global_meanstd', 'none']")
         
         self._norm_mode = dataset_config.norm_mode
+
         if self._norm_mode == "global_minmax":
+            # NORMALIZING WITH THE FIRST TICKER!
             self._global_normalizer = dict(
-                price=dict(min_val=self._data[['close', 'open', 'high', 'low']].min().min(), 
-                           max_val=self._data[['close', 'open', 'high', 'low']].max().max(),
+                price=dict(min_val=self._data[0][['close', 'open', 'high', 'low']].min().min(), 
+                           max_val=self._data[0][['close', 'open', 'high', 'low']].max().max(),
                            mode="minmax"),
-                volume=dict(min_val=self._data['volume'].min().min(), 
-                            max_val=self._data['volume'].max().max(), 
+                volume=dict(min_val=self._data[0]['volume'].min().min(), 
+                            max_val=self._data[0]['volume'].max().max(), 
                             mode="minmax"),
-                trades=dict(min_val=self._data['tradesDone'].min().min(),
-                                        max_val=self._data['tradesDone'].max().max(),
+                trades=dict(min_val=self._data[0]['tradesDone'].min().min(),
+                                        max_val=self._data[0]['tradesDone'].max().max(),
                                         mode="minmax")
             )
         elif self._norm_mode == "global_meanstd":
             self._global_normalizer = dict(
-                price=dict(mean_val=self._data[['close', 'open', 'high', 'low']].mean().max(), 
-                           std_val=self._data[['close', 'open', 'high', 'low']].std().max(),
+                price=dict(mean_val=self._data[0][['close', 'open', 'high', 'low']].mean().max(), 
+                           std_val=self._data[0][['close', 'open', 'high', 'low']].std().max(),
                            mode="meanstd"),
-                volume=dict(mean_val=self._data['volume'].mean().max(), 
-                            std_val=self._data['volume'].std().max(), 
+                volume=dict(mean_val=self._data[0]['volume'].mean().max(), 
+                            std_val=self._data[0]['volume'].std().max(), 
                             mode="meanstd"),
-                trades=dict(mean_val=self._data['tradesDone'].mean().max(),
-                                        std_val=self._data['tradesDone'].std().max(),
+                trades=dict(mean_val=self._data[0]['tradesDone'].mean().max(),
+                                        std_val=self._data[0]['tradesDone'].std().max(),
                                         mode="meanstd")
             )
         elif self._norm_mode == 'none':
@@ -79,13 +92,25 @@ class Dataset(torch.utils.data.Dataset):
             )
 
 
+    def _map_idx(self, index: int) -> Tuple[int, int]:
+        """ Maps the index to the corresponding ticker and index using self._unrolled_len """
+        for idx in range(len(self._unrolled_len)):
+            if index < self._unrolled_len[idx]:
+                if idx == 0:
+                    return index, idx
+                return index - self._unrolled_len[idx-1], idx
+            
+        raise ValueError("Index out of range")
+
+
     def __getitem__(self, index) -> Tuple[np.ndarray, np.ndarray, dict]:
+        index, ticker_idx = self._map_idx(index)
         start_idx = index
         end_idx = index + self._seq_len
-        sequence_data_price = self._data.iloc[start_idx:end_idx][['close', 'open', 'high', 'low']] 
-        sequence_data_volume = self._data.iloc[start_idx:end_idx][['volume']]
-        sequence_data_trades = self._data.iloc[start_idx:end_idx][['tradesDone']]
-        sequence_data_time = np.array([idx / len(self._data) for idx in range(start_idx, end_idx)])[:, None]
+        sequence_data_price = self._data[ticker_idx].iloc[start_idx:end_idx][['close', 'open', 'high', 'low']] 
+        sequence_data_volume = self._data[ticker_idx].iloc[start_idx:end_idx][['volume']]
+        sequence_data_trades = self._data[ticker_idx].iloc[start_idx:end_idx][['tradesDone']]
+        sequence_data_time = np.array([idx / len(self._data[ticker_idx]) for idx in range(start_idx, end_idx)])[:, None]
 
         if self._norm_mode == "window_minmax":
             min_vals = sequence_data_price.min().min()
@@ -132,14 +157,14 @@ class Dataset(torch.utils.data.Dataset):
 
         # Extract the label
         label_idx = index + self._seq_len
-        label = self._data.iloc[label_idx]['close']
+        label = self._data[ticker_idx].iloc[label_idx]['close']
 
         if self.output_mode == 'mean' or self.output_mode == 'distribution':
             label = normalize(label, normalizer_price)
             label = np.array([label], dtype=np.float32)
 
         else:
-            prev_close_price = self._data.iloc[label_idx-1]['close']
+            prev_close_price = self._data[ticker_idx].iloc[label_idx-1]['close']
             percent = (label - prev_close_price) / prev_close_price * 100
             label = np.digitize(percent, self._discrete_grid_levels)-1
             # to one-hot
@@ -154,21 +179,35 @@ class Dataset(torch.utils.data.Dataset):
                                         sequence_data_time], axis=1, dtype=np.float32)
 
         # get the initial timestep
-        timestep = self._data.iloc[start_idx].name
+        timestep = self._data[ticker_idx].iloc[start_idx].name
 
         return sequence_data, label, normalizer, timestep.strftime("%Y-%m-%d")
 
     def __len__(self) -> int:
-        return len(self._data) - self._seq_len
+        return sum(self._data_len)
     
     def get_train_test_split(self, test_size: float = 0.1) -> Tuple[torch.utils.data.Dataset, torch.utils.data.Dataset]:
         """ Returns a train and test dataset"""
-        total_samples = len(self)
-        test_samples = int(total_samples * test_size)
-        train_samples = total_samples - test_samples
 
-        train_dataset = torch.utils.data.Subset(self, range(0, train_samples))
-        test_dataset = torch.utils.data.Subset(self, range(train_samples, total_samples))
+        # Split the dataset ranges with itertools.chain
+        train_ranges = []
+        test_ranges = []
+        for ticker in range(len(self._data_len)):
+            test_samples = int(self._data_len[ticker] * test_size)
+            train_samples = self._data_len[ticker] - test_samples
+
+            if ticker == 0:
+                train_ranges.append(range(0, train_samples))
+                test_ranges.append(range(train_samples, self._data_len[ticker]))
+            else:
+                train_ranges.append(range(self._unrolled_len[ticker-1], self._unrolled_len[ticker-1] + train_samples))
+                test_ranges.append(range(self._unrolled_len[ticker-1] + train_samples, self._unrolled_len[ticker-1] + self._data_len[ticker]))
+
+        train_ranges = itertools.chain(*train_ranges)
+        test_ranges = itertools.chain(*test_ranges)
+
+        train_dataset = torch.utils.data.Subset(self, list(train_ranges))
+        test_dataset = torch.utils.data.Subset(self, list(test_ranges))
 
         return train_dataset, test_dataset
     
@@ -240,9 +279,7 @@ def jax_collate_fn(batch):
     jax_labels = [jnp.array(item[1]) for item in batch]
     norms = [item[2] for item in batch]
     timesteps = [item[3] for item in batch]
-
     # Stack them to create batched JAX arrays
     batched_jax_inputs = jnp.stack(jax_inputs)
     batched_jax_labels = jnp.stack(jax_labels)
-
     return batched_jax_inputs, batched_jax_labels, norms, timesteps

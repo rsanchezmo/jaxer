@@ -31,8 +31,9 @@ Render of a transformer model as a hologram, projecting from a digital device, w
 - Select input feature extractor format [resblocks, mlp, etc] ✔️
 - Create HP tuner ✔️
 - Add support for outputting discrete ranges instead of a distribution or the mean ✔️
-- Add support for multiple tickers dataset 
+- Add support for multiple tickers dataset (to get more points) 
 - Refactor the plotter code to be more general
+- Make logger as singleton
 
 ## Installation
 

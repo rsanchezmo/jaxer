@@ -38,7 +38,7 @@ class FlaxTrainer(TrainerBase):
             fe_blocks=self._config.model_config.fe_blocks,
             use_time2vec=self._config.model_config.use_time2vec,
             output_mode=self._config.model_config.output_mode,
-            discrete_grid_levels=len(self._config.dataset_discrete_levels)-1 if self._config.dataset_discrete_levels is not None else None,
+            discrete_grid_levels=len(self._config.dataset_config.discrete_grid_levels)-1 if self._config.dataset_config.discrete_grid_levels is not None else None,
             use_resblocks_in_head=self._config.model_config.use_resblocks_in_head,
             use_resblocks_in_fe=self._config.model_config.use_resblocks_in_fe,
             average_encoder_output=self._config.model_config.average_encoder_output,
@@ -308,7 +308,7 @@ class FlaxTrainer(TrainerBase):
         metrics = {}
 
         for data in self._train_dataloader:
-            inputs, targets, _, _ = data
+            inputs, targets, _, _ = tuple(data)
             step = state.step
             lr = self._learning_rate_fn(step)
             if self._flax_model_config.output_mode == 'distribution':

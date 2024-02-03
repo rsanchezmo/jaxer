@@ -35,7 +35,7 @@ class Agent:
             fe_blocks=self.config.model_config["fe_blocks"],
             use_time2vec=self.config.model_config["use_time2vec"],
             output_mode=self.config.model_config["output_mode"],
-            discrete_grid_levels=len(self.config.dataset_discrete_levels)-1 if self.config.dataset_discrete_levels is not None else None,
+            discrete_grid_levels=len(self.config.dataset_config.discrete_grid_levels)-1 if self.config.dataset_config.discrete_grid_levels is not None else None,
             use_resblocks_in_head=self.config.model_config["use_resblocks_in_head"],
             use_resblocks_in_fe=self.config.model_config["use_resblocks_in_fe"],
             average_encoder_output=self.config.model_config["average_encoder_output"],
