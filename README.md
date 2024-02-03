@@ -2,7 +2,7 @@
 Jax and Flax Time Series Prediction Transformer. The goal of this repo is to learn [**Jax**](https://jax.readthedocs.io/en/latest/) and [**Flax**](https://flax.readthedocs.io/en/latest/) by implementing a deep learning model. In this case, a **transformer** for time series prediction. I have decided to predict BTC due to the availability of the data. However, this could be used for any other time series data, such as market stocks.
 
 > [!IMPORTANT]
-> This repository is yet under development. However, I am planning to complete it soon. 
+> This repository is yet under development.
 
 
 The current logo was created by DALLE-3 from OpenAI using the following prompt:
@@ -31,6 +31,8 @@ Render of a transformer model as a hologram, projecting from a digital device, w
 - Select input feature extractor format [resblocks, mlp, etc] ✔️
 - Create HP tuner ✔️
 - Add support for outputting discrete ranges instead of a distribution or the mean ✔️
+- Add support for multiple tickers dataset 
+- Refactor the plotter code to be more general
 
 ## Installation
 
