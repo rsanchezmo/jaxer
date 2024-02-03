@@ -1,8 +1,8 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 import json
-from dataclasses import asdict
 import os
 from typing import Optional, List
+from jaxer.utils.dataset import DatasetConfig
 
 
 @dataclass
@@ -33,13 +33,10 @@ class Config:
     learning_rate: float
     lr_mode: str
     warmup_epochs: int
-    dataset_path: str
-    dataset_discrete_levels: Optional[List[float]]
-    initial_date: str
+    dataset_config: DatasetConfig
     batch_size: int
     test_split: float
     seed: int
-    normalizer_mode: str
     save_weights: bool
     early_stopper: int
 

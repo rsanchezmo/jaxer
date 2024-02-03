@@ -22,9 +22,7 @@ if __name__ == '__main__':
     print(f"Time taken: {1e3*(time.time() - init_t):.2f} ms")
 
     """ DATALOADERS """
-    dataset = Dataset(agent.config.dataset_path, agent.config.model_config["max_seq_len"], norm_mode=agent.config.normalizer_mode,
-                      initial_date='2019-01-01', output_mode=agent.config.model_config["output_mode"], 
-                      discrete_grid_levels=agent.config.dataset_discrete_levels)
+    dataset = Dataset(dataset_config=agent.config.dataset_config)
     
     train_ds, test_ds = dataset.get_train_test_split(test_size=agent.config.test_split)
 
@@ -43,6 +41,6 @@ if __name__ == '__main__':
         input, label, normalizer, initial_date = batch
         output = agent(input)
         plot_predictions(input.squeeze(0), label.squeeze(0), output, normalizer=normalizer[0], name='train', 
-                         initial_date=initial_date[0], output_mode=agent.config.model_config["output_mode"], discrete_grid_levels=agent.config.dataset_discrete_levels)
+                         initial_date=initial_date[0], output_mode=agent.config.model_config["output_mode"], discrete_grid_levels=agent.config.dataset_config.discrete_levels)
         
     

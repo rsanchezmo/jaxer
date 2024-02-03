@@ -109,13 +109,13 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, output: Union[jnp.
     fig = plt.figure(figsize=(20, 12))
 
     # Crear un GridSpec con dos filas y tres columnas
-    gs = gridspec.GridSpec(2, 3, height_ratios=[1, 1])
+    gs = gridspec.GridSpec(2, 2, height_ratios=[1, 1])
 
     # Añadir subplots
     ax0 = plt.subplot(gs[0, :])  
     ax1 = plt.subplot(gs[1, 0]) 
     ax2 = plt.subplot(gs[1, 1]) 
-    ax3 = plt.subplot(gs[1, 2])
+    #ax3 = plt.subplot(gs[1, 2])
 
 
     linewidth = 3
@@ -209,11 +209,11 @@ def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray, output: Union[jnp.
     ax2.legend()
 
     """ Plot trades """
-    trades_data = denormalize(input[:, 5], normalizer["trades"])
-    ax3.plot(base, trades_data, label='Trades', color=Color.blue,  linewidth=linewidth, marker='o', markersize=marker_size)
-    ax3.set_ylabel('Trades', fontsize=18, fontweight='bold')
-    ax3.set_xlabel('Date [Sequence]', fontsize=18, fontweight='bold')
-    ax3.legend()
+    # trades_data = denormalize(input[:, 5], normalizer["trades"])
+    # ax3.plot(base, trades_data, label='Trades', color=Color.blue,  linewidth=linewidth, marker='o', markersize=marker_size)
+    # ax3.set_ylabel('Trades', fontsize=18, fontweight='bold')
+    # ax3.set_xlabel('Date [Sequence]', fontsize=18, fontweight='bold')
+    # ax3.legend()
     
     if initial_date is not None:
         title = f'Jaxer Predictor || Initial Date: {initial_date}' 

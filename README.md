@@ -10,7 +10,7 @@ The current logo was created by DALLE-3 from OpenAI using the following prompt:
 Render of a transformer model as a hologram, projecting from a digital device, with a faint BTC logo in the holographic projection, without any text.
 ```
 
-![Jaxer Logo](/data/btc_transformer.png)
+![Jaxer Logo](/data/docs/btc_transformer.png)
 
 
 ## Roadmap
@@ -76,7 +76,7 @@ Data must be normalized to avoid exploding gradients during training. Several no
 ### Model
 
 #### Encoder Only
-![Encoder Only Model](./data/encoder_only_model.png)
+![Encoder Only Model](./data/docs/encoder_only_model.png)
 
 Model is implemented in Flax. Feature extractors and prediction head consist on an MLP with residual blocks and layer normalization. The encoder consists on L x Encoder blocks with self attention. layer norms and feedforwarding. The output of the encoder is flattened to feed the prediction head. Each token of the output sequence contains the "context" of the others related to itself. 
 
@@ -129,22 +129,22 @@ Some of the predictions are shown below.
 ## Output Distribution
 As we are predicting a distribution, the 95% confidence interval is shown in the plots in order to have a better understanding of the uncertainty of the model. The upper and lower bounds are computed as ```[mean + 1.96*std, mean - 1.96*std]``` respectively.
 
-![Jaxer Predictions Distribution 1](./data/1.png)
+![Jaxer Predictions Distribution 1](./data/docs/1.png)
 
-![Jaxer Predictions Distribution 2](./data/4.png)
+![Jaxer Predictions Distribution 2](./data/docs/4.png)
 
 
 Now, the model is either predicting the window mean or lagging the input sequence. It is related to model size and hp and hope to fix it soon. 
 
-![Jaxer Predictions Test](./data/mean_test.png)
-![Jaxer Predictions Train](./data/mean_test_2.png)
+![Jaxer Predictions Test](./data/docs/mean_test.png)
+![Jaxer Predictions Train](./data/docs/mean_test_2.png)
 
 ## Output Mean
-![Jaxer Predictions Mean 1](./data/3.png)
+![Jaxer Predictions Mean 1](./data/docs/3.png)
 
 ## Output Discrete Grid
-![Jaxer Predictions Discrete 1](./data/6.png)
-![Jaxer Predictions Discrete 2](./data/9.png)
+![Jaxer Predictions Discrete 1](./data/docs/6.png)
+![Jaxer Predictions Discrete 2](./data/docs/9.png)
 
 
 ## Conclusions

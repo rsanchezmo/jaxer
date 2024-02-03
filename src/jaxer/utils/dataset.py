@@ -5,31 +5,48 @@ import numpy as np
 import torch.utils.data
 import jax.numpy as jnp
 from typing import Union, Optional, List
+from dataclasses import dataclass
+import os
+
+
+@dataclass
+class DatasetConfig:
+    datapath: str
+    seq_len: int
+    norm_mode: str
+    initial_date: Optional[str]
+    output_mode: str
+    discrete_grid_levels: Optional[List[float]]
+    resolution: str
+    tickers: List[str]
 
 
 class Dataset(torch.utils.data.Dataset):
-    def __init__(self, datapath: str, seq_len: int, norm_mode: str = 'window', initial_date: Optional[str] = None, output_mode: str = 'mean', discrete_grid_levels: Optional[List[float]] = None) -> None:
+    def __init__(self, dataset_config: DatasetConfig) -> None:
         """ Reads a csv file """
-        self._datapath = datapath
+        self._datapath = os.path.join(dataset_config.datapath, dataset_config.resolution)
+
+        # TODO_1: Add support for multiple tickers
+
         self._data = pd.read_json(self._datapath)
         self._data['date'] = pd.to_datetime(self._data['date'])
         self._data.set_index('date', inplace=True)
         self._data.sort_index(inplace=True)
 
-        if initial_date is not None:
-            self._data = self._data[self._data.index >= initial_date]
+        if dataset_config.initial_date is not None:
+            self._data = self._data[self._data.index >= dataset_config.initial_date]
 
-        self._seq_len = seq_len
+        self._seq_len = dataset_config.seq_len
 
-        self.output_mode = output_mode
-        self._discrete_grid_levels = discrete_grid_levels
+        self.output_mode = dataset_config.output_mode
+        self._discrete_grid_levels = dataset_config.discrete_grid_levels
 
-        assert discrete_grid_levels is not None, "discrete_grid_levels must be provided if output_mode is 'discrete_grid'"
+        assert dataset_config.discrete_grid_levels is not None, "discrete_grid_levels must be provided if output_mode is 'discrete_grid'"
 
-        if norm_mode not in ["window_minmax", "window_meanstd", "global_minmax", 'global_meanstd', "none"]:
+        if dataset_config.norm_mode not in ["window_minmax", "window_meanstd", "global_minmax", 'global_meanstd', "none"]:
             raise ValueError("norm_mode must be one of ['window_minmax', 'window_meanstd', 'global_minmax', 'global_meanstd', 'none']")
         
-        self._norm_mode = norm_mode
+        self._norm_mode = dataset_config.norm_mode
         if self._norm_mode == "global_minmax":
             self._global_normalizer = dict(
                 price=dict(min_val=self._data[['close', 'open', 'high', 'low']].min().min(), 
@@ -133,7 +150,7 @@ class Dataset(torch.utils.data.Dataset):
 
         # Convert to NumPy arrays
         # sequence_data = np.concatenate([sequence_data_price, sequence_data_volume, sequence_data_trades, returns, sequence_data_time], axis=1, dtype=np.float32)
-        sequence_data = np.concatenate([sequence_data_price, sequence_data_volume, sequence_data_trades, 
+        sequence_data = np.concatenate([sequence_data_price, sequence_data_volume, 
                                         sequence_data_time], axis=1, dtype=np.float32)
 
         # get the initial timestep
