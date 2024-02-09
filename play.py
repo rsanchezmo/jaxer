@@ -6,8 +6,6 @@ from torch.utils.data import DataLoader
 from jaxer.utils.plotter import plot_predictions, predict_entire_dataset
 from jaxer.utils.config import get_best_model
 
-
-
 if __name__ == '__main__':
     """ LOAD THE AGENT """
     experiment = "output_discrete_grid"
@@ -19,13 +17,12 @@ if __name__ == '__main__':
     """ PREDICT """
     init_t = time.time()
     output = agent(x_test)
-    print(f"Time taken: {1e3*(time.time() - init_t):.2f} ms")
+    print(f"Time taken: {1e3 * (time.time() - init_t):.2f} ms")
 
     """ DATALOADERS """
     dataset = Dataset(dataset_config=agent.config.dataset_config)
-    
-    train_ds, test_ds = dataset.get_train_test_split(test_size=agent.config.test_split)
 
+    train_ds, test_ds = dataset.get_train_test_split(test_size=agent.config.test_split)
 
     # infer entire dataset
     plot_entire_dataset = False
@@ -40,7 +37,6 @@ if __name__ == '__main__':
     for batch in train_dataloader:
         input, label, normalizer, initial_date = batch
         output = agent(input)
-        plot_predictions(input.squeeze(0), label.squeeze(0), output, normalizer=normalizer[0], name='train', 
-                         initial_date=initial_date[0], output_mode=agent.config.model_config["output_mode"], discrete_grid_levels=agent.config.dataset_config.discrete_levels)
-        
-    
+        plot_predictions(input.squeeze(0), label.squeeze(0), output, normalizer=normalizer[0], name='train',
+                         initial_date=initial_date[0], output_mode=agent.config.model_config["output_mode"],
+                         discrete_grid_levels=agent.config.dataset_config.discrete_levels)

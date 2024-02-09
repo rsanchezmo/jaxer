@@ -1,5 +1,6 @@
 flax[all]
 tensorboard
-optax
+optax==0.1.7
 torch
 orbax
+pandas

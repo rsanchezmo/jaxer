@@ -7,6 +7,71 @@ import numpy as np
 
 @struct.dataclass
 class TransformerConfig:
+    """Transformer model configuration
+
+    :param d_model: model embedding size
+    :type d_model: int
+
+    :param n_heads: number of attention heads
+    :type n_heads: int
+
+    :param num_layers: number of layers
+    :type num_layers: int
+
+    :param head_layers: number of layers in the head
+    :type head_layers: int
+
+    :param dim_feedforward: feedforward dimension
+    :type dim_feedforward: int
+
+    :param max_seq_len: maximum sequence length
+    :type max_seq_len: int
+
+    :param dropout: dropout rate
+    :type dropout: float
+
+    :param dtype: data type
+    :type dtype: jnp.dtype
+
+    :param input_features: number of input features
+    :type input_features: int
+
+    :param kernel_init: kernel initializer
+    :type kernel_init: Callable
+
+    :param bias_init: bias initializer
+    :type bias_init: Callable
+
+    :param deterministic: whether the model is deterministic
+    :type deterministic: bool
+
+    :param flatten_encoder_output: whether to flatten the encoder output
+    :type flatten_encoder_output: bool
+
+    :param fe_blocks: number of feature extractor blocks
+    :type fe_blocks: int
+
+    :param use_time2vec: whether to use time2vec
+    :type use_time2vec: bool
+
+    :param output_mode: output mode
+    :type output_mode: str
+
+    :param discrete_grid_levels: number of discrete grid levels
+    :type discrete_grid_levels: int
+
+    :param use_resblocks_in_head: whether to use residual blocks in the head
+    :type use_resblocks_in_head: bool
+
+    :param use_resblocks_in_fe: whether to use residual blocks in the feature extractor
+    :type use_resblocks_in_fe: bool
+
+    :param average_encoder_output: whether to average the encoder output
+    :type average_encoder_output: bool
+
+    :param norm_encoder_prev: whether to normalize the encoder output
+    :type norm_encoder_prev: bool
+    """
     d_model: int = 512
     n_heads: int = 8
     num_layers: int = 6
@@ -59,7 +124,7 @@ class FeedForwardBlock(nn.Module):
             x, deterministic=self.config.deterministic
         )
 
-        return x       
+        return x
 
 
 class FeedForwardBlockConv1D(nn.Module):
@@ -93,25 +158,25 @@ class FeedForwardBlockConv1D(nn.Module):
             x, deterministic=self.config.deterministic
         )
 
-        return x 
-    
-    
+        return x
+
+
 def sinusoidal_init(max_len: int = 2048, min_scale: float = 1.0, max_scale: float = 10000.0) -> Callable:
-  """ 1D Sinusoidal Position Embedding Initializer """
+    """ 1D Sinusoidal Position Embedding Initializer """
 
-  def init(shape):
-    """ Sinusoidal init """
-    d_feature = shape[-1]
-    pe = np.zeros((max_len, d_feature), dtype=np.float32)
-    position = np.arange(0, max_len)[:, np.newaxis]
-    scale_factor = -np.log(max_scale / min_scale) / (d_feature // 2 - 1)
-    div_term = min_scale * np.exp(np.arange(0, d_feature // 2) * scale_factor)
-    pe[:, : d_feature // 2] = np.sin(position * div_term)
-    pe[:, d_feature // 2 : 2 * (d_feature // 2)] = np.cos(position * div_term)
-    pe = pe[np.newaxis, :, :]  # [1, max_len, d_feature]
-    return jnp.array(pe)
+    def init(shape):
+        """ Sinusoidal init """
+        d_feature = shape[-1]
+        pe = np.zeros((max_len, d_feature), dtype=np.float32)
+        position = np.arange(0, max_len)[:, np.newaxis]
+        scale_factor = -np.log(max_scale / min_scale) / (d_feature // 2 - 1)
+        div_term = min_scale * np.exp(np.arange(0, d_feature // 2) * scale_factor)
+        pe[:, : d_feature // 2] = np.sin(position * div_term)
+        pe[:, d_feature // 2: 2 * (d_feature // 2)] = np.cos(position * div_term)
+        pe = pe[np.newaxis, :, :]  # [1, max_len, d_feature]
+        return jnp.array(pe)
 
-  return init
+    return init
 
 
 class AddPositionalEncoding(nn.Module):
@@ -129,7 +194,8 @@ class AddPositionalEncoding(nn.Module):
         pe = pos_embedding[:, :x.shape[1], :]
 
         return x + pe
-    
+
+
 class Time2Vec(nn.Module):
     dtype: jnp.dtype
     kernel_init: Callable
@@ -139,7 +205,6 @@ class Time2Vec(nn.Module):
 
     @nn.compact
     def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
-
         weights_linear = self.param(
             "weights_linear",
             nn.initializers.uniform(),
@@ -173,10 +238,10 @@ class Time2Vec(nn.Module):
         tau = tau[:, :, None]  # tau has the shape (batch_size, max_seq_len, 1)
         time_linear = weights_linear * tau + bias_linear  # time_linear has the shape (batch_size, max_seq_len)
 
-        time_periodic = jnp.sin(weights_periodic * tau + bias_periodic)  
+        time_periodic = jnp.sin(weights_periodic * tau + bias_periodic)
 
         return jnp.concatenate([time_linear, time_periodic], axis=-1)
-    
+
 
 class ResidualBlock(nn.Module):
     dtype: jnp.dtype
@@ -189,7 +254,7 @@ class ResidualBlock(nn.Module):
     @nn.compact
     def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
         inputs = x
-        
+
         assert x.shape[-1] == self.feature_dim, f"Expected x to have {self.feature_dim} dimensions, got {x.shape[-1]}"
 
         if self.norm and self.norm_prev:
@@ -201,8 +266,8 @@ class ResidualBlock(nn.Module):
             kernel_init=self.kernel_init,
             bias_init=self.bias_init,
         )(x)
-        
-        x = nn.gelu(x) 
+
+        x = nn.gelu(x)
 
         x = inputs + x
 
@@ -211,7 +276,7 @@ class ResidualBlock(nn.Module):
 
         return x
 
-    
+
 class FeatureExtractor(nn.Module):
     config: TransformerConfig
 
@@ -265,8 +330,8 @@ class FeatureExtractor(nn.Module):
                     bias_init=self.config.bias_init,
                 )(x)
                 x = nn.relu(x)
-        
-        if self.config.use_resblocks_in_fe: 
+
+        if self.config.use_resblocks_in_fe:
             x = nn.Dense(
                 features=self.config.d_model,  # time embeddings will be concatenated later
                 dtype=self.config.dtype,
@@ -276,7 +341,8 @@ class FeatureExtractor(nn.Module):
             x = nn.relu(x)
 
         return x
-    
+
+
 class EncoderBlock(nn.Module):
     config: TransformerConfig
 
@@ -332,6 +398,7 @@ class EncoderBlock(nn.Module):
 
         return result
 
+
 class Encoder(nn.Module):
     config: TransformerConfig
 
@@ -341,7 +408,7 @@ class Encoder(nn.Module):
 
         """ Feature Embeddings"""
         input_embeddings = FeatureExtractor(
-                config=self.config
+            config=self.config
         )(x[:, :, :-1])
 
         """ Time2Vec """
@@ -368,42 +435,41 @@ class Encoder(nn.Module):
             )(x)
 
         return x
-    
+
+
 class PredictionHead(nn.Module):
     config: TransformerConfig
 
     @nn.compact
-    def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
-        
+    def __call__(self, x: jnp.ndarray) -> Any:
+
         if self.config.flatten_encoder_output:
-            """ to adapt the size to be able to use the residual blocks as they expect the same size across the block """
             x = nn.Dense(features=self.config.d_model,
-                        dtype=self.config.dtype,
-                        kernel_init=self.config.kernel_init,
-                        bias_init=self.config.bias_init)(x)
+                         dtype=self.config.dtype,
+                         kernel_init=self.config.kernel_init,
+                         bias_init=self.config.bias_init)(x)
             x = nn.relu(x)
-                        
+
         for _ in range(self.config.head_layers - 1):
             if self.config.use_resblocks_in_head:
                 x = ResidualBlock(feature_dim=self.config.d_model,
-                                    dtype=self.config.dtype,
-                                    kernel_init=self.config.kernel_init,
-                                    bias_init=self.config.bias_init,
-                                    norm=True,
-                                    norm_prev=False)(x)
+                                  dtype=self.config.dtype,
+                                  kernel_init=self.config.kernel_init,
+                                  bias_init=self.config.bias_init,
+                                  norm=True,
+                                  norm_prev=False)(x)
             else:
                 x = nn.Dense(features=self.config.d_model,
-                            dtype=self.config.dtype,
-                            kernel_init=self.config.kernel_init,
-                            bias_init=self.config.bias_init)(x)
+                             dtype=self.config.dtype,
+                             kernel_init=self.config.kernel_init,
+                             bias_init=self.config.bias_init)(x)
                 x = nn.relu(x)
-
 
         if self.config.output_mode == 'discrete_grid':
             x = nn.Dense(features=self.config.discrete_grid_levels,
-                        dtype=self.config.dtype,
-                        kernel_init=self.config.kernel_init,
-                        bias_init=self.config.bias_init)(x)
+                         dtype=self.config.dtype,
+                         kernel_init=self.config.kernel_init,
+                         bias_init=self.config.bias_init)(x)
             x = nn.softmax(x, axis=-1)
             return x
 
@@ -416,7 +482,7 @@ class PredictionHead(nn.Module):
 
         if self.config.output_mode == 'mean':
             return mean
-            
+
         log_variance = nn.Dense(
             features=1,
             dtype=self.config.dtype,
@@ -426,11 +492,13 @@ class PredictionHead(nn.Module):
 
         return mean, log_variance
 
+
 class Transformer(nn.Module):
+    """ Transformer model """
     config: TransformerConfig
 
     @nn.compact
-    def __call__(self, x: jnp.ndarray, mask: Optional[jnp.ndarray] = None) -> jnp.ndarray:
+    def __call__(self, x: jnp.ndarray, mask: Optional[jnp.ndarray] = None) -> Any:
         """ Applies the transformer module """
 
         """ Encoder """
@@ -457,5 +525,5 @@ class Transformer(nn.Module):
             mean, log_variance = x
             variance = jnp.exp(log_variance)
             return mean, variance
-        
+
         return x

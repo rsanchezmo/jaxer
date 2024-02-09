@@ -1,22 +1,21 @@
 from jaxer.utils.config import ModelConfig, Config
 from jaxer.utils.dataset import DatasetConfig
 
-
-
 output_mode = 'mean'  # 'mean' or 'distribution' or 'discrete_grid
-seq_len = 128
+seq_len = 24
+d_model = 128
 
 model_config = ModelConfig(
-    d_model=256,
-    num_layers=8,
+    d_model=d_model,
+    num_layers=2,
     head_layers=2,
-    n_heads=8,
-    dim_feedforward=4*256,  # 4 * d_model
+    n_heads=4,
+    dim_feedforward=4 * d_model,  # 4 * d_model
     dropout=0.05,
     max_seq_len=seq_len,
     input_features=6,  # [open, high, low, close, volume, time]
     flatten_encoder_output=False,
-    fe_blocks=2,  # feature extractor is incremental, for instance input_shape, 128/2, 128 (d_model)
+    fe_blocks=0,  # feature extractor is incremental, for instance input_shape, 128/2, 128 (d_model)
     use_time2vec=False,
     output_mode=output_mode,  # 'mean' or 'distribution' or 'discrete_grid'
     use_resblocks_in_head=False,
@@ -25,23 +24,22 @@ model_config = ModelConfig(
     norm_encoder_prev=True
 )
 
-
 dataset_config = DatasetConfig(
     datapath='./data/datasets/',
     output_mode=output_mode,  # 'mean' or 'distribution' or 'discrete_grid
     discrete_grid_levels=[-9e6, 0.0, 9e6],
     initial_date='2018-01-01',
     norm_mode="global_minmax",
-    resolution='30m',
-    tickers=['btc_usd', 'eth_usd'],
+    resolution='4h',
+    tickers=['btc_usd'],
     seq_len=seq_len,
 )
 
 config = Config(
     model_config=model_config,
     log_dir="results",
-    experiment_name="output_mean_30",
-    num_epochs=1000,
+    experiment_name="mixed_dataset",
+    num_epochs=300,
     learning_rate=5e-4,
     lr_mode='cosine',  # 'cosine' 
     warmup_epochs=15,

@@ -48,9 +48,9 @@ Create a python venv:
 python -m venv venv
 ```
 
-Install your desired jax version. For example, for CUDA 12 on Linux:
+Install your desired jax version. For example, for CUDA 11 on Linux (make sure to have exported to PATH your CUDA version):
 ```bash
-pip install jax[cuda12_pip] -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+pip install jax[cuda12_local] -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
 ```
 
 Then install the rest of the dependencies:
@@ -61,7 +61,7 @@ pip install .
 
 ## Description
 ### Dataset 
-The dataset has been downloaded from [Tiingo](https://www.tiingo.com/) using the free [Tiingo Python API REST](https://www.tiingo.com/documentation/crypto). The dataset consists on the BTC/USD price from 2018-01-01 to 2024-01-01. 3 time resolutions are available: 4h, 1h, 5m in order to evaluate the model performance on different time resolutions. I first downloaded one day time resolution from yahoo finance but data was really scarce. Tiingo provides a json with timepoints and was the best option from my search on the internet for free data.
+The dataset has been downloaded from [Tiingo](https://www.tiingo.com/) using the free [Tiingo Python API REST](https://www.tiingo.com/documentation/crypto). The dataset consists on the BTC/USD price from 2018-01-01 to 2024-01-01. 3 time resolutions are available: 4h, 1h, 30m in order to evaluate the model performance on different time resolutions. I first downloaded one day time resolution from yahoo finance but data was really scarce. Tiingo provides a json with timepoints and was the best option from my search on the internet for free data.
 
 The available information is:
 - Low/High price

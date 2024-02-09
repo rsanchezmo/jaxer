@@ -1,7 +1,7 @@
 import numpy as np
 from jaxer.utils.config import Config, ModelConfig
 from jaxer.utils.trainer import FlaxTrainer as Trainer
-from jaxer.utils.logger import Logger
+from jaxer.utils.logger import get_logger
 
 
 if __name__ == '__main__':
@@ -36,7 +36,7 @@ if __name__ == '__main__':
     trained_set = set()
 
     counter_trains = 0
-    logger = Logger(name='HP SEARCHER')
+    logger = get_logger()
 
     while counter_trains < n_trainings:
         logger.info(f"Training {counter_trains+1}/{n_trainings}")

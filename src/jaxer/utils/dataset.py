@@ -8,6 +8,7 @@ from typing import Union, Optional, List
 from dataclasses import dataclass
 import os
 import itertools
+from jaxer.utils.logger import get_logger
 
 
 @dataclass
@@ -48,41 +49,46 @@ class Dataset(torch.utils.data.Dataset):
 
         self._seq_len = dataset_config.seq_len
 
+        self._logger = get_logger()
+
         self.output_mode = dataset_config.output_mode
         self._discrete_grid_levels = dataset_config.discrete_grid_levels
+        self._tickers = dataset_config.tickers
 
         if dataset_config.discrete_grid_levels is None and dataset_config.output_mode == 'discrete_grid':
             raise ValueError('discrete_grid_levels must be provided if output_mode is discrete_grid')
 
-        if dataset_config.norm_mode not in ["window_minmax", "window_meanstd", "global_minmax", 'global_meanstd', "none"]:
-            raise ValueError("norm_mode must be one of ['window_minmax', 'window_meanstd', 'global_minmax', 'global_meanstd', 'none']")
-        
+        if dataset_config.norm_mode not in ["window_minmax", "window_meanstd", "global_minmax", 'global_meanstd',
+                                            "none"]:
+            raise ValueError("norm_mode must be one of ['window_minmax', 'window_meanstd', 'global_minmax', "
+                             "'global_meanstd', 'none']")
+
         self._norm_mode = dataset_config.norm_mode
 
         if self._norm_mode == "global_minmax":
             # NORMALIZING WITH THE FIRST TICKER!
             self._global_normalizer = dict(
-                price=dict(min_val=self._data[0][['close', 'open', 'high', 'low']].min().min(), 
+                price=dict(min_val=self._data[0][['close', 'open', 'high', 'low']].min().min(),
                            max_val=self._data[0][['close', 'open', 'high', 'low']].max().max(),
                            mode="minmax"),
-                volume=dict(min_val=self._data[0]['volume'].min().min(), 
-                            max_val=self._data[0]['volume'].max().max(), 
+                volume=dict(min_val=self._data[0]['volume'].min().min(),
+                            max_val=self._data[0]['volume'].max().max(),
                             mode="minmax"),
                 trades=dict(min_val=self._data[0]['tradesDone'].min().min(),
-                                        max_val=self._data[0]['tradesDone'].max().max(),
-                                        mode="minmax")
+                            max_val=self._data[0]['tradesDone'].max().max(),
+                            mode="minmax")
             )
         elif self._norm_mode == "global_meanstd":
             self._global_normalizer = dict(
-                price=dict(mean_val=self._data[0][['close', 'open', 'high', 'low']].mean().max(), 
+                price=dict(mean_val=self._data[0][['close', 'open', 'high', 'low']].mean().max(),
                            std_val=self._data[0][['close', 'open', 'high', 'low']].std().max(),
                            mode="meanstd"),
-                volume=dict(mean_val=self._data[0]['volume'].mean().max(), 
-                            std_val=self._data[0]['volume'].std().max(), 
+                volume=dict(mean_val=self._data[0]['volume'].mean().max(),
+                            std_val=self._data[0]['volume'].std().max(),
                             mode="meanstd"),
                 trades=dict(mean_val=self._data[0]['tradesDone'].mean().max(),
-                                        std_val=self._data[0]['tradesDone'].std().max(),
-                                        mode="meanstd")
+                            std_val=self._data[0]['tradesDone'].std().max(),
+                            mode="meanstd")
             )
         elif self._norm_mode == 'none':
             self._global_normalizer = dict(
@@ -91,6 +97,8 @@ class Dataset(torch.utils.data.Dataset):
                 trades=dict(min_val=0, max_val=1, mode="minmax")
             )
 
+        self._logger.info(
+            f"Dataset loaded with {len(self._data)} tickers and {len(self)} samples in total. Each ticker has {self._data_len} samples.")
 
     def _map_idx(self, index: int) -> Tuple[int, int]:
         """ Maps the index to the corresponding ticker and index using self._unrolled_len """
@@ -98,16 +106,15 @@ class Dataset(torch.utils.data.Dataset):
             if index < self._unrolled_len[idx]:
                 if idx == 0:
                     return index, idx
-                return index - self._unrolled_len[idx-1], idx
-            
+                return index - self._unrolled_len[idx - 1], idx
+
         raise ValueError("Index out of range")
 
-
-    def __getitem__(self, index) -> Tuple[np.ndarray, np.ndarray, dict]:
+    def __getitem__(self, index):
         index, ticker_idx = self._map_idx(index)
         start_idx = index
         end_idx = index + self._seq_len
-        sequence_data_price = self._data[ticker_idx].iloc[start_idx:end_idx][['close', 'open', 'high', 'low']] 
+        sequence_data_price = self._data[ticker_idx].iloc[start_idx:end_idx][['close', 'open', 'high', 'low']]
         sequence_data_volume = self._data[ticker_idx].iloc[start_idx:end_idx][['volume']]
         sequence_data_trades = self._data[ticker_idx].iloc[start_idx:end_idx][['tradesDone']]
         sequence_data_time = np.array([idx / len(self._data[ticker_idx]) for idx in range(start_idx, end_idx)])[:, None]
@@ -143,14 +150,13 @@ class Dataset(torch.utils.data.Dataset):
             normalizer_volume = self._global_normalizer['volume']
             normalizer_trades = self._global_normalizer['trades']
 
-
         sequence_data_price = normalize(sequence_data_price, normalizer_price)
         sequence_data_price_std = sequence_data_price.std()
         sequence_data_volume = normalize(sequence_data_volume, normalizer_volume)
         sequence_data_volume_std = sequence_data_volume.std()
         sequence_data_trades = normalize(sequence_data_trades, normalizer_trades)
         sequence_data_trades_std = sequence_data_trades.std()
- 
+
         # compute the returns between days
         # returns = np.diff(sequence_data_price['close']) / sequence_data_price['close'][1:]
         # returns = np.append(returns, 0)[:, np.newaxis]
@@ -164,18 +170,18 @@ class Dataset(torch.utils.data.Dataset):
             label = np.array([label], dtype=np.float32)
 
         else:
-            prev_close_price = self._data[ticker_idx].iloc[label_idx-1]['close']
+            prev_close_price = self._data[ticker_idx].iloc[label_idx - 1]['close']
             percent = (label - prev_close_price) / prev_close_price * 100
-            label = np.digitize(percent, self._discrete_grid_levels)-1
+            label = np.digitize(percent, self._discrete_grid_levels) - 1
             # to one-hot
-            label = np.eye(len(self._discrete_grid_levels)-1)[label]
+            label = np.eye(len(self._discrete_grid_levels) - 1)[label]
 
         # Create a normalizer dict
         normalizer = dict(price=normalizer_price, volume=normalizer_volume, trades=normalizer_trades)
 
         # Convert to NumPy arrays
         # sequence_data = np.concatenate([sequence_data_price, sequence_data_volume, sequence_data_trades, returns, sequence_data_time], axis=1, dtype=np.float32)
-        sequence_data = np.concatenate([sequence_data_price, sequence_data_volume, 
+        sequence_data = np.concatenate([sequence_data_price, sequence_data_volume,
                                         sequence_data_time], axis=1, dtype=np.float32)
 
         # get the initial timestep
@@ -185,7 +191,7 @@ class Dataset(torch.utils.data.Dataset):
 
     def __len__(self) -> int:
         return sum(self._data_len)
-    
+
     def get_train_test_split(self, test_size: float = 0.1) -> Tuple[torch.utils.data.Dataset, torch.utils.data.Dataset]:
         """ Returns a train and test dataset"""
 
@@ -200,8 +206,10 @@ class Dataset(torch.utils.data.Dataset):
                 train_ranges.append(range(0, train_samples))
                 test_ranges.append(range(train_samples, self._data_len[ticker]))
             else:
-                train_ranges.append(range(self._unrolled_len[ticker-1], self._unrolled_len[ticker-1] + train_samples))
-                test_ranges.append(range(self._unrolled_len[ticker-1] + train_samples, self._unrolled_len[ticker-1] + self._data_len[ticker]))
+                train_ranges.append(
+                    range(self._unrolled_len[ticker - 1], self._unrolled_len[ticker - 1] + train_samples))
+                test_ranges.append(range(self._unrolled_len[ticker - 1] + train_samples,
+                                         self._unrolled_len[ticker - 1] + self._data_len[ticker]))
 
         train_ranges = itertools.chain(*train_ranges)
         test_ranges = itertools.chain(*test_ranges)
@@ -210,12 +218,14 @@ class Dataset(torch.utils.data.Dataset):
         test_dataset = torch.utils.data.Subset(self, list(test_ranges))
 
         return train_dataset, test_dataset
-    
+
+
 def _normalize_minmax(data: Union[np.ndarray, jnp.ndarray], normalizer) -> Union[np.ndarray, jnp.ndarray]:
     """ Normalizes the data """
     min_ = normalizer['min_val']
     max_ = normalizer['max_val']
     return (data - min_) / (max_ - min_ + 1e-6)
+
 
 def _normalize_meanstd(data: Union[np.ndarray, jnp.ndarray], normalizer) -> Union[np.ndarray, jnp.ndarray]:
     """ Normalizes the data """
@@ -223,11 +233,13 @@ def _normalize_meanstd(data: Union[np.ndarray, jnp.ndarray], normalizer) -> Unio
     std_ = normalizer['std_val'] + 1e-6
     return (data - mean_) / std_
 
+
 def _denormalize_minmax(data: Union[np.ndarray, jnp.ndarray], normalizer) -> Union[np.ndarray, jnp.ndarray]:
     """ Denormalizes the data """
     min_ = normalizer['min_val']
     max_ = normalizer['max_val']
     return data * (max_ - min_) + min_
+
 
 def _denormalize_meanstd(data: Union[np.ndarray, jnp.ndarray], normalizer) -> Union[np.ndarray, jnp.ndarray]:
     """ Denormalizes the data """
@@ -242,21 +254,22 @@ def normalize(data: Union[np.ndarray, jnp.ndarray], normalizer: dict) -> Union[n
     mode = normalizer.get('mode', None)
     if mode is None:
         raise ValueError("normalizer must contain a 'mode' key")
-    
+
     if mode == "minmax":
         return _normalize_minmax(data, normalizer)
-    
+
     if mode == "meanstd":
         return _normalize_meanstd(data, normalizer)
-    
+
     raise ValueError("mode must be one of ['minmax', 'meanstd']")
 
 
-def denormalize_wrapper(data: Union[np.ndarray, jnp.ndarray], normalizer: dict, component: str = "price") -> Union[np.ndarray, jnp.ndarray]:
+def denormalize_wrapper(data: Union[np.ndarray, jnp.ndarray], normalizer: dict, component: str = "price") -> Union[
+    np.ndarray, jnp.ndarray]:
     return denormalize(data, normalizer[component])
 
 
-def denormalize(data: Union[np.ndarray, jnp.ndarray], normalizer: dict,) -> Union[np.ndarray, jnp.ndarray]:
+def denormalize(data: Union[np.ndarray, jnp.ndarray], normalizer: dict, ) -> Union[np.ndarray, jnp.ndarray]:
     """ Denormalizes the data """
     if isinstance(data, jnp.ndarray):
         data = np.asarray(data)  # BUG: if too large, the jnp array overflows
@@ -264,12 +277,12 @@ def denormalize(data: Union[np.ndarray, jnp.ndarray], normalizer: dict,) -> Unio
     mode = normalizer.get('mode', None)
     if mode is None:
         raise ValueError("normalizer must contain a 'mode' key")
-    
+
     if mode == "minmax":
         return _denormalize_minmax(data, normalizer)
     if mode == "meanstd":
         return _denormalize_meanstd(data, normalizer)
-    
+
     raise ValueError("mode must be one of ['minmax', 'meanstd']")
 
 
