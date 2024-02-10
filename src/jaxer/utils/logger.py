@@ -1,7 +1,7 @@
 import os
 import logging
 
-DEFAULT_LOGGER_NAME = 'jaxer'
+DEFAULT_LOGGER_NAME = 'JAXER'
 LOGGER_NAME = os.getenv('LOGGER_NAME', DEFAULT_LOGGER_NAME)
 
 
@@ -20,7 +20,7 @@ def get_logger():
             if not logger.handlers:
                 ch = logging.StreamHandler()
                 ch.setLevel(logging.INFO)
-                formatter = logging.Formatter('[%(name)s] %(levelname)s: %(message)s')
+                formatter = logging.Formatter('[%(name)s - %(levelname)s]: %(message)s')
                 ch.setFormatter(formatter)
                 logger.addHandler(ch)
     else:

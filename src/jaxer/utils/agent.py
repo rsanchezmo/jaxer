@@ -1,6 +1,5 @@
-from typing import Any
-from .config import Config
-from ..model.flax_transformer import Transformer, TransformerConfig
+from jaxer.utils.config import Config
+from jaxer.model.flax_transformer import Transformer, TransformerConfig
 import os
 import jax.numpy as jnp
 import orbax.checkpoint
@@ -51,9 +50,6 @@ class Agent:
 
         """ Do a warmup of the model """
         self.model = Transformer(self._flax_config)
-
-        self.model.apply(self.params, jnp.ones(
-            (1, self.config.model_config["max_seq_len"], self.config.model_config["input_features"])))
 
     def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
         """ Inference function wrapper as __call__ """

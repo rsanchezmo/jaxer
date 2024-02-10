@@ -14,7 +14,6 @@ class ModelConfig:
     dim_feedforward: int
     dropout: float
     max_seq_len: int
-    input_features: int
     flatten_encoder_output: bool
     fe_blocks: int
     use_time2vec: bool
@@ -59,10 +58,11 @@ class Config:
                f"ndl_{self.model_config.head_layers}_" \
                f"nhds_{self.model_config.n_heads}_dimff_{self.model_config.dim_feedforward}_" \
                f"drpt_{self.model_config.dropout}_" \
-               f"maxlen_{self.model_config.max_seq_len}_infeat_{self.model_config.input_features}_" \
+               f"maxlen_{self.model_config.max_seq_len}_" \
                f"flat_{self.model_config.flatten_encoder_output}_" \
                f"feblk_{self.model_config.fe_blocks}_t2v_{self.model_config.use_time2vec}_" \
                f"{self.dataset_config.norm_mode}_" \
+               f"ind_{True if self.dataset_config.indicators else False}_" \
                f"ds_{self.test_split}_{self.dataset_config.initial_date}_" \
                f"outmd_{self.model_config.output_mode}_" \
                f"reshd_{self.model_config.use_resblocks_in_head}_" \

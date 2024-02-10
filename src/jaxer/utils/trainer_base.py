@@ -34,9 +34,9 @@ class TrainerBase:
             self._ckpts_dir, self._orbax_checkpointer, options)
 
         """ Dataloaders """
-        dataset = Dataset(dataset_config=self._config.dataset_config)
+        self._dataset = Dataset(dataset_config=self._config.dataset_config)
 
-        self._train_ds, self._test_ds = dataset.get_train_test_split(test_size=self._config.test_split)
+        self._train_ds, self._test_ds = self._dataset.get_train_test_split(test_size=self._config.test_split)
         self._train_dataloader = DataLoader(self._train_ds, batch_size=self._config.batch_size, shuffle=True,
                                             collate_fn=jax_collate_fn)
         self._test_dataloader = DataLoader(self._test_ds, batch_size=self._config.batch_size, shuffle=True,

@@ -38,7 +38,6 @@ class FlaxTrainer(TrainerBase):
             max_seq_len=self._config.model_config.max_seq_len,
             dtype=jnp.float32,
             deterministic=False,
-            input_features=self._config.model_config.input_features,
             flatten_encoder_output=self._config.model_config.flatten_encoder_output,
             fe_blocks=self._config.model_config.fe_blocks,
             use_time2vec=self._config.model_config.use_time2vec,
@@ -58,8 +57,7 @@ class FlaxTrainer(TrainerBase):
     def _warmup_eval(self, state: train_state.TrainState) -> None:
         """ Warmup models """
         self._eval_model = Transformer(self._flax_model_config_eval)
-        self._eval_model.apply(state.params, jnp.ones(
-            (1, self._config.model_config.max_seq_len, self._config.model_config.input_features)))
+        self._eval_model.apply(state.params, self._dataset.get_random_input())
 
     def train_and_evaluate(self) -> None:
         """ Runs a training loop """
@@ -149,14 +147,13 @@ class FlaxTrainer(TrainerBase):
 
         model = Transformer(self._flax_model_config)
 
-        input_shape = (1, self._flax_model_config.max_seq_len, self._config.model_config.input_features)
-
         key_dropout, key_params = jax.random.split(rng)
 
-        self.logger.info(model.tabulate({"dropout": key_dropout, "params": key_params}, jnp.ones(input_shape),
+        self.logger.info(model.tabulate({"dropout": key_dropout, "params": key_params},
+                                        self._dataset.get_random_input(),
                                         console_kwargs={'width': 120}))
 
-        params = model.init({"dropout": key_dropout, "params": key_params}, jnp.ones(input_shape, dtype=jnp.float32))
+        params = model.init({"dropout": key_dropout, "params": key_params}, self._dataset.get_random_input())
 
         """ Create lr scheduler """
         steps_per_epoch = len(self._train_dataloader)
@@ -365,7 +362,7 @@ class FlaxTrainer(TrainerBase):
         for i, data in enumerate(test_dataloader):
             inputs, targets, normalizer, _ = data
             output = self._eval_model.apply(self._best_model_state.params, inputs)
-            plot_predictions(input=inputs.squeeze(0),
+            plot_predictions(input=inputs[0].squeeze(0),
                              y_true=targets.squeeze(0),
                              output=output,
                              name=str(i),

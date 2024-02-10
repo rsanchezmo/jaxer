@@ -1,11 +1,12 @@
 from typing import Any, Optional, Callable
 from flax import linen as nn
+import flax.struct
 import jax.numpy as jnp
-from flax import struct
 import numpy as np
+from typing import Tuple
 
 
-@struct.dataclass
+@flax.struct.dataclass
 class TransformerConfig:
     """Transformer model configuration
 
@@ -32,9 +33,6 @@ class TransformerConfig:
 
     :param dtype: data type
     :type dtype: jnp.dtype
-
-    :param input_features: number of input features
-    :type input_features: int
 
     :param kernel_init: kernel initializer
     :type kernel_init: Callable
@@ -80,7 +78,6 @@ class TransformerConfig:
     max_seq_len: int = 256
     dropout: float = 0.0
     dtype: jnp.dtype = jnp.float32
-    input_features: int = 7
     kernel_init: Callable = nn.initializers.xavier_uniform()
     bias_init: Callable = nn.initializers.normal(stddev=1e-6)
     deterministic: bool = False
@@ -498,13 +495,16 @@ class Transformer(nn.Module):
     config: TransformerConfig
 
     @nn.compact
-    def __call__(self, x: jnp.ndarray, mask: Optional[jnp.ndarray] = None) -> Any:
+    def __call__(self, x: Tuple[jnp.ndarray], mask: Optional[jnp.ndarray] = None) -> Any:
         """ Applies the transformer module """
+
+        time_point_tokens = x[0]
+        extra_tokens = x[1]
 
         """ Encoder """
         x = Encoder(
             config=self.config
-        )(x)
+        )(time_point_tokens)
 
         """ Regression Head """
         # x = nn.LayerNorm(dtype=self.config.dtype)(x)

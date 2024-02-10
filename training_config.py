@@ -13,7 +13,6 @@ model_config = ModelConfig(
     dim_feedforward=4 * d_model,  # 4 * d_model
     dropout=0.05,
     max_seq_len=seq_len,
-    input_features=6,  # [open, high, low, close, volume, time]
     flatten_encoder_output=False,
     fe_blocks=0,  # feature extractor is incremental, for instance input_shape, 128/2, 128 (d_model)
     use_time2vec=False,
@@ -32,6 +31,7 @@ dataset_config = DatasetConfig(
     norm_mode="global_minmax",
     resolution='4h',
     tickers=['btc_usd'],
+    indicators=None,
     seq_len=seq_len,
 )
 

@@ -11,14 +11,6 @@ if __name__ == '__main__':
     experiment = "output_discrete_grid"
     agent = Agent(experiment=experiment, model_name=get_best_model(experiment))
 
-    """ LOAD SOME DATA """
-    x_test = jnp.ones((1, agent.config.model_config["max_seq_len"], agent.config.model_config["input_features"]))
-
-    """ PREDICT """
-    init_t = time.time()
-    output = agent(x_test)
-    print(f"Time taken: {1e3 * (time.time() - init_t):.2f} ms")
-
     """ DATALOADERS """
     dataset = Dataset(dataset_config=agent.config.dataset_config)
 
