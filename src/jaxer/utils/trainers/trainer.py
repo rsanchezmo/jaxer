@@ -60,7 +60,7 @@ class FlaxTrainer(TrainerBase):
         self._eval_model.apply(state.params, self._dataset.get_random_input())
 
     def train_and_evaluate(self) -> None:
-        """ Runs a training loop """
+        """ Runs the training loop with evaluation """
 
         """ Create a training state """
         rng = jax.random.PRNGKey(self._config.seed)
@@ -124,7 +124,7 @@ class FlaxTrainer(TrainerBase):
                 self._save_best_model(epoch, train_state_, test_metrics)
 
         self.logger.info("Training finished!")
-        self.best_model_test()
+        self._best_model_test()
         self._summary_writer.flush()
 
     def _save_best_model(self, epoch: int, state: train_state.TrainState, metrics: Dict) -> None:
@@ -351,7 +351,7 @@ class FlaxTrainer(TrainerBase):
 
         return metrics
 
-    def best_model_test(self, max_seqs: int = 20):
+    def _best_model_test(self, max_seqs: int = 20):
         """ Generate images from the test set of the best model """
 
         test_dataloader = DataLoader(self._test_ds, batch_size=1, collate_fn=jax_collate_fn, shuffle=True)
