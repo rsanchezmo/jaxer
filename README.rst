@@ -10,7 +10,7 @@ The current logo was created by DALLE-3 from OpenAI using the following prompt:
 Render of a transformer model as a hologram, projecting from a digital device, with a faint BTC logo in the holographic projection, without any text.
 ```
 
-![Jaxer Logo](/data/docs/btc_transformer.png)
+![Jaxer Logo](./data/docs/btc_transformer.png)
 
 
 ## Roadmap
