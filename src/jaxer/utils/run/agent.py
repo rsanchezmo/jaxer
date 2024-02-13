@@ -7,6 +7,15 @@ from typing import Tuple, Optional
 
 
 class Agent:
+    """ Agent class to load a model and perform inference
+
+    :param experiment: the name of the experiment
+    :type experiment: str
+
+    :param model_name: the name of the model to load. If the model is in a subfolder, provide a tuple with the subfolder name and the model name
+    :type model_name: Tuple[Optional[str], str]
+    """
+
     def __init__(self, experiment: str, model_name: Tuple[Optional[str], str]) -> None:
         self.experiment_path = os.path.join("results", experiment)
         subfolder, self.model_name = model_name

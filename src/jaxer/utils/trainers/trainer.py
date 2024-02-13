@@ -11,7 +11,7 @@ import json
 from jaxer.utils.plotter import plot_predictions
 from jaxer.utils.losses import gaussian_negative_log_likelihood, mae, r2, rmse, mape, binary_cross_entropy
 from jaxer.utils.early_stopper import EarlyStopper
-from jaxer.utils.trainer_base import TrainerBase
+from jaxer.utils.trainers.trainer_base import TrainerBase
 from jaxer.utils.schedulers import create_warmup_cosine_schedule
 from jaxer.model.flax_transformer import Transformer, TransformerConfig
 from jaxer.utils.config import Config

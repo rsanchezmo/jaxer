@@ -1,7 +1,8 @@
 API
 ===
 
-.. autosummary::
-   :toctree: generated
+.. automodule:: jaxer
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
-   jaxer

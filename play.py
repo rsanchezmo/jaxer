@@ -1,10 +1,10 @@
-from jaxer.utils.agent import Agent
-import jax.numpy as jnp
-import time
-from jaxer.utils.dataset import Dataset, jax_collate_fn
+from jaxer import Agent
+from jaxer import Dataset, jax_collate_fn
+from jaxer import plot_predictions, predict_entire_dataset
+from jaxer import get_best_model
+
 from torch.utils.data import DataLoader
-from jaxer.utils.plotter import plot_predictions, predict_entire_dataset
-from jaxer.utils.config import get_best_model
+
 
 if __name__ == '__main__':
     """ LOAD THE AGENT """

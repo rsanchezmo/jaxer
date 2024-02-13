@@ -1,16 +1,15 @@
-.. include:: ../README.rst
-
 Welcome to Jaxer's documentation!
 ===================================
 
-**Jaxer**
+Jax and Flax Time Series Prediction Transformer. The initial goal of this repo was to learn
+`Jax <https://jax.readthedocs.io/en/latest/>`_ and `Flax <https://flax.readthedocs.io/en/latest/>`_ by implementing a
+deep learning model. In this case, a **transformer** for time series prediction. I have decided to predict cryptocurrency due to
+the availability of the data. However, this could be used for any other time series data, such as market stocks.
 
-Check out the :doc:`usage` section for further information, including
-how to :ref:`installation` the project.
+.. warning::
+   This repository is yet under development.
 
-.. note::
-
-   This project is under active development.
+.. image:: images/btc_transformer.png
 
 Contents
 --------
@@ -19,4 +18,6 @@ Contents
 
    Home <self>
    usage
+   model
+   results
    api

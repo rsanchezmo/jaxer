@@ -1,6 +1,6 @@
 import numpy as np
 from jaxer.utils.config import Config, ModelConfig
-from jaxer.utils.trainer import FlaxTrainer as Trainer
+from jaxer.utils.trainers.trainer import FlaxTrainer as Trainer
 from jaxer.utils.logger import get_logger
 
 

@@ -1,5 +1,5 @@
-from jaxer.utils.config import ModelConfig, Config
-from jaxer.utils.dataset import DatasetConfig
+from jaxer import ModelConfig, Config
+from jaxer import DatasetConfig
 
 output_mode = 'mean'  # 'mean' or 'distribution' or 'discrete_grid
 seq_len = 24

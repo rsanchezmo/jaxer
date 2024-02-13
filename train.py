@@ -1,4 +1,4 @@
-from jaxer.utils.trainer import FlaxTrainer as Trainer
+from jaxer import FlaxTrainer as Trainer
 from training_config import config
 
 
