@@ -32,9 +32,9 @@ Then install the rest of the dependencies (which are in the `requirements.txt` f
 
     (venv) $ pip install .
 
-.. _usage:
+.. _running_the_code:
 
-Usage
+Running the code
 -----
 
 Training
