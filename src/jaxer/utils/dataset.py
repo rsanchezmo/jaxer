@@ -1,6 +1,6 @@
 import torch
 import pandas as pd
-from typing import Tuple
+from typing import Tuple, Any
 import numpy as np
 import torch.utils.data
 import jax.numpy as jnp
@@ -13,6 +13,36 @@ from jaxer.utils.logger import get_logger
 
 @dataclass
 class DatasetConfig:
+    """ Configuration class for the dataset
+
+    :param datapath: path to the dataset
+    :type datapath: str
+
+    :param seq_len: sequence length
+    :type seq_len: int
+
+    :param norm_mode: normalization mode
+    :type norm_mode: str
+
+    :param initial_date: initial date to start the dataset
+    :type initial_date: Optional[str]
+
+    :param output_mode: output mode of the model (mean, distribution or discrete_grid)
+    :type output_mode: str
+
+    :param discrete_grid_levels: levels of the discrete grid (in percentage: e.g. [-9.e6, -2., 0.0, 2., 9.e6])
+    :type discrete_grid_levels: Optional[List[float]]
+
+    :param resolution: resolution of the dataset (30m, 1h, 4h)
+    :type resolution: str
+
+    :param tickers: list of tickers (e.g. ['btc_usd', 'eth_usd'])
+    :type tickers: List[str]
+
+    :param indicators: list of indicators (e.g. ['rsi', 'bb_upper', 'bb_lower', 'bb_middle', 'ema_2h', 'ema_4h'])
+    :type indicators: Optional[List[str]]
+
+    """
     datapath: str
     seq_len: int
     norm_mode: str
@@ -25,7 +55,7 @@ class DatasetConfig:
 
 
 class Dataset(torch.utils.data.Dataset):
-    """ Finance dataset class
+    """ Finance dataset class for training jaxer (pytorch dataset)
 
     :param dataset_config: DatasetConfig object
     :type dataset_config: DatasetConfig
@@ -133,7 +163,11 @@ class Dataset(torch.utils.data.Dataset):
         raise ValueError("Index out of range")
 
     def get_random_input(self):
-        """ Returns a random input from the dataset """
+        """ Returns a random input from the dataset
+
+        :return: sequence_tokens, extra_tokens
+        :rtype: Tuple[jnp.ndarray, jnp.ndarray]
+        """
         idx = np.random.randint(0, len(self))
         data = self[idx]
         sequence_tokens = jnp.expand_dims(data[0], axis=0)
@@ -249,7 +283,14 @@ class Dataset(torch.utils.data.Dataset):
         return normalizer_price, normalizer_volume, normalizer_trades
 
     def get_train_test_split(self, test_size: float = 0.1) -> Tuple[torch.utils.data.Dataset, torch.utils.data.Dataset]:
-        """ Returns a train and test dataset"""
+        """ Returns a train and test set from the dataset
+
+        :param test_size: test size
+        :type test_size: float
+
+        :return: train and test dataset
+        :rtype: Tuple[torch.utils.data.Dataset, torch.utils.data.Dataset]
+        """
 
         # Split the dataset ranges with itertools.chain
         train_ranges = []
@@ -342,7 +383,15 @@ def denormalize(data: Union[np.ndarray, jnp.ndarray], normalizer: dict, ) -> Uni
     raise ValueError("mode must be one of ['minmax', 'meanstd']")
 
 
-def jax_collate_fn(batch):
+def jax_collate_fn(batch: List[np.ndarray]) -> Any:
+    """ Collate function for the jax dataset
+
+    :param batch: batch of data
+    :type batch: np.ndarray
+
+    :return: batched data (sequence_tokens, extra_tokens), labels, norms, timesteps
+    :rtype: Tuple
+    """
     sequence_tokens, extra_tokens, labels, norms, timesteps = zip(*batch)
 
     batched_jax_sequence_tokens = jnp.stack(sequence_tokens)

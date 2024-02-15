@@ -55,11 +55,15 @@ class Agent:
 
         orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
         restored_state = orbax_checkpointer.restore(self.ckpt_path)
-        self.params = restored_state["model"]["params"]
+        self.model = Transformer(self._flax_config).bind(restored_state["model"]["params"])
 
-        """ Do a warmup of the model """
-        self.model = Transformer(self._flax_config)
+    def __call__(self, x: Tuple[jnp.ndarray]) -> jnp.ndarray:
+        """ Inference function wrapper
 
-    def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
-        """ Inference function wrapper as __call__ """
-        return self.model.apply(self.params, x)
+        :param x: input data
+        :type x: Tuple[jnp.ndarray]
+
+        :return: model output
+        :rtype: jnp.ndarray
+        """
+        return self.model(x)

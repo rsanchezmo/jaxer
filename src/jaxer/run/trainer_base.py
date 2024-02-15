@@ -14,8 +14,13 @@ import orbax
 
 
 class TrainerBase:
+    """ Trainer base class. All trainers should inherit from this
+
+    :param config: the configuration for the experiment
+    :type config: Config
+    """
+
     def __init__(self, config: Config) -> None:
-        """ Trainer base class. All trainers should inherit from this """
         self._config = config
 
         """ Training logs """
@@ -58,12 +63,27 @@ class TrainerBase:
         raise NotImplementedError
 
     def _save_model(self, epoch: int, state: train_state.TrainState) -> None:
-        """ Saves a model checkpoint """
+        """ Saves a model checkpoint
+
+        :param epoch: the epoch number
+        :type epoch: int
+
+        :param state: the model state
+        :type state: train_state.TrainState
+        """
+
         ckpt = {'model': state}
         save_args = orbax_utils.save_args_from_target(ckpt)
         self._checkpoint_manager.save(epoch, ckpt, save_kwargs={'save_args': save_args})
 
     def _load_model(self, epoch: int) -> train_state.TrainState:
-        """ Loads a model checkpoint """
+        """ Loads a model checkpoint
+
+        :param epoch: the epoch number
+        :type epoch: int
+
+        :return: the model state
+        :rtype: train_state.TrainState
+        """
         ckpt = self._orbax_checkpointer.restore(os.path.join(self._ckpts_dir, str(epoch)))
         return ckpt['model']

@@ -7,6 +7,54 @@ from jaxer.utils.dataset import DatasetConfig
 
 @dataclass
 class ModelConfig:
+    """ Configuration class for the model
+
+    :param d_model: dimension of the model
+    :type d_model: int
+
+    :param num_layers: number of encoder layers in the transformer
+    :type num_layers: int
+
+    :param head_layers: number of layers in the prediction head
+    :type head_layers: int
+
+    :param n_heads: number of heads in the multihead attention
+    :type n_heads: int
+
+    :param dim_feedforward: dimension of the feedforward network
+    :type dim_feedforward: int
+
+    :param dropout: dropout rate
+    :type dropout: float
+
+    :param max_seq_len: maximum sequence length (context window)
+    :type max_seq_len: int
+
+    :param flatten_encoder_output: whether to flatten the encoder output or get the last token
+    :type flatten_encoder_output: bool
+
+    :param fe_blocks: number of blocks in the feature extractor
+    :type fe_blocks: int
+
+    :param use_time2vec: whether to use time2vec in the feature extractor
+    :type use_time2vec: bool
+
+    :param output_mode: output mode of the model (mean, distribution or discrete_grid)
+    :type output_mode: str
+
+    :param use_resblocks_in_head: whether to use residual blocks in the head
+    :type use_resblocks_in_head: bool
+
+    :param use_resblocks_in_fe: whether to use residual blocks in the feature extractor
+    :type use_resblocks_in_fe: bool
+
+    :param average_encoder_output: whether to average the encoder output (if not flattened)
+    :type average_encoder_output: bool
+
+    :param norm_encoder_prev: whether to normalize the encoder prev to the attention
+    :type norm_encoder_prev: bool
+
+    """
     d_model: int
     num_layers: int
     head_layers: int
@@ -26,6 +74,42 @@ class ModelConfig:
 
 @dataclass
 class Config:
+    """ Configuration class for a traning experiment
+
+    :param model_config: model configuration (transformer architecture)
+    :type model_config: ModelConfig
+
+    :param log_dir: directory to save the logs
+    :type log_dir: str
+
+    :param experiment_name: name of the experiment
+    :type experiment_name: str
+
+    :param num_epochs: number of epochs to train
+    :type num_epochs: int
+
+    :param learning_rate: learning rate
+    :type learning_rate: float
+
+    :param lr_mode: learning rate mode (cosine, linear or none)
+    :type lr_mode: str
+
+    :param warmup_epochs: number of warmup epochs (for learning rate)
+    :type warmup_epochs: int
+
+    :param dataset_config: dataset configuration
+    :type dataset_config: DatasetConfig
+
+    :param batch_size: batch size for training
+    :type batch_size: int
+
+    :param test_split: test split (between 0 and 1)
+    :type test_split: float
+
+    :param seed: seed for reproducibility
+    :type seed: int
+    """
+
     model_config: ModelConfig
     log_dir: str
     experiment_name: str
@@ -72,7 +156,16 @@ class Config:
 
 
 def get_best_model(experiment_name: str) -> Tuple[Optional[str], str]:
-    """ Returns the best model from the experiment """
+    """ Returns the best model from the experiment
+
+    :param experiment_name: name of the experiment
+    :type experiment_name: str
+
+    :return: subfolder and checkpoint of the best model
+    :rtype: Tuple[Optional[str], str]
+
+    :raises FileNotFoundError: if the file is not found
+    """
     complete_path = os.path.join("results", experiment_name, "best_model_train.json")
 
     if not os.path.exists(complete_path):

@@ -10,4 +10,6 @@ results/
 
 hp_search/
 
-data/datasets/
+data/datasets/1h/
+data/datasets/4h/
+data/datasets/30m/

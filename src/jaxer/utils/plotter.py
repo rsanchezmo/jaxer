@@ -5,7 +5,7 @@ import numpy as np
 from dataclasses import dataclass
 from typing import Optional, Dict, Union, Tuple, List
 from .dataset import denormalize
-from jaxer.utils.run.agent import Agent
+from jaxer.run.agent import Agent
 import torch
 from .dataset import jax_collate_fn
 import torch.utils.data

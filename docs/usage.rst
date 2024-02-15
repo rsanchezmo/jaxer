@@ -1,3 +1,5 @@
+.. _usage:
+
 Usage
 =====
 
@@ -35,10 +37,10 @@ Then install the rest of the dependencies (which are in the `requirements.txt` f
 .. _running_the_code:
 
 Running the code
------
+----------------
 
 Training
-~~~~~~~
+~~~~~~~~
 
 Set the configuration parameters in the `training_config.py` file. The training of the model is made really easy, as simple as creating a trainer and calling the `train_and_evaluate` method:
 
@@ -78,4 +80,3 @@ An agent class has been created so you can load a model and use it to predict an
     train_ds, test_ds = dataset.get_train_test_split(test_size=agent.config.test_split)
 
     predict_entire_dataset(agent, test_ds, mode='test', output_mode=agent.config.model_config["output_mode"])
-
