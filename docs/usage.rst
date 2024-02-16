@@ -38,6 +38,14 @@ Then install the rest of the dependencies (which are in the `requirements.txt` f
 
 Running the code
 ----------------
+Dataset
+~~~~~~~
+You should first unzip the dataset in the `dataset` folder.
+
+.. code-block:: bash
+
+    unzip data.zip
+
 
 Training
 ~~~~~~~~

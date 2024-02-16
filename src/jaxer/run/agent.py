@@ -1,32 +1,23 @@
-from jaxer.utils.config import Config
+from jaxer.run.agent_base import AgentBase
 from jaxer.model.flax_transformer import Transformer, TransformerConfig
-import os
 import jax.numpy as jnp
 import orbax.checkpoint
 from typing import Tuple, Optional
 
 
-class Agent:
+class Agent(AgentBase):
     """ Agent class to load a model and perform inference
 
     :param experiment: the name of the experiment
     :type experiment: str
 
-    :param model_name: the name of the model to load. If the model is in a subfolder, provide a tuple with the subfolder name and the model name
+    :param model_name: the name of the model to load. If the model is in a subfolder,
+        provide a tuple with the subfolder name and the model name
     :type model_name: Tuple[Optional[str], str]
     """
 
     def __init__(self, experiment: str, model_name: Tuple[Optional[str], str]) -> None:
-        self.experiment_path = os.path.join("results", experiment)
-        subfolder, self.model_name = model_name
-
-        self.ckpt_path = os.path.join(self.experiment_path, 'ckpt', subfolder, self.model_name, 'default')
-
-        assert os.path.exists(self.experiment_path), f"Experiment {experiment} does not exist in results folder"
-        assert os.path.exists(
-            self.ckpt_path), f"Model {self.model_name} does not exist in experiment {experiment} with subfolder {subfolder}"
-
-        self.config = Config.load_config(os.path.join(self.experiment_path, 'configs', subfolder, 'config.json'))
+        super().__init__(experiment, model_name)
 
         self._flax_config = TransformerConfig(
             d_model=self.config.model_config["d_model"],
@@ -50,20 +41,7 @@ class Agent:
             norm_encoder_prev=self.config.model_config["norm_encoder_prev"]
         )
 
-        """ Create an orbax checkpointer to restore the model"""
-        assert self.config.save_weights, "Weights were not saved during training, cannot restore model"
-
         orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
         restored_state = orbax_checkpointer.restore(self.ckpt_path)
+
         self.model = Transformer(self._flax_config).bind(restored_state["model"]["params"])
-
-    def __call__(self, x: Tuple[jnp.ndarray]) -> jnp.ndarray:
-        """ Inference function wrapper
-
-        :param x: input data
-        :type x: Tuple[jnp.ndarray]
-
-        :return: model output
-        :rtype: jnp.ndarray
-        """
-        return self.model(x)

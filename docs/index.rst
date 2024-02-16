@@ -12,7 +12,7 @@ In order to solve cryptocurrency prediction, several approaches are proposed:
 - **Distribution prediction**: Predict the distribution over the next step (mean and log std) to cover the uncertainty.
 - **Classification prediction**: Predict the next step as a classification problem (% interval ranges).
 
-In the section :ref:`usage` you will find how to use the model.
+In the section :ref:`usage` you will find how to use the model. Dataset and normalization techniques are covered in the section :ref:`dataset`.
 In the section :ref:`model` you will find the details of the model architectures for each approach.
 The section :ref:`results` will cover some results obtained with each model and end up with overall conclusions.
 In the section :ref:`api` you will find the API documentation to better understand how code is structured.
@@ -29,6 +29,7 @@ Contents
 
    Home <self>
    usage
+   dataset
    model
    results
    api

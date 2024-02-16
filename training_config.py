@@ -24,7 +24,7 @@ model_config = ModelConfig(
 )
 
 dataset_config = DatasetConfig(
-    datapath='./data/datasets/',
+    datapath='./data/datasets/data/',
     output_mode=output_mode,  # 'mean' or 'distribution' or 'discrete_grid
     discrete_grid_levels=[-9e6, 0.0, 9e6],
     initial_date='2018-01-01',
