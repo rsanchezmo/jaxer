@@ -1,6 +1,6 @@
 import numpy as np
-from jaxer.utils.config import Config, ModelConfig
-from jaxer.trainers import FlaxTrainer as Trainer
+from jaxer.config.experiment_config import ExperimentConfig, ModelConfig
+from jaxer.run import FlaxTrainer as Trainer
 from jaxer.utils.logger import get_logger
 
 
@@ -95,7 +95,7 @@ if __name__ == '__main__':
             norm_encoder_prev=norm_encoder_prev
         )
 
-        config = Config(model_config=model_config,
+        config = ExperimentConfig(model_config=model_config,
                         log_dir="hp_search",
                         experiment_name='output_mean' if not output_distribution else 'output_distribution',
                         num_epochs=200,

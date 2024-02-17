@@ -1,11 +1,10 @@
-from jaxer import ModelConfig, Config
-from jaxer import DatasetConfig
+import jaxer
 
 output_mode = 'mean'  # 'mean' or 'distribution' or 'discrete_grid
 seq_len = 24
 d_model = 128
 
-model_config = ModelConfig(
+model_config = jaxer.config.ModelConfig(
     d_model=d_model,
     num_layers=2,
     head_layers=2,
@@ -23,7 +22,7 @@ model_config = ModelConfig(
     norm_encoder_prev=True
 )
 
-dataset_config = DatasetConfig(
+dataset_config = jaxer.config.DatasetConfig(
     datapath='./data/datasets/data/',
     output_mode=output_mode,  # 'mean' or 'distribution' or 'discrete_grid
     discrete_grid_levels=[-9e6, 0.0, 9e6],
@@ -35,7 +34,7 @@ dataset_config = DatasetConfig(
     seq_len=seq_len,
 )
 
-config = Config(
+config = jaxer.config.ExperimentConfig(
     model_config=model_config,
     log_dir="results",
     experiment_name="indicators",

@@ -14,7 +14,7 @@ from jaxer.utils.early_stopper import EarlyStopper
 from jaxer.run.trainer_base import TrainerBase
 from jaxer.utils.schedulers import create_warmup_cosine_schedule
 from jaxer.model.flax_transformer import Transformer, TransformerConfig
-from jaxer.utils.config import Config
+from jaxer.config.experiment_config import ExperimentConfig
 from jaxer.utils.dataset import jax_collate_fn, Dataset
 from flax.training import orbax_utils, train_state
 
@@ -26,7 +26,7 @@ class FlaxTrainer(TrainerBase):
     :type config: Config
     """
 
-    def __init__(self, config: Config) -> None:
+    def __init__(self, config: ExperimentConfig) -> None:
         super().__init__(config)
 
         """ Checkpoints """

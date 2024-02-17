@@ -5,7 +5,7 @@ import numpy as np
 from dataclasses import dataclass
 from typing import Optional, Dict, Union, Tuple, List
 from .dataset import denormalize
-from jaxer.run.agent import Agent
+from jaxer.run.agent import FlaxAgent
 import torch
 from .dataset import jax_collate_fn
 import torch.utils.data
@@ -26,7 +26,7 @@ class Color:
         return [self.green, self.blue, self.pink, self.orange, self.purple, self.yellow, self.red, self.black]
 
 
-def predict_entire_dataset(agent: Agent, dataset: torch.utils.data.Dataset, foldername=None, mode='test'):
+def predict_entire_dataset(agent: FlaxAgent, dataset: torch.utils.data.Dataset, foldername=None, mode='test'):
     """ Predict entire dataset """
 
     if dataset.output_mode == 'discrete_grid':

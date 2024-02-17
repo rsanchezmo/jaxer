@@ -1,4 +1,4 @@
-from jaxer.utils.config import Config
+from jaxer.config.experiment_config import ExperimentConfig
 import os
 from typing import Tuple, Optional, Callable, Any
 
@@ -9,7 +9,8 @@ class AgentBase:
     :param experiment: the name of the experiment
     :type experiment: str
 
-    :param model_name: the name of the model to load. If the model is in a subfolder, provide a tuple with the subfolder name and the model name
+    :param model_name: the name of the model to load. If the model is in a subfolder,
+            provide a tuple with the subfolder name and the model name
     :type model_name: Tuple[Optional[str], str]
 
     :raises FileNotFoundError: if the experiment or model does not exist
@@ -31,7 +32,7 @@ class AgentBase:
             raise FileNotFoundError(f"Model {self.model_name} does not exist in experiment {experiment} "
                                     f"with subfolder {subfolder}")
 
-        self.config = Config.load_config(os.path.join(self.experiment_path, 'configs', subfolder, 'config.json'))
+        self.config = ExperimentConfig.load_config(os.path.join(self.experiment_path, 'configs', subfolder, 'config.json'))
 
         if not self.config.save_weights:
             raise ValueError("Weights were not saved during training, cannot restore model")

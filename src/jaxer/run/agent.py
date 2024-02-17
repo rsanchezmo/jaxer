@@ -1,11 +1,10 @@
 from jaxer.run.agent_base import AgentBase
 from jaxer.model.flax_transformer import Transformer, TransformerConfig
-import jax.numpy as jnp
 import orbax.checkpoint
 from typing import Tuple, Optional
 
 
-class Agent(AgentBase):
+class FlaxAgent(AgentBase):
     """ Agent class to load a model and perform inference
 
     :param experiment: the name of the experiment

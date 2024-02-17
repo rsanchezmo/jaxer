@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 if __name__ == '__main__':
     """ LOAD THE AGENT """
     experiment = "output_discrete_grid"
-    agent = jaxer.run.Agent(experiment=experiment, model_name=jaxer.utils.get_best_model(experiment))
+    agent = jaxer.run.FlaxAgent(experiment=experiment, model_name=jaxer.utils.get_best_model(experiment))
 
     """ DATALOADERS """
     dataset = jaxer.utils.Dataset(dataset_config=agent.config.dataset_config)

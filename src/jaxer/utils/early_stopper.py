@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+
 @dataclass
 class EarlyStopper:
     max_epochs: int  # max number of epochs without improvement

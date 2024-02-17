@@ -10,6 +10,7 @@ Modules Overview
 
 - :ref:`run` Contains endpoints related to trainers and agent
 - :ref:`utils` Provides utility functions (e.g. dataset, plotting, etc.)
+- :ref:`config` Contains configuration settings for Jaxer
 
 
 
@@ -30,6 +31,15 @@ Utils
 -----
 
 .. automodule:: jaxer.utils
+   :members:
+   :show-inheritance:
+
+.. _config:
+
+Config
+------
+
+.. automodule:: jaxer.config
    :members:
    :show-inheritance:
 

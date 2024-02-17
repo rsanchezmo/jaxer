@@ -1,7 +1,7 @@
 import os
 from torch.utils.tensorboard import SummaryWriter
 from jaxer.utils.logger import get_logger
-from jaxer.utils.config import Config
+from jaxer.config.experiment_config import ExperimentConfig
 from abc import abstractmethod
 from typing import Any
 
@@ -14,7 +14,7 @@ class TrainerBase:
 
     """
 
-    def __init__(self, config: Config) -> None:
+    def __init__(self, config: ExperimentConfig) -> None:
         self._config = config
 
         """ Training logs """

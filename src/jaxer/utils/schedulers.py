@@ -1,7 +1,10 @@
 import optax
 
 
-def create_warmup_cosine_schedule(learning_rate: float, warmup_epochs: int, num_epochs: int, steps_per_epoch: int) -> optax.Schedule:
+def create_warmup_cosine_schedule(learning_rate: float,
+                                  warmup_epochs: int,
+                                  num_epochs: int,
+                                  steps_per_epoch: int) -> optax.Schedule:
     """Creates learning rate cosine schedule."""
     warmup_fn = optax.linear_schedule(
         init_value=0., end_value=learning_rate,
