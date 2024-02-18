@@ -30,6 +30,7 @@ Utils
 
 .. automodule:: jaxer.utils
    :members:
+   :undoc-members:
    :show-inheritance:
 
 .. _config:

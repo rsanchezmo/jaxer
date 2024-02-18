@@ -1,7 +1,7 @@
 import numpy as np
-from jaxer.config.experiment_config import ExperimentConfig, ModelConfig
+from jaxer import ExperimentConfig, ModelConfig
 from jaxer.run import FlaxTrainer as Trainer
-from jaxer.utils.logger import get_logger
+from jaxer import get_logger
 
 
 if __name__ == '__main__':
