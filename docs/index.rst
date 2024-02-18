@@ -6,6 +6,9 @@ Jax and Flax Time Series Prediction Transformer. The initial goal of this repo w
 deep learning model. In this case, a **transformer** for time series prediction. I have decided to predict cryptocurrency due to
 the availability of the data. However, this could be used for any other time series data, such as market stocks or energy demand.
 
+.. note::
+   This doc has been generated not only to **show my work** but also to document a **real example on how to use Jax and Flax** to build a sota deep learning model from scratch. Hope you find this library useful. Feel free to contribute to the project and make it better. You are welcome to open an issue or a pull request!
+
 In order to solve cryptocurrency prediction, several approaches are proposed:
 
 - **Mean prediction**: Predict the next value of the time series (mean).
@@ -14,11 +17,12 @@ In order to solve cryptocurrency prediction, several approaches are proposed:
 
 In the section :ref:`usage` you will find how to use the model. Dataset and normalization techniques are covered in the section :ref:`dataset`.
 In the section :ref:`model` you will find the details of the model architectures for each approach.
+Training details are covered in the section :ref:`training` (e.g. learning rate functions, performance metrics, etc).
 The section :ref:`results` will cover some results obtained with each model and end up with overall conclusions.
 In the section :ref:`api` you will find the API documentation to better understand how code is structured.
 
 .. warning::
-   This repository is yet under development.
+   The code is already implemented. Some tests will be conducted in the following days (may find sum bugs and fix them). Documentation is still in progress. Hope to end it soon!
 
 .. image:: images/btc_transformer.png
 

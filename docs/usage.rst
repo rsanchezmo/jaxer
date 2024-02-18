@@ -23,7 +23,7 @@ Create a python venv and source it:
     python -m venv venv
     source venv/bin/activate
 
-Install your desired Jax version (more info at https://jax.readthedocs.io/en/latest/installation.html).
+Install your desired Jax version (more info at `jax installation official doc <https://jax.readthedocs.io/en/latest/installation.html>`_).
 For example, if already installed CUDA 12 on Linux (make sure to have exported to PATH your CUDA version):
 
 .. code-block:: bash
