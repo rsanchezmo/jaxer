@@ -12,8 +12,6 @@ Modules Overview
 - :ref:`utils` Provides utility functions (e.g. dataset, plotting, etc.)
 - :ref:`config` Contains configuration settings for Jaxer
 
-
-
 .. _run:
 
 Run

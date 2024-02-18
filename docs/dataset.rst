@@ -56,10 +56,10 @@ You can find the data in the `data` folder. Data has been compressed to be uploa
 |            | 'eth_usd'    | 00:00+00:00    | 00:00+0000     |
 +------------+--------------+----------------+----------------+
 
-Additionally, some financial indicators such as EMA, RSI, or Bollinger Bands have been included. Indicators were computed
+Additionally, some financial indicators such as EMA, RSI, or Bollinger Bands (BB) have been included. Indicators were computed
 with code from another project, so code is not available here, but I introduced them inside each time point as additional field.
 I am not a financial expert, and I am sure the model can capture its own indicators, but I thought it would be a good idea to
-introduce them as a starting point to guide the model using a simpler architecture of the model.
+introduce them as a starting point to guide training a simpler architecture of the model.
 
 - **Bollinger bands (BB)**: a technical analysis indicator measuring asset volatility with upper and lower bands around a simple moving average (20 values window).
 - **Relative Strength Index (RSI)**: a momentum indicator comparing average gains and losses over a specified time period to determine potential overbought or oversold conditions (14 values window).
@@ -87,19 +87,103 @@ As you will see in the :ref:`dataset_configuration`, you can choose to use them 
 Normalization techniques
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-Data must be normalized to avoid exploding gradients during training. Several normalization methods are implemented.
+Several methods of data normalization have been implemented. In the literature,
+different approaches such as window or global normalization have been observed.
+Therefore, all of them have been implemented with the aim of being able to test and determine which method allows for
+better performance and generalization of the model. It is true that each one has its advantages and disadvantages.
 
-- A normalization across the entire dataset. Second, a window normalization. The second one seems more suitable to avoid losing too much resolution and also to ensure working over time and not become obsolete (BTC may surpass the current max BTC price or volume). However, this approach can introduce inconsistencies in data scaling across different windows, potentially affecting the model's performance and its ability to generalize to new data. For each approach, two normalizers are implemented: a min-max scaler and a standard scaler.
+**Window normalization** seems more suitable to avoid losing too much resolution on the data and also to ensure working over time and
+not become obsolete (ticker may end up surpassing the current max price or volume). Window normalization is particularly
+useful when the underlying distribution of the data varies significantly across different segments or time intervals within the dataset.
+This approach allows to capture local variations in the data and adapt the normalization strategy accordingly.
+
+**Global normalization** is a normalization across the entire dataset. This method is more suitable for ensuring that
+the dataset is on a similar scale, regardless of the distribution of individual subsets of the data. If min and max range is too
+large then resolution may be lost. If using multiple tickers, it is more pronounced (e.g., 'btc_usd' and 'eth_usd' have different scales).
+
+.. list-table:: Implemented normalization methods
+   :widths: 25 25 25 25 25
+
+   * - `window_minmax`
+     - `window_meanstd`
+     - `global_minmax`
+     - `global_meanstd`
+     - `none`
 
 Dataset class
 ~~~~~~~~~~~~~
-The dataset class is implemented in PyTorch due to the easiness of creating a dataloader. However, as we are working with Jax arrays, it was necessary to pass a function to the dataloader to map the Torch tensors to Jax.ndarrays.
+The dataset class has been implemented using PyTorch since there is no native or pure version in Flax or JAX that provides
+the same functionality as PyTorch. To make it compatible with JAX, a function `jax_collate_fn` has been implemented to transform data into `jnp.arrays`
+according to the `JAX official documentation <https://jax.readthedocs.io/en/latest/notebooks/Neural_Network_and_Data_Loading.html>`_.
 
-The test set is not randomly computed across the entire dataset. For better generalization capabilities understanding, the test set is taken from the last dataset components; simulating real-world prediction.
+.. code-block:: python
+
+    def jax_collate_fn(batch: List[np.ndarray]) -> Any:
+    """ Collate function for the jax dataset
+
+    :param batch: batch of data
+    :type batch: np.ndarray
+
+    :return: batched data (sequence_tokens, extra_tokens), labels, norms, timesteps
+    :rtype: Tuple
+    """
+    sequence_tokens, extra_tokens, labels, norms, timesteps = zip(*batch)
+
+    batched_jax_sequence_tokens = jnp.stack(sequence_tokens)
+    batched_jax_extra_tokens = jnp.stack(extra_tokens)
+    batched_jax_labels = jnp.stack(labels)
+
+    return (batched_jax_sequence_tokens, batched_jax_extra_tokens), batched_jax_labels, norms, timesteps
+
+
+The dataset class allows training with multiple tickers. Internally, it loads into a pandas dataframe the files for each ticker
+(in the specified JSON format) and manages training with data from each ticker. This has been added because training
+with only one ticker may result in too few data, and because the more variability and patterns the agent sees, the better
+generalization it will have, regardless of the ticker.
+
+For better understanding of generalization capabilities, the test set is taken from the last dataset components; simulating real-world prediction.
+When training with multiple tickers, the test set is taken from the last dataset components of every ticker.
+Therefore, can test generalization on each individual ticker.
+
+Dataset manage internally normalization methods (they are provided alongside each `__item__`) to later plotting or denormalizing for metric computing.
+As previously mentioned, dataset can manage to include financial indicators if provided in the configuration file.
+
+As you must have noticed, the `jax_collate_fn` return several components:
+
+#. **batched_jax_sequence_tokens**: batched sequence tokens (aka time points).
+#. **batched_jax_extra_tokens**: batched extra tokens (values that are not sequences, just single values as window std, sentiment analysis, etc.). Sequence is split from extra tokens as they cannot be batched together in a `jnp.array`. For the moment, only std values are included here.
+#. **batched_jax_labels**: next time point to predict (aka labels).
+#. **norms**: a dict with the normalizers for that window (price, volume, etc.).
+
+   .. code-block:: python
+
+      self._global_normalizer = dict(
+         price=dict(min_val=self._data[0][Dataset.OHLC].min().min(),
+                    max_val=self._data[0][Dataset.OHLC].max().max(),
+                    mode="minmax"),
+         volume=dict(min_val=self._data[0]['volume'].min().min(),
+                     max_val=self._data[0]['volume'].max().max(),
+                     mode="minmax"),
+         trades=dict(min_val=self._data[0]['tradesDone'].min().min(),
+                     max_val=self._data[0]['tradesDone'].max().max(),
+                     mode="minmax"))
+#. **timesteps**: the time value of each time point (useful for plotting and for time2vec).
 
 
 .. _dataset_configuration:
 
 Dataset configuration
 ~~~~~~~~~~~~~~~~~~~~~
-TBC
+The dataset configuration is the entry point to the dataset class:
+
+.. code-block:: python
+
+    datapath: str # path to the data ('./data/datasets/')
+    seq_len: int  # sequence length (window size)
+    norm_mode: str  # normalization mode (window_minmax, window_meanstd, global_minmax, global_meanstd, none)
+    initial_date: Optional[str]  # initial date to start the dataset (you may have data from 2016, but you want to start from 2018)
+    output_mode: str  # output mode (related to model config: 'mean', 'distribution', 'discrete_grid')
+    discrete_grid_levels: Optional[List[float]] # levels for the discrete grid output mode
+    resolution: str # resolution of the data (4h, 1h, 30m)
+    tickers: List[str]  # tickers to train with (must be in the data folder)
+    indicators: Optional[List[str]]  # financial indicators to include in the dataset (e.g., ['rsi'])

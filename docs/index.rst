@@ -22,6 +22,10 @@ In the section :ref:`api` you will find the API documentation to better understa
 
 .. image:: images/btc_transformer.png
 
+.. raw:: html
+
+   <p style="text-align: center;"><em>Render of a transformer model as a hologram, projecting from a digital device, with a faint BTC logo in the holographic projection, without any text (DALLE-3)</em></p>
+
 Contents
 --------
 
@@ -31,6 +35,7 @@ Contents
    usage
    dataset
    model
+   training
    results
    api
 

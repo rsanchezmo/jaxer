@@ -16,6 +16,11 @@ class Dataset(torch.utils.data.Dataset):
 
     :param dataset_config: DatasetConfig object
     :type dataset_config: DatasetConfig
+
+    :raises ValueError: if the norm_mode is not one of ['window_minmax', 'window_meanstd', 'global_minmax', 'global_meanstd', 'none']
+    :raises ValueError: if the indicators are not in the dataset ['rsi', 'bb_upper', 'bb_lower', 'bb_middle']
+    :raises ValueError: if the discrete_grid_levels are not provided and the output_mode is discrete_grid
+    :raises ValueError: if the ticker is not in the dataset
     """
 
     OHLC = ['open', 'high', 'low', 'close']
