@@ -3,8 +3,8 @@ Welcome to Jaxer's documentation!
 
 Jax and Flax Time Series Prediction Transformer. The initial goal of this repo was to learn
 `Jax <https://jax.readthedocs.io/en/latest/>`_ and `Flax <https://flax.readthedocs.io/en/latest/>`_ by implementing a
-deep learning model. In this case, a **transformer** for time series prediction. I have decided to predict cryptocurrency due to
-the availability of the data. However, this could be used for any other time series data, such as market stocks or energy demand.
+deep learning model. In this case, a **transformer** for time series prediction. I have decided to predict **cryptocurrency** due to
+the availability of the data. However, this could be used for any other time series data, such as **market stocks** or **energy demand**.
 
 .. note::
    This doc has been generated not only to **show my work** but also to document a **real example on how to use Jax and Flax** to build a sota deep learning model from scratch. Hope you find this library useful. Feel free to contribute to the project and make it better. You are welcome to open an issue or a pull request!
@@ -22,7 +22,7 @@ The section :ref:`results` will cover some results obtained with each model and 
 In the section :ref:`api` you will find the API documentation to better understand how code is structured.
 
 .. warning::
-   The code is already implemented. Some tests will be conducted in the following days (may find sum bugs and fix them). Documentation is still in progress. Hope to end it soon!
+   The code is already implemented. Some tests will be conducted in the following days (may find some bugs and will fix them). Documentation is still in progress. Hope to end it soon!
 
 .. image:: images/btc_transformer.png
 

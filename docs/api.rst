@@ -3,14 +3,15 @@
 API
 ===
 
-This documentation provides an overview of the API for Jaxer.
+This documentation provides an overview of the API for `jaxer`.
 
 Modules Overview
 ----------------
 
-- :ref:`run` Contains endpoints related to trainers and agent
-- :ref:`utils` Provides utility functions (e.g. dataset, plotting, etc.)
-- :ref:`config` Contains configuration settings for Jaxer
+- :ref:`run`: contains endpoints related to trainers and agent.
+- :ref:`utils`: provides utility functions (e.g. dataset, plotting, etc.).
+- :ref:`config`: contains configuration settings for `jaxer`.
+- :ref:`models`: contains the flax transformer model and its internal blocks.
 
 .. _run:
 
@@ -37,5 +38,14 @@ Config
 ------
 
 .. automodule:: jaxer.config
+   :members:
+   :show-inheritance:
+
+.. _models:
+
+Models
+------
+
+.. automodule:: jaxer.model
    :members:
    :show-inheritance:

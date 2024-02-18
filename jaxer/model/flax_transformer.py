@@ -93,6 +93,14 @@ class TransformerConfig:
 
 
 class FeedForwardBlock(nn.Module):
+    """ Feed Forward Block Module (dense, gelu, dropout, dense, gelu, dropout)
+
+    :param config: transformer configuration
+    :type config: TransformerConfig
+
+    :param out_dim: output dimension
+    :type out_dim: int
+    """
     config: TransformerConfig
     out_dim: int
 
@@ -125,6 +133,14 @@ class FeedForwardBlock(nn.Module):
 
 
 class FeedForwardBlockConv1D(nn.Module):
+    """ Feed Forward Block Module (conv1d, gelu, dropout, conv1d, gelu, dropout)
+
+    :param config: transformer configuration
+    :type config: TransformerConfig
+
+    :param out_dim: output dimension
+    :type out_dim: int
+    """
     config: TransformerConfig
     out_dim: int
 
@@ -177,6 +193,11 @@ def sinusoidal_init(max_len: int = 2048, min_scale: float = 1.0, max_scale: floa
 
 
 class AddPositionalEncoding(nn.Module):
+    """ Add Positional Encoding Module (absolute positional encoding)
+
+    :param config: transformer configuration
+    :type config: TransformerConfig
+    """
     config: TransformerConfig
 
     @nn.compact
@@ -194,6 +215,24 @@ class AddPositionalEncoding(nn.Module):
 
 
 class Time2Vec(nn.Module):
+    """ Time2Vec Module (from the paper Time2Vec: Learning a Vector Representation of Time)
+
+    :param dtype: data type
+    :type dtype: jnp.dtype
+
+    :param kernel_init: kernel initializer
+    :type kernel_init: Callable
+
+    :param bias_init: bias initializer
+    :type bias_init: Callable
+
+    :param max_seq_len: maximum sequence length
+    :type max_seq_len: int
+
+    :param d_model: model embedding size
+    :type d_model: int
+
+    """
     dtype: jnp.dtype
     kernel_init: Callable
     bias_init: Callable
@@ -227,10 +266,6 @@ class Time2Vec(nn.Module):
             self.dtype,
         )
 
-        # TIME LINEAR IS THE 1ST COMPONENT OF THE TIME2VEC wich has the shape (batch_size, max_seq_len, d_model)
-        # so time_linear has the shape (batch_size, max_seq_len, 1)
-        # and time_periodic has the shape (batch_size, max_seq_len, d_model - 1)
-
         tau = x[:, :, -1]  # the last column of the input is the time which has the shape (batch_size, max_seq_len, 1)
         tau = tau[:, :, None]  # tau has the shape (batch_size, max_seq_len, 1)
         time_linear = weights_linear * tau + bias_linear  # time_linear has the shape (batch_size, max_seq_len)
@@ -241,12 +276,32 @@ class Time2Vec(nn.Module):
 
 
 class ResidualBlock(nn.Module):
+    """ Residual Block Module with optional normalization of the input or at the end (layer norm)
+
+    :param dtype: data type
+    :type dtype: jnp.dtype
+
+    :param feature_dim: feature dimension
+    :type feature_dim: int
+
+    :param kernel_init: kernel initializer
+    :type kernel_init: Callable
+
+    :param bias_init: bias initializer
+    :type bias_init: Callable
+
+    :param norm: whether to normalize the output
+    :type norm: bool
+
+    :param norm_prev: whether to normalize the previous output
+    :type norm_prev: bool
+    """
     dtype: jnp.dtype
     feature_dim: int
     kernel_init: Callable
     bias_init: Callable
     norm: bool = True
-    norm_prev: bool = False  # Noticed that the normalization should be done after the residual connection, if not, divergence occurs
+    norm_prev: bool = False
 
     @nn.compact
     def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
@@ -275,11 +330,17 @@ class ResidualBlock(nn.Module):
 
 
 class FeatureExtractor(nn.Module):
+    """ Feature Extractor Module based on residual MLP networks (of increasing shape) to get to d_model
+
+    :param config: transformer configuration
+    :type config: TransformerConfig
+    """
+
     config: TransformerConfig
 
     @nn.compact
     def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
-        """ Feature extractor based on residual MLP networks """
+        """ Feature extractor based on residual MLP networks (of increasing shape) to get to d_model"""
 
         # first part of the network to get to the right dimension
         step_dim = 1
@@ -341,6 +402,12 @@ class FeatureExtractor(nn.Module):
 
 
 class EncoderBlock(nn.Module):
+    """ Encoder Block Module (self attention followed by feed forward). Normalization can be applied to the input or
+        at the end (layer norm)
+
+    :param config: transformer configuration
+    :type config: TransformerConfig
+    """
     config: TransformerConfig
 
     @nn.compact
@@ -397,6 +464,11 @@ class EncoderBlock(nn.Module):
 
 
 class Encoder(nn.Module):
+    """ Encoder Module (L * encoder blocks). Uses time2vec or positional encoding to encode the input sequence and calls L encoder blocks
+
+    :param config: transformer configuration
+    :type config: TransformerConfig
+    """
     config: TransformerConfig
 
     @nn.compact
@@ -435,6 +507,12 @@ class Encoder(nn.Module):
 
 
 class PredictionHead(nn.Module):
+    """ Prediction Head Module. It can output a mean, a mean and a variance, or categorical probabilities.
+    Residual blocks can be used in the head.
+
+    :param config: transformer configuration
+    :type config: TransformerConfig
+    """
     config: TransformerConfig
 
     @nn.compact
@@ -491,7 +569,15 @@ class PredictionHead(nn.Module):
 
 
 class Transformer(nn.Module):
-    """ Transformer model """
+    """ Transformer model
+
+    1. Encoder
+    2. Flatten/Average/Last Element of the output of the encoder
+    3. Prediction Head -> mean, variance, or categorical probabilities
+
+    :param config: transformer configuration
+    :type config: TransformerConfig
+    """
     config: TransformerConfig
 
     @nn.compact

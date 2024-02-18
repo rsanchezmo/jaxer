@@ -8,7 +8,7 @@ Usage
 Installation
 ------------
 
-I highly recommend to clone and run the repo on linux device because the installation of jax and related libs is easier,
+I highly recommend to clone and run the repo on **linux** device because the installation of jax and related libs is easier,
 but with a bit of time you may end up running on other compatible platform. To start, just clone the repo:
 
 .. code-block:: bash
@@ -16,7 +16,7 @@ but with a bit of time you may end up running on other compatible platform. To s
     git clone https://github.com/rsanchezmo/jaxer.git
     cd jaxer
 
-Create a python venv and source it:
+Create a python **venv** and source it:
 
 .. code-block:: bash
 
@@ -36,6 +36,9 @@ Then install the rest of the dependencies (which are in the `requirements.txt` f
 
     (venv) $ pip install .
 
+You could have omitted the `jax` installation as `flax` library installs it, but it **is preferred to select the proper version** of `jax`
+**according to the hardware**.
+
 .. _running_the_code:
 
 Running the code
@@ -52,7 +55,7 @@ You should first unzip the dataset in the `dataset` folder.
 Training
 ~~~~~~~~
 
-The training of the model is made really easy, as simple as creating a trainer with the experiment configuration and calling the `train_and_evaluate` method:
+The training of the model is made really easy, as simple as creating a **trainer** with the experiment configuration and calling the `train_and_evaluate` method:
 
 .. code-block:: python
 
@@ -68,7 +71,7 @@ The training of the model is made really easy, as simple as creating a trainer w
 
 Configuration
 ~~~~~~~~~~~~~
-An example of the configuration file is in the `training_config.py` file. Here is an example of the configuration file for the training of the model:
+An example of the **experiment configuration** is in the `training_config.py` file:
 
 .. code-block:: python
 
@@ -124,12 +127,14 @@ An example of the configuration file is in the `training_config.py` file. Here i
         early_stopper=100
     )
 
-You can find a more detailed explanation in the :ref:`api`, :ref:`dataset` and :ref:`model` sections.
+You can find a more detailed explanation of each parameter in the :ref:`api`, :ref:`dataset`,
+:ref:`training` and :ref:`model` sections.
 
 Inference
 ~~~~~~~~~
 
-An agent class has been created so you can load a trained model and use it to predict any data you want:
+An **agent class** has been created so you can load a trained model and use it by calling with a proper input. Agent
+can infer by using `__call__` method:
 
 .. code-block:: python
 
@@ -160,3 +165,7 @@ An agent class has been created so you can load a trained model and use it to pr
             jaxer.utils.plot_predictions(input.squeeze(0), label.squeeze(0), output, normalizer=normalizer[0], name='train',
                                          initial_date=initial_date[0], output_mode=agent.config.model_config["output_mode"],
                                          discrete_grid_levels=agent.config.dataset_config.discrete_levels)
+
+On this example, a jaxer agent is created with the best weights of the experiment `exp_1`.
+The `plot_entire_dataset` flag is used to plot over the entire dataset (train and test), which is useful to see model performance (debug if overfitting or generalization).
+Finally, the agent is used to predict on a single batch of the test set to see a more detailed prediction.

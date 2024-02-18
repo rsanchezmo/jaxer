@@ -5,17 +5,17 @@ Dataset
 
 Cryptocurrency data
 ~~~~~~~~~~~~~~~~~~~
-The main idea was to obtain stock data, but the quickest way to get the transformer to work was to use cryptocurrency data
-because the markets don't close; you don't have to deal with weekends or holidays.
-Ultimately, it would have required some data mining of the data, which was not the main objective of this project.
+The main goal was to obtain stock data, but the **quickest way** to get the **transformer to work** was to use **cryptocurrency** data
+because crypto market is always open so there is no need to provide special care to deal with day open and close, weekends or holidays.
+Ultimately, it would have required some **data mining** of the data, which was not the main objective of this project.
 
 After researching different platforms for historical cryptocurrency data, free limits, and time resolutions, the platform that best solved my needs was `Tiingo <https://www.tiingo.com/>`_.
-I using the free `Tiingo Python API REST <https://www.tiingo.com/documentation/crypto>`_ to get data from different tickers and time resolutions.
+I used the free `Tiingo Python API REST <https://www.tiingo.com/documentation/crypto>`_ to get data from different tickers and time resolutions.
 
-After exploring its API, I was able to obtain data for different tickers (e.g., 'btc_usd', 'eth_usd') from January 2018
-to January 2024 with a maximum resolution of 30 minutes. Higher resolution was impossible with the free API. However,
+After exploring its API, I was able to obtain data for **different tickers** (e.g., 'btc_usd', 'eth_usd') from January 2018
+to January 2024 with a **maximum resolution of 30 minutes**. Higher resolution was impossible with the free API. However,
 as an initial approximation, I decided not to invest money in obtaining data with higher resolution. This project purpose
-was not to create a trading bot, but to exploit the capabilities of the transformer model.
+was not to create a trading bot, but to **exploit the capabilities of the transformer model**.
 
 The available information that Tiingo provides is:
 
@@ -23,7 +23,7 @@ The available information that Tiingo provides is:
 - **Low/High price**: the lowest and highest price of the asset in the time resolution
 - **Close/Open price**: the price of the asset at the end and the beginning of the time resolution
 - **Volume**:  total number of shares or contracts traded during a specified resolution
-- **Notional Volume**: total value of the assets traded, rather than the number of units
+- **Notional volume**: total value of the assets traded, rather than the number of units
 - **Number of trades**: the number of trades done in the time resolution
 
 An example of a time point of 1h resolution on *'btc_usd'* ticker is:
@@ -41,7 +41,7 @@ An example of a time point of 1h resolution on *'btc_usd'* ticker is:
         "tradesDone": 15347.0
     },
 
-You can find the data in the `data` folder. Data has been compressed to be uploaded to the repository. Available data is:
+You can find the data in the `/data/dataset/` folder. Data has been compressed to be uploaded to the repository. Available data is:
 
 +------------+--------------+----------------+----------------+
 | Resolution | Tickers      | Initial Date   | End Date       |
@@ -56,10 +56,11 @@ You can find the data in the `data` folder. Data has been compressed to be uploa
 |            | 'eth_usd'    | 00:00+00:00    | 00:00+0000     |
 +------------+--------------+----------------+----------------+
 
-Additionally, some financial indicators such as EMA, RSI, or Bollinger Bands (BB) have been included. Indicators were computed
-with code from another project, so code is not available here, but I introduced them inside each time point as additional field.
-I am not a financial expert, and I am sure the model can capture its own indicators, but I thought it would be a good idea to
-introduce them as a starting point to guide training a simpler architecture of the model.
+Additionally, some **financial indicators** such as EMA, RSI, or Bollinger Bands (BB) have been included. Indicators were computed
+with code from another project, so code is not available here, but I introduced them inside each time point on the jsons as additional fields.
+I am not a trader expert (and don't pretend to!). I am **pretty sure** the model (or a future version of it) could capture
+its own **internal patterns or representations** valid for predicting price. However, I thought it would be a good idea to
+introduce them as a starting point to guide training of a simpler architecture of the model.
 
 - **Bollinger bands (BB)**: a technical analysis indicator measuring asset volatility with upper and lower bands around a simple moving average (20 values window).
 - **Relative Strength Index (RSI)**: a momentum indicator comparing average gains and losses over a specified time period to determine potential overbought or oversold conditions (14 values window).
@@ -82,19 +83,23 @@ An example of 'btc_usd' ticker with 1h resolution is:
         "ema_16h": 42440.6523757373
     }
 
-As you will see in the :ref:`dataset_configuration`, you can choose to use them or not for training the model.
+As you will see in the :ref:`dataset_configuration`, you can choose to use them (or some of them) for training the model.
+
+.. note::
+    As a result of reviewing the literature, I found that **better prediction accuracy** is obtained with the inclusion of **sentiment analysis**, as it captures traders feelings and emotions quicker. However, I did not include it in this project for **simplicity** reasons.
+
 
 Normalization techniques
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 Several methods of data normalization have been implemented. In the literature,
-different approaches such as window or global normalization have been observed.
-Therefore, all of them have been implemented with the aim of being able to test and determine which method allows for
+different approaches such as **window** or **global normalization** have been observed.
+Therefore, all of them have been implemented with to test and determine which method allows for
 better performance and generalization of the model. It is true that each one has its advantages and disadvantages.
 
-**Window normalization** seems more suitable to avoid losing too much resolution on the data and also to ensure working over time and
+**Window normalization** seems more suitable to **avoid losing too much resolution** on the data and also to ensure working over time and
 not become obsolete (ticker may end up surpassing the current max price or volume). Window normalization is particularly
-useful when the underlying distribution of the data varies significantly across different segments or time intervals within the dataset.
+useful when the underlying **distribution** of the data **varies** significantly across different segments or time intervals within the dataset.
 This approach allows to capture local variations in the data and adapt the normalization strategy accordingly.
 
 **Global normalization** is a normalization across the entire dataset. This method is more suitable for ensuring that
@@ -112,8 +117,8 @@ large then resolution may be lost. If using multiple tickers, it is more pronoun
 
 Dataset class
 ~~~~~~~~~~~~~
-The dataset class has been implemented using PyTorch since there is no native or pure version in Flax or JAX that provides
-the same functionality as PyTorch. To make it compatible with JAX, a function `jax_collate_fn` has been implemented to transform data into `jnp.arrays`
+The dataset class has been implemented using **PyTorch** since there is no native version in Flax or JAX that provides
+the same functionality. To make it compatible with **JAX**, a function `jax_collate_fn` has been implemented to transform data into `jnp.array`s
 according to the `JAX official documentation <https://jax.readthedocs.io/en/latest/notebooks/Neural_Network_and_Data_Loading.html>`_.
 
 .. code-block:: python
@@ -136,17 +141,17 @@ according to the `JAX official documentation <https://jax.readthedocs.io/en/late
     return (batched_jax_sequence_tokens, batched_jax_extra_tokens), batched_jax_labels, norms, timesteps
 
 
-The dataset class allows training with multiple tickers. Internally, it loads into a pandas dataframe the files for each ticker
-(in the specified JSON format) and manages training with data from each ticker. This has been added because training
-with only one ticker may result in too few data, and because the more variability and patterns the agent sees, the better
+The dataset class allows training with **multiple tickers**. Internally, it loads into a pandas dataframe the file of each ticker
+(in the specified JSON format) and manages training with data from each one altogether. This has been added because training
+with only one ticker resulted in too few data (you will see on :ref:`results` section), and because the more variability and patterns the agent sees, the better
 generalization it will have, regardless of the ticker.
 
 For better understanding of generalization capabilities, the test set is taken from the last dataset components; simulating real-world prediction.
 When training with multiple tickers, the test set is taken from the last dataset components of every ticker.
-Therefore, can test generalization on each individual ticker.
+Therefore, we **can test the model's performance on each ticker separately**.
 
-Dataset manage internally normalization methods (they are provided alongside each `__item__`) to later plotting or denormalizing for metric computing.
-As previously mentioned, dataset can manage to include financial indicators if provided in the configuration file.
+Dataset compute internally the **normalization method**, and return it on the `__item__` function to later plotting or denormalizing for metric computing.
+As previously mentioned, dataset can manage the inclusion of financial indicators if provided in the configuration file.
 
 As you must have noticed, the `jax_collate_fn` return several components:
 
@@ -174,7 +179,7 @@ As you must have noticed, the `jax_collate_fn` return several components:
 
 Dataset configuration
 ~~~~~~~~~~~~~~~~~~~~~
-The dataset configuration is the entry point to the dataset class:
+The dataset configuration acts as an **abstraction of the dataset class**:
 
 .. code-block:: python
 

@@ -43,7 +43,7 @@ class AgentBase:
         return self.forward(x)
 
     def forward(self, x: Any) -> Any:
-        """ Inference function (you can call __call__ instead)
+        """ Inference function (you can use __call__ instead)
 
         :param x: input data
         :type x: Any
