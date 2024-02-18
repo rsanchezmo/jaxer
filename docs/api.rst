@@ -21,8 +21,6 @@ Run
    :members:
    :show-inheritance:
 
-
-
 .. _utils:
 
 Utils
@@ -41,4 +39,3 @@ Config
 .. automodule:: jaxer.config
    :members:
    :show-inheritance:
-
