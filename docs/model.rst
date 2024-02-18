@@ -137,7 +137,7 @@ the model about the prediction?` This question is extremely important because in
 price but also to know the confidence of it (as in computer deep learning object detection). To be clear, if the model predicts that price is going up
 but it is not sure about it, it is not a good idea to take a decision based on that prediction.
 
-As an assumption, I am modelling the next token as a **gaussian distribution**. Therefore, **mean** and the log of the **standard deviation** of the distribution must be computed.
+As an assumption, next token is modelled as a **gaussian distribution**. Therefore, **mean** and the log of the **standard deviation** of the distribution must be computed.
 Here, two approaches can be followed:
 
 #. Using the **same layer** to predict both the mean and the log of the standard deviation.
@@ -193,7 +193,10 @@ The selected loss function is the **binary cross-entropy**. It is defined as:
 
     \text{BCE} = -\frac{1}{N} \sum_{i=1}^{N} y_i \log(\hat{y}_i) + (1 - y_i) \log(1 - \hat{y}_i)
 
-Where :math:`y_i` is the actual value and :math:`\hat{y}_i` is the predicted value. The **binary cross-entropy** is the most
+Where :math:`y_i` is the actual value and :math:`\hat{y}_i` is the predicted value. The **binary cross-entropy**
+penalizes models based on the difference between the predicted probability and the true label. The goal is that every
+prediction probability falls close to 1 for the true class and close to 0 the
+other ones.
 
 The `jax` implementation of the loss function is:
 
@@ -207,3 +210,25 @@ The `jax` implementation of the loss function is:
 
 
 Results with the three approaches are shown in the :ref:`results` section.
+
+Model Configuration
+-------------------
+To configure the model, a configuration object must be filled:
+
+.. code-block:: python
+
+    d_model: int  # dimension of the model
+    num_layers: int  # number of encoder layers
+    head_layers: int  # number of layers in the head
+    n_heads: int  # number of attention heads
+    dim_feedforward: int  # dimension of the feedforward network
+    dropout: float  # dropout rate
+    max_seq_len: int  # maximum sequence length (context window)
+    flatten_encoder_output: bool  # flatten the encoder output
+    fe_blocks: int  # number of feature extractor blocks
+    use_time2vec: bool  # use time2vec
+    output_mode: str  # output mode (mean, distribution, discrete_grid)
+    use_resblocks_in_head: bool  # use residual blocks in the head
+    use_resblocks_in_fe: bool  # use residual blocks in the feature extractor
+    average_encoder_output: bool  # average the encoder output (if flatten_encoder_output is False)
+    norm_encoder_prev: bool  # normalize the encoder output before the attention mechanism or after

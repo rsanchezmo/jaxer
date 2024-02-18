@@ -7,7 +7,7 @@ deep learning model. In this case, a **transformer** for time series prediction.
 the availability of the data. However, this could be used for any other time series data, such as **market stocks** or **energy demand**.
 
 .. note::
-   This doc has been generated not only to **show my work** but also to document a **real example on how to use Jax and Flax** to build a sota deep learning model from scratch. Hope you find this library useful. Feel free to contribute to the project and make it better. You are welcome to open an issue or a pull request!
+   This doc has been generated not only to **show my work** but also to document a **real example on how to use Jax and Flax** to build a sota deep learning model from scratch. Hope you find this library useful. **Feel free to contribute to the project and make it better**. You are welcome to open an **issue** or a **pull request**!
 
 In order to solve cryptocurrency prediction, several approaches are proposed:
 
