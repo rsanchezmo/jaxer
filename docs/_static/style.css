@@ -1,5 +1,3 @@
-@import url("theme.css");
-
 :root {
   --block-bg-opacity: .5;
 }
@@ -8,22 +6,27 @@
   background-color: #fff;
 }
 
-.getting-started {
+.api {
   background-color: rgba(78, 150, 253, var(--block-bg-opacity));
 }
 
-.user-guides {
+.dataset {
   background-color: rgba(0, 169, 154, var(--block-bg-opacity));
 }
 
-.developer-docs {
+.training {
   background-color: rgba(171, 0, 182, var(--block-bg-opacity));
 }
 
-div.red-background pre {
+.results {
   background-color: rgba(244, 204, 204, var(--block-bg-opacity));
 }
 
-div.green-background pre {
+.model {
+  background-color: rgba(244, 204, 204, var(--block-bg-opacity));
+}
+
+
+.usage {
   background-color: rgba(204, 244, 204, var(--block-bg-opacity));
 }

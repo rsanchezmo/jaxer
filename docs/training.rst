@@ -47,7 +47,7 @@ a linear learning rate scheduler or a warmup cosine learning rate scheduler. Las
         return schedule_fn
 
 
-Even :code:`optax` also has several loss functions implemented, I coded my own functions (code is indeed very similar). :code:`flax` **does not store the model parameters in the model itself**. This the main difference from :code:`torch`. Instead, the model
+Even :code:`optax` also had several loss functions implemented, I coded my own functions (code is indeed very similar). :code:`flax` **does not store the model parameters in the model itself**. This the main difference from :code:`torch`. Instead, the model
 parameters are stored in a separate :code:`params` object. This object is passed to the :code:`apply` method of the model. Therefore, the
 process of calling (inference) the model will be:
 
@@ -77,7 +77,7 @@ everything is run from there. :code:`jax` is a bit more complex, but comes to so
 
     `"The problem with torch magic PRNG state is that it’s hard to reason about how it’s being used and updated across different threads, processes, and devices, and it’s very easy to screw up when the details of entropy production and consumption are hidden from the end user"`.
 
-Additionally, I found interesting the use of `orbax` to manage **checkpoint saving and loading** and it is recommended by `flax <https://flax.readthedocs.io/en/latest/guides/training_techniques/use_checkpointing.html>`_.
+Additionally, I found interesting the use of :code:`orbax` to manage **checkpoint saving and loading** and it is recommended by `flax <https://flax.readthedocs.io/en/latest/guides/training_techniques/use_checkpointing.html>`_.
 For instance, we can define a checkpoint manager that saves up to 5 best models:
 
 .. code-block:: python
@@ -97,7 +97,7 @@ For instance, we can define a checkpoint manager that saves up to 5 best models:
         restored_state = self._orbax_checkpointer.restore('model_path')['model']
 
 
-To visualize the training process, I used :code:`tensorboard` to log the training process. This is a very useful tool to **visualize** the :ref:`metrics`
+To later visualize the training process, I used :code:`tensorboard` to record logs of train/test metrics. This is a very useful tool to **visualize** the :ref:`metrics`
 of **train and test set**. There is also an :code:`early stopper` class to **stop the training process** if the test metric does not improve after
 a certain number of epochs.
 
@@ -142,5 +142,5 @@ following table shows the metrics used for each case:
 
 .. note::
     Metrics are computed with normalized data, so we must be careful. I found absolute magnitudes such as :code:`mse` meaningful as it is not the same
-    to have a `mse` of 2 :math:`$` when price is around 1 than when price is at 20000 :math:`$`. That is why I ended up looking only at the :code:`mape` on regression tasks and :code:`accuracy` on
+    to have a :code:`mse` of 2 :math:`$` when price is around 1 than when price is at 20000 :math:`$`. That is why I ended up looking only at the :code:`mape` on regression tasks and :code:`accuracy` on
     classification tasks. Nevertheless, the rest of the metrics are also computed and logged.
