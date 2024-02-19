@@ -3,13 +3,13 @@
 Training
 ========
 This section describes the optimization process of the model. I want to delve a bit deeper into the training process in
-`jax` and `flax` as it has **some differences** from the usual `torch` **workflow**. I assume you are familiar with deep learning so
+:code:`jax` and :code:`flax` as it has **some differences** from the usual `torch` **workflow**. I assume you are familiar with deep learning so
 this will not be a tutorial.
 
-First of all, we need an **optimization library** for `jax`: `optax <https://optax.readthedocs.io/en/latest/>`_. This library
-allows to define **learning rate schedulers** and also **optimizers** such as `adamw`. In the configuration file you can chose from
+First of all, we need an **optimization library** for :code:`jax`: `optax <https://optax.readthedocs.io/en/latest/>`_. This library
+allows to define **learning rate schedulers** and also **optimizers** such as :code:`adamw`. In the configuration file you can chose from
 a linear learning rate scheduler or a warmup cosine learning rate scheduler. Last one is widely used when training transformer models.
-`optax` does not provide this scheduler by default, but can be easily implemented by joining the `cosine` and `linear` schedulers:
+:code:`optax` does not provide this scheduler by default, but can be easily implemented by joining the :code:`cosine` and :code:`linear` schedulers:
 
 .. code-block:: python
 
@@ -47,16 +47,16 @@ a linear learning rate scheduler or a warmup cosine learning rate scheduler. Las
         return schedule_fn
 
 
-Even `optax` also has several loss functions implemented, I coded my own functions (code is indeed very similar). `flax` **does not store the model parameters in the model itself**. This the main difference from `torch`. Instead, the model
-parameters are stored in a separate `params` object. This object is passed to the `apply` method of the model. Therefore, the
-process of training the model will be:
+Even :code:`optax` also has several loss functions implemented, I coded my own functions (code is indeed very similar). :code:`flax` **does not store the model parameters in the model itself**. This the main difference from :code:`torch`. Instead, the model
+parameters are stored in a separate :code:`params` object. This object is passed to the :code:`apply` method of the model. Therefore, the
+process of calling (inference) the model will be:
 
 #. :code:`params = model.init(rng, input_shape)` to initialize the model parameters
 #. :code:`output = model.apply(params, input)` to make a forward pass
 
-However, `flax` has a `TrainState` object that **stores the model parameters, the optimizer state and the learning rate scheduler** to
+However, :code:`flax` has a :code:`TrainState` object that **stores the model parameters, the optimizer state and the learning rate scheduler** to
 keep everything in one place. I found this really helpful. You can find more information on the `official documentation <https://flax.readthedocs.io/en/latest/api_reference/flax.training.html#flax.training.train_state.TrainState>`_.
-`TrainState` is easily created by:
+:code:`TrainState` is easily created by:
 
 .. code-block:: python
 
@@ -68,10 +68,10 @@ keep everything in one place. I found this really helpful. You can find more inf
         tx=optimizer
     )
 
-Another key difference is `jax` **randomness**. To obtain random numbers during training, we start with a :code:`random.PRNGKey(seed)` and then
+Another key difference is :code:`jax` **randomness**. To obtain random numbers during training, we start with a :code:`random.PRNGKey(seed)` and then
 we split this key to obtain a new key and a new subkey for each operation. This must be done if using random layers in the model
-such as `dropout`. In `torch` we only need to set the seed once and then
-everything is run from there. `jax` is a bit more complex, but comes to solve the following issue:
+such as :code:`dropout`. In :code:`torch` we only need to set the seed once and then
+everything is run from there. :code:`jax` is a bit more complex, but comes to solve the following issue:
 
 .. note::
 
@@ -97,8 +97,8 @@ For instance, we can define a checkpoint manager that saves up to 5 best models:
         restored_state = self._orbax_checkpointer.restore('model_path')['model']
 
 
-To visualize the training process, I used `tensorboard` to log the training process. This is a very useful tool to **visualize** the :ref:`metrics`
-of **train and test set**. There is also an `early stopper` class to **stop the training process** if the test metric does not improve after
+To visualize the training process, I used :code:`tensorboard` to log the training process. This is a very useful tool to **visualize** the :ref:`metrics`
+of **train and test set**. There is also an :code:`early stopper` class to **stop the training process** if the test metric does not improve after
 a certain number of epochs.
 
 
@@ -141,6 +141,6 @@ following table shows the metrics used for each case:
       - Mean Squared Error, Mean Average Percentage Error, R2 Score, Mean Absolute Error
 
 .. note::
-    Metrics are computed with normalized data, so we must be careful. I found absolute magnitudes such as `mse` meaningful as it is not the same
-    to have a `mse` of 2 :math:`$` when price is around 1 than when price is at 20000 :math:`$`. That is why I ended up looking only at the `mape` on regression tasks and `accuracy` on
+    Metrics are computed with normalized data, so we must be careful. I found absolute magnitudes such as :code:`mse` meaningful as it is not the same
+    to have a `mse` of 2 :math:`$` when price is around 1 than when price is at 20000 :math:`$`. That is why I ended up looking only at the :code:`mape` on regression tasks and :code:`accuracy` on
     classification tasks. Nevertheless, the rest of the metrics are also computed and logged.

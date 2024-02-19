@@ -23,20 +23,20 @@ Create a python **venv** and source it:
     python -m venv venv
     source venv/bin/activate
 
-Install your desired `jax` version (more info at `jax installation official doc <https://jax.readthedocs.io/en/latest/installation.html>`_).
-For example, if already installed `CUDA 12` on linux (make sure to have exported to `PATH` your `CUDA` version):
+Install your desired :code:`jax` version (more info at `jax installation official doc <https://jax.readthedocs.io/en/latest/installation.html>`_).
+For example, if already installed :code:`CUDA 12` on linux (make sure to have exported to :code:`PATH` your :code:`CUDA` version):
 
 .. code-block:: bash
 
     (venv) $ pip install jax[cuda12_local] -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
 
-Then install the rest of the dependencies (which are in the `requirements.txt` file):
+Then install the rest of the dependencies (which are in the :code:`requirements.txt` file):
 
 .. code-block:: bash
 
     (venv) $ pip install .
 
-You could have omitted the `jax` installation as `flax` library installs it, but it **is preferred to select the proper version** of `jax`
+You could have omitted the :code:`jax` installation as :code:`flax` library installs it, but it **is preferred to select the proper version** of :code:`jax`
 **according to the hardware**.
 
 .. _running_the_code:
@@ -45,7 +45,7 @@ Running the code
 ----------------
 Dataset
 ~~~~~~~
-You should first unzip the dataset in the `dataset` folder.
+You should first unzip the dataset in the :code:`dataset` folder.
 
 .. code-block:: bash
 
@@ -55,7 +55,7 @@ You should first unzip the dataset in the `dataset` folder.
 Training
 ~~~~~~~~
 
-The training of the model is made really easy, as simple as creating a **trainer** with the experiment configuration and calling the `train_and_evaluate` method:
+The training of the model is made really easy, as simple as creating a **trainer** with the experiment configuration and calling the :code:`train_and_evaluate` method:
 
 .. code-block:: python
 
@@ -71,7 +71,7 @@ The training of the model is made really easy, as simple as creating a **trainer
 
 Configuration
 ~~~~~~~~~~~~~
-An example of the **experiment configuration** is in the `training_config.py` file:
+An example of the **experiment configuration** is in the :code:`training_config.py` file:
 
 .. code-block:: python
 
@@ -134,7 +134,7 @@ Inference
 ~~~~~~~~~
 
 An **agent class** has been created so you can load a trained model and use it by calling with a proper input. Agent
-can infer by using `__call__` method:
+can infer by using :code:`__call__` method:
 
 .. code-block:: python
 
@@ -166,6 +166,6 @@ can infer by using `__call__` method:
                                          initial_date=initial_date[0], output_mode=agent.config.model_config["output_mode"],
                                          discrete_grid_levels=agent.config.dataset_config.discrete_levels)
 
-On this example, a `jaxer` **agent** is created with the **best weights** of the experiment `exp_1`.
-The `plot_entire_dataset` flag is used to plot over the entire dataset (train and test), which is useful to see model performance (debug if overfitting or generalization).
+On this example, a :code:`jaxer` **agent** is created with the **best weights** of the experiment :code:`exp_1`.
+The :code:`plot_entire_dataset` flag is used to plot over the entire dataset (train and test), which is useful to see model performance (debug if overfitting or generalization).
 Finally, the agent is used to predict on separate windows from the test set to see a more detailed prediction.

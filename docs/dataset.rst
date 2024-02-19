@@ -41,7 +41,7 @@ An example of a time point of 1h resolution on *'btc_usd'* ticker is:
         "tradesDone": 15347.0
     },
 
-You can find the data in the `/data/dataset/` folder. Data has been compressed to be uploaded to the repository. Available data is:
+You can find the data in the :code:`/data/dataset/` folder. Data has been compressed to be uploaded to the repository. Available data is:
 
 +------------+--------------+----------------+----------------+
 | Resolution | Tickers      | Initial Date   | End Date       |
@@ -109,16 +109,16 @@ large then resolution may be lost. If using multiple tickers, it is more pronoun
 .. list-table:: Implemented normalization methods
    :widths: 25 25 25 25 25
 
-   * - `window_minmax`
-     - `window_meanstd`
-     - `global_minmax`
-     - `global_meanstd`
-     - `none`
+   * - :code:`window_minmax`
+     - :code:`window_meanstd`
+     - :code:`global_minmax`
+     - :code:`global_meanstd`
+     - :code:`none`
 
 Dataset class
 ~~~~~~~~~~~~~
 The dataset class has been implemented using **PyTorch** since there is no native version in Flax or JAX that provides
-the same functionality. To make it compatible with **JAX**, a function `jax_collate_fn` has been implemented to transform data into `jnp.array`s
+the same functionality. To make it compatible with **JAX**, a function :code:`jax_collate_fn` has been implemented to transform data into :code:`jnp.array`
 according to the `JAX official documentation <https://jax.readthedocs.io/en/latest/notebooks/Neural_Network_and_Data_Loading.html>`_.
 
 .. code-block:: python
@@ -150,13 +150,13 @@ For better understanding of generalization capabilities, the test set is taken f
 When training with multiple tickers, the test set is taken from the last dataset components of every ticker.
 Therefore, we **can test the model's performance on each ticker separately**.
 
-Dataset compute internally the **normalization method**, and return it on the `__item__` function to later plotting or denormalizing for metric computing.
+Dataset compute internally the **normalization method**, and return it on the :code:`__item__` function to later plotting or denormalizing for metric computing.
 As previously mentioned, dataset can manage the inclusion of financial indicators if provided in the configuration file.
 
-As you must have noticed, the `jax_collate_fn` return several components:
+As you must have noticed, the :code:`jax_collate_fn` return several components:
 
 #. **batched_jax_sequence_tokens**: batched sequence tokens (aka time points).
-#. **batched_jax_extra_tokens**: batched extra tokens (values that are not sequences, just single values as window std, sentiment analysis, etc.). Sequence is split from extra tokens as they cannot be batched together in a `jnp.array`. For the moment, only std values are included here.
+#. **batched_jax_extra_tokens**: batched extra tokens (values that are not sequences, just single values as window std, sentiment analysis, etc.). Sequence is split from extra tokens as they cannot be batched together in a :code:`jnp.array`. For the moment, only std values are included here.
 #. **batched_jax_labels**: next time point to predict (aka labels).
 #. **norms**: a dict with the normalizers for that window (price, volume, etc.).
 

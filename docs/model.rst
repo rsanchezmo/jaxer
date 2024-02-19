@@ -46,8 +46,8 @@ that will feed the prediction head. This is the same for all three approaches. T
    <p style="text-align: center;"><em>Jaxer's backbone</em></p>
 
 
-Model has been implemented using the compact version of `flax` (`setup vs compact <https://flax.readthedocs.io/en/latest/guides/flax_fundamentals/setup_or_nncompact.html>`_) which allows to define the layers of the module inside the
-`__call__` method. The `setup` method is more `torch` alike. Example of the implementation of `FeedForward` block:
+Model has been implemented using the compact version of :code:`flax` (`setup vs compact <https://flax.readthedocs.io/en/latest/guides/flax_fundamentals/setup_or_nncompact.html>`_) which allows to define the layers of the module inside the
+:code:`__call__` method. The :code:`setup` method is more :code:`torch` alike. Example of the implementation of :code:`FeedForward` block:
 
 .. code-block:: python
 
@@ -99,7 +99,7 @@ This is the most basic approach, and it consists of having a single neuron in th
 The prediction backbone is identical across the three approaches, and I will explain it only once here.
 
 Prediction head consists on a **set of dense layers** or **residual blocks** (if residual connections are enabled) that map
-`(batch_size, d_model)` to `(batch_size, 1)`. The output of the model is the mean of the sequence, which is the actual
+:code:`(batch_size, d_model)` to :code:`(batch_size, 1)`. The output of the model is the mean of the sequence, which is the actual
 prediction.
 
 Loss Function
@@ -114,7 +114,7 @@ problems, and it is defined as:
 Where :math:`y_i` is the actual value and :math:`\hat{y}_i` is the predicted value. However, there are other loss functions
 that could be used such as the **mean average percentage error** or the **huber loss**.
 
-The `jax` implementation of the loss function is:
+The :code:`jax` implementation of the loss function is:
 
 .. code-block:: python
 
@@ -124,15 +124,15 @@ The `jax` implementation of the loss function is:
         return jnp.mean(jnp.square(y_true - y_pred))
 
 .. note::
-    `@jax.jit` decorator is used to compile the function to make it faster. Thanks to XLA, the function is compiled and
-    acts like a graph. Not every function can be `jitted`. More information
-    about `@jax.jit` can be found in the `jax documentation <https://jax.readthedocs.io/en/latest/notebooks/thinking_in_jax.html>`_.
+    :code:`@jax.jit` decorator is used to compile the function to make it faster. Thanks to XLA, the function is compiled and
+    acts like a graph. Not every function can be :code:`jitted`. More information
+    about :code:`@jax.jit` can be found in the `jax documentation <https://jax.readthedocs.io/en/latest/notebooks/thinking_in_jax.html>`_.
 
 .. _distribution prediction:
 
 Distribution prediction
 -----------------------
-One thing I had in mind when designing the model was to be able to predict the **uncertainty**. `How sure is
+One thing I had in mind when designing the model was to be able to predict the **uncertainty**. :code:`How sure is
 the model about the prediction?` This question is extremely important because in the financial world, it is not only important to predict the
 price but also to know the confidence of it (as in computer deep learning object detection). To be clear, if the model predicts that price is going up
 but it is not sure about it, it is not a good idea to take a decision based on that prediction.
@@ -160,7 +160,7 @@ log likelihood of the predicted distribution. The **negative log likelihood** is
 I did not add the **KL divergence** to the loss function, but as it measures how different two distributions are, it could be
 interesting to add it to the loss function.
 
-The `jax` implementation of the loss function is:
+The :code:`jax` implementation of the loss function is:
 
 .. code-block:: python
 
@@ -198,7 +198,7 @@ penalizes models based on the difference between the predicted probability and t
 prediction probability falls close to 1 for the true class and close to 0 the
 other ones.
 
-The `jax` implementation of the loss function is:
+The :code:`jax` implementation of the loss function is:
 
 .. code-block:: python
 
