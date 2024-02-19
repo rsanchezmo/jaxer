@@ -166,6 +166,6 @@ can infer by using `__call__` method:
                                          initial_date=initial_date[0], output_mode=agent.config.model_config["output_mode"],
                                          discrete_grid_levels=agent.config.dataset_config.discrete_levels)
 
-On this example, a **`jaxer` agent** is created with the **best weights** of the experiment `exp_1`.
+On this example, a `jaxer` **agent** is created with the **best weights** of the experiment `exp_1`.
 The `plot_entire_dataset` flag is used to plot over the entire dataset (train and test), which is useful to see model performance (debug if overfitting or generalization).
 Finally, the agent is used to predict on separate windows from the test set to see a more detailed prediction.

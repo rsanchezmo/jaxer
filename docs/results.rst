@@ -3,21 +3,25 @@
 Results
 =======
 
-In this section, some of the results are presented for each of the model variations. Final conclusions are also depicted.
+Hardware
+--------
+The code was run on my laptop which has an **Intel Core i9-13900H CPU @ 5.4GHz** with **32GB of RAM** and a **NVIDIA RTX 4070 8GB GPU**.
+As you will see on the :ref:`conclusions` section, **this was my biggest bottleneck**, even it is a very powerful machine.
 
-Output Distribution
+Mean Prediction
 -------------------
-
 TBC
 
-Output Mean
+Distribution Prediction
 -----------
 TBC
 
-Output Discrete Grid
+Classification Prediction
 --------------------
 TBC
 
+
+.. _conclusions:
 
 Conclusions
 -----------
