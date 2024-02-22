@@ -6,10 +6,12 @@ LOGGER_NAME = os.getenv('LOGGER_NAME', DEFAULT_LOGGER_NAME)
 
 
 def get_logger():
-    """Provide the LOGGER_NAME logger. If is not the default logger,
-        it means that the user has already managed to configure the logger, so we don't do anything. If it is the
-        default logger, we configure it with a StreamHandler and a default formatter. If the logger is already
-        configured, we just return it.
+    """Provides the LOGGER_NAME logger. If is not the default logger, it means that the user has already managed to
+    configure the logger with a env variable: 'LOGGER_NAME'. If it is the default logger,
+    we configure it with a StreamHandler and a default formatter. If the logger is already configured, we just return
+    it (as a singleton).
+
+    :return: logging.Logger
     """
 
     if LOGGER_NAME not in logging.Logger.manager.loggerDict.keys():

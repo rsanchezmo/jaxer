@@ -156,13 +156,13 @@ class Dataset(torch.utils.data.Dataset):
                                                                                            sequence_data_volume,
                                                                                            sequence_data_trades)
 
-        # normalize data
+        # data normalization
         sequence_data_price = normalize(sequence_data_price, normalizer_price)
-        sequence_data_price_std = sequence_data_price.std().std() * 100
+        sequence_data_price_std = sequence_data_price.std().std() * 20
         sequence_data_volume = normalize(sequence_data_volume, normalizer_volume)
-        sequence_data_volume_std = sequence_data_volume.std()['volume'] * 100
+        sequence_data_volume_std = sequence_data_volume.std()['volume'] * 20
         sequence_data_trades = normalize(sequence_data_trades, normalizer_trades)
-        sequence_data_trades_std = sequence_data_trades.std()['tradesDone'] * 100
+        sequence_data_trades_std = sequence_data_trades.std()['tradesDone'] * 20
 
         if sequence_data_indicators is not None:
             sequence_data_indicators = self._normalize_indicators(sequence_data_indicators, normalizer_price)
@@ -197,11 +197,27 @@ class Dataset(torch.utils.data.Dataset):
         extra_tokens = np.array([sequence_data_price_std, sequence_data_volume_std, sequence_data_trades_std],
                                 dtype=np.float32)
 
+        extra_tokens = self._encode_tokens(extra_tokens)
+
         return jnp.array(timepoints_tokens), jnp.array(extra_tokens), jnp.array(label), normalizer, \
             timestep.strftime("%Y-%m-%d")
 
     def __len__(self) -> int:
         return sum(self._data_len)
+
+    @staticmethod
+    def _encode_tokens(tokens: np.ndarray) -> np.ndarray:
+        """ Encodes the tokens into integer (tokens are expected to be on [0, 1])
+
+        :param tokens: tokens to encode
+        :type tokens: np.ndarray
+
+        :return: encoded tokens
+        :rtype: np.ndarray
+        """
+        tokens = np.round(tokens * 100).astype(np.int16)
+        tokens = np.clip(tokens, 0, 101)
+        return tokens
 
     def _normalize_indicators(self, sequence_data_indicators, normalizer_price):
         """ Normalizes the indicators that require to be normalized with the price """

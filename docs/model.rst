@@ -18,9 +18,11 @@ I assume that at this point, you're familiar with the transformer architecture. 
 `Attention is All You Need <https://arxiv.org/abs/1706.03762>`_.
 
 Before passing through the encoder, a feature extractor has been integrated, which calculates embeddings with size d_model.
-This mechanism is the same as transformation of text tokens into vector tokens in a language model.
+I could have **quantized** the input sequence timepoints to reduce the dimensionality (continuous to discrete), then get an **integer token** and pass it through
+an **embedding layer** (same as with language). In fact, I followed that approach with :code:`extra_tokens`. Which where actually not sequences but
+extra information that could be added to the transformer input. For instance, the **std of the window**, the **sentiment score**...
 
-As we are working merely with sequences, we need a way to represent the position of each token in the sequence. That is because
+As we are working merely with **sequences**, we need a way to represent the position of each token in the sequence. That is because
 attention mechanisms are permutation invariant (it computes a weighted sum of the input tokens). To solve this, I have implemented
 the **absolute positional encoding** as described in the paper. Additionally, I have integrated `Time2Vec <https://arxiv.org/abs/1907.05321>`_,
 which claims to be a **powerful representation of time** (it computes a **linear** and a **sinusoidal** representation of time).

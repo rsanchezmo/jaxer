@@ -472,13 +472,20 @@ class Encoder(nn.Module):
     config: TransformerConfig
 
     @nn.compact
-    def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
+    def __call__(self, x: jnp.ndarray, extra_tokens: jnp.ndarray) -> jnp.ndarray:
         """ Applies the encoder module """
 
         """ Feature Embeddings"""
         input_embeddings = FeatureExtractor(
             config=self.config
         )(x[:, :, :-1])
+
+        extra_token_embeddings = nn.Embed(
+            num_embeddings=101,  # vocab size of 100
+            features=self.config.d_model,
+            dtype=self.config.dtype,
+            embedding_init=self.config.kernel_init
+        )(extra_tokens)
 
         """ Time2Vec """
         if self.config.use_time2vec:
@@ -496,6 +503,8 @@ class Encoder(nn.Module):
             x = AddPositionalEncoding(
                 config=self.config
             )(input_embeddings)
+
+        x = jnp.concatenate([x, extra_token_embeddings], axis=1)
 
         """ Encoder Blocks """
         for _ in range(self.config.num_layers):
@@ -590,7 +599,7 @@ class Transformer(nn.Module):
         """ Encoder """
         x = Encoder(
             config=self.config
-        )(time_point_tokens)
+        )(time_point_tokens, extra_tokens)
 
         """ Regression Head """
         # x = nn.LayerNorm(dtype=self.config.dtype)(x)

@@ -139,8 +139,6 @@ according to the `JAX official documentation <https://jax.readthedocs.io/en/late
     batched_jax_labels = jnp.stack(labels)
 
     return (batched_jax_sequence_tokens, batched_jax_extra_tokens), batched_jax_labels, norms, timesteps
-
-
 The dataset class allows training with **multiple tickers**. Internally, it loads into a pandas dataframe the file of each ticker
 (in the specified JSON format) and manages training with data from each one altogether. This has been added because training
 with only one ticker resulted in too few data (you will see on :ref:`results` section), and because the more variability and patterns the agent sees, the better
@@ -156,22 +154,37 @@ As previously mentioned, dataset can manage the inclusion of financial indicator
 As you must have noticed, the :code:`jax_collate_fn` return several components:
 
 #. **batched_jax_sequence_tokens**: batched sequence tokens (aka time points).
-#. **batched_jax_extra_tokens**: batched extra tokens (values that are not sequences, just single values as window std, sentiment analysis, etc.). Sequence is split from extra tokens as they cannot be batched together in a :code:`jnp.array`. For the moment, only std values are included here.
+#. **batched_jax_extra_tokens**: batched extra tokens (values that are not sequences, just single values as window std, sentiment analysis, etc.). Sequence is split from extra tokens as they cannot be batched together in a :code:`jnp.array`. For the moment, only std values are included here (I know they should not help much for training, but it is just for educational purposes). I have **quantized them into integer tokens**, for simplicity with 100 tokens of vocabulary.
+
+    .. code-block:: python
+
+        def _encode_tokens(tokens: np.ndarray) -> np.ndarray:
+            """ Encodes the tokens into integer (tokens are expected to be on [0, 1])
+
+            :param tokens: tokens to encode
+            :type tokens: np.ndarray
+
+            :return: encoded integer tokens
+            :rtype: np.ndarray
+            """
+            tokens = np.round(tokens * 100).astype(np.int16)
+            tokens = np.clip(tokens, 0, 101)
+            return tokens
 #. **batched_jax_labels**: next time point to predict (aka labels).
 #. **norms**: a dict with the normalizers for that window (price, volume, etc.).
 
-   .. code-block:: python
+    .. code-block:: python
 
-      self._global_normalizer = dict(
-         price=dict(min_val=self._data[0][Dataset.OHLC].min().min(),
-                    max_val=self._data[0][Dataset.OHLC].max().max(),
-                    mode="minmax"),
-         volume=dict(min_val=self._data[0]['volume'].min().min(),
-                     max_val=self._data[0]['volume'].max().max(),
-                     mode="minmax"),
-         trades=dict(min_val=self._data[0]['tradesDone'].min().min(),
-                     max_val=self._data[0]['tradesDone'].max().max(),
-                     mode="minmax"))
+        self._global_normalizer = dict(
+            price=dict(min_val=self._data[0][Dataset.OHLC].min().min(),
+                        max_val=self._data[0][Dataset.OHLC].max().max(),
+                        mode="minmax"),
+            volume=dict(min_val=self._data[0]['volume'].min().min(),
+                        max_val=self._data[0]['volume'].max().max(),
+                        mode="minmax"),
+            trades=dict(min_val=self._data[0]['tradesDone'].min().min(),
+                        max_val=self._data[0]['tradesDone'].max().max(),
+                        mode="minmax"))
 #. **timesteps**: the time value of each time point (useful for plotting and for time2vec).
 
 

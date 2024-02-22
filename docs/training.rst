@@ -144,3 +144,9 @@ following table shows the metrics used for each case:
     Metrics are computed with normalized data, so we must be careful. I found absolute magnitudes such as :code:`mse` meaningful as it is not the same
     to have a :code:`mse` of 2 :math:`$` when price is around 1 than when price is at 20000 :math:`$`. That is why I ended up looking only at the :code:`mape` on regression tasks and :code:`accuracy` on
     classification tasks. Nevertheless, the rest of the metrics are also computed and logged.
+
+Hyperparameter search
+---------------------
+I have also included a **very simple hyperparameter search module**. This module just runs **multiple experiments sequentially**
+by providing set of hyperparameters. May add complex hyperparameter search in the future, but kept as simple as possible
+as this was not the main focus of the project. This module purpose was to get to the results presented in the :ref:`results` section.
