@@ -4,7 +4,7 @@ from typing import Tuple, Any
 import numpy as np
 import torch.utils.data
 import jax.numpy as jnp
-from typing import Union, List
+from typing import Union, List, Optional
 import os
 import itertools
 from jaxer.utils.logger import get_logger
@@ -260,11 +260,15 @@ class Dataset(torch.utils.data.Dataset):
 
         return normalizer_price, normalizer_volume, normalizer_trades
 
-    def get_train_test_split(self, test_size: float = 0.1) -> Tuple[torch.utils.data.Dataset, torch.utils.data.Dataset]:
+    def get_train_test_split(self, test_size: float = 0.1,
+                             test_tickers: Optional[List[str]] = None) -> Tuple[torch.utils.data.Dataset, torch.utils.data.Dataset]:
         """ Returns a train and test set from the dataset
 
         :param test_size: test size
         :type test_size: float
+
+        :param test_tickers: tickers to include in the test set. If None, all tickers are included
+        :type test_tickers: Optional[List[str]]
 
         :return: train and test dataset
         :rtype: Tuple[torch.utils.data.Dataset, torch.utils.data.Dataset]
@@ -274,6 +278,9 @@ class Dataset(torch.utils.data.Dataset):
         train_ranges = []
         test_ranges = []
         for ticker in range(len(self._data_len)):
+            if test_tickers is not None and self._tickers[ticker] not in test_tickers:
+                continue
+
             test_samples = int(self._data_len[ticker] * test_size)
             train_samples = self._data_len[ticker] - test_samples
 

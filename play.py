@@ -10,7 +10,10 @@ if __name__ == '__main__':
     """ DATALOADERS """
     dataset = jaxer.utils.Dataset(dataset_config=agent.config.dataset_config)
 
-    train_ds, test_ds = dataset.get_train_test_split(test_size=agent.config.test_split)
+    train_ds, test_ds = dataset.get_train_test_split(test_size=agent.config.test_split,
+                                                     test_tickers=agent.config.test_tickers)
+
+    """ INFERENCE """
 
     # infer entire dataset
     plot_entire_dataset = False

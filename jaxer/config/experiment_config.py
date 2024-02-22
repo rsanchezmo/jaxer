@@ -2,6 +2,7 @@ from dataclasses import dataclass, asdict
 import json
 from jaxer.config.dataset_config import DatasetConfig
 from jaxer.config.model_config import ModelConfig
+from typing import List
 
 
 @dataclass
@@ -38,6 +39,9 @@ class ExperimentConfig:
     :param test_split: test split (between 0 and 1)
     :type test_split: float
 
+    :param test_tickers: list of tickers to test
+    :type test_tickers: List[str]
+
     :param seed: seed for reproducibility
     :type seed: int
     """
@@ -52,6 +56,7 @@ class ExperimentConfig:
     dataset_config: DatasetConfig
     batch_size: int
     test_split: float
+    test_tickers: List[str]
     seed: int
     save_weights: bool
     early_stopper: int

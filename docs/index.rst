@@ -21,19 +21,17 @@ Training details are covered in the section :ref:`training` (e.g. learning rate 
 The section :ref:`results` will cover some results obtained with each model and end up with overall conclusions.
 In the section :ref:`api` you will find the API documentation to better understand how code is structured.
 
-.. warning::
-   The code is already implemented. Some tests will be conducted in the following days (may find some bugs and will fix them). Documentation is still in progress. Hope to end it soon!
-
 .. image:: images/btc_transformer.png
 
 .. raw:: html
 
-   <p style="text-align: center;"><em>Render of a transformer model as a hologram, projecting from a digital device, with a faint BTC logo in the holographic projection, without any text (DALLE-3)</em></p>
+   <p style="text-align: center;"><em>Render of a transformer model as a hologram, projecting from a digital device, with a faint BTC logo in the holographic projection, without any text (DALLE·3)</em></p>
 
 Contents
 --------
 
 .. toctree::
+   :maxdepth: 3
 
    Home <self>
    usage
@@ -50,7 +48,7 @@ Contents
 Citation
 ========
 
-If you find Jaxer useful, please consider citing:
+If you find :code:`jaxer` useful, please consider citing:
 
 .. code-block:: bibtex
 

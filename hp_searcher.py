@@ -116,10 +116,11 @@ if __name__ == '__main__':
                                   warmup_epochs=warmup_epochs,
                                   batch_size=batch_size,
                                   test_split=0.1,
+                                  test_tickers=['btc_usd'],
                                   seed=0,
                                   save_weights=True,
                                   dataset_config=dataset_config,
-                                  early_stopper=10000
+                                  early_stopper=100
                                   )
 
         trainer = Trainer(config=config)

@@ -75,7 +75,7 @@ everything is run from there. :code:`jax` is a bit more complex, but comes to so
 
 .. note::
 
-    `"The problem with torch magic PRNG state is that it’s hard to reason about how it’s being used and updated across different threads, processes, and devices, and it’s very easy to screw up when the details of entropy production and consumption are hidden from the end user"`.
+    The problem with torch magic PRNG state is that it’s hard to reason about how it’s being used and updated across different threads, processes, and devices, and it’s very easy to screw up when the details of entropy production and consumption are hidden from the end user.
 
 Additionally, I found interesting the use of :code:`orbax` to manage **checkpoint saving and loading** and it is recommended by `flax <https://flax.readthedocs.io/en/latest/guides/training_techniques/use_checkpointing.html>`_.
 For instance, we can define a checkpoint manager that saves up to 5 best models:
@@ -101,6 +101,38 @@ To later visualize the training process, I used :code:`tensorboard` to record lo
 of **train and test set**. There is also an :code:`early stopper` class to **stop the training process** if the test metric does not improve after
 a certain number of epochs.
 
+.. code-block:: python
+
+    @dataclass
+    class EarlyStopper:
+        """Early stopper class
+
+        :param max_epochs: max number of epochs without improvement
+        :type max_epochs: int
+
+        :param n_epochs: number of epochs without improvement
+        :type n_epochs: int
+
+        :param optim_value: best optimization value
+        :type optim_value: float
+        """
+        max_epochs: int
+        n_epochs: int = 0
+        optim_value: float = 1e9
+
+        def __call__(self, optim_value: float):
+            """ Returns True if the training should stop """
+            if optim_value < self.optim_value:
+                self.optim_value = optim_value
+                self.n_epochs = 0
+                return False
+
+            self.n_epochs += 1
+
+            if self.n_epochs >= self.max_epochs:
+                return True
+
+            return False
 
 Configuration
 -------------
@@ -118,6 +150,7 @@ Training configuration must be filled on its dataclass:
     dataset_config: DatasetConfig  # dataset configuration
     batch_size: int  # batch size
     test_split: float  # test split (between 0 and 1)
+    test_tickers: List[str]  # tickers to test
     seed: int  # initial seed for reproducibility
     save_weights: bool  # save weights during training
     early_stopper: int  # early stopper patience (number of epochs without improvement)
@@ -141,12 +174,137 @@ following table shows the metrics used for each case:
       - Mean Squared Error, Mean Average Percentage Error, R2 Score, Mean Absolute Error
 
 .. note::
-    Metrics are computed with normalized data, so we must be careful. I found absolute magnitudes such as :code:`mse` meaningful as it is not the same
-    to have a :code:`mse` of 2 :math:`$` when price is around 1 than when price is at 20000 :math:`$`. That is why I ended up looking only at the :code:`mape` on regression tasks and :code:`accuracy` on
-    classification tasks. Nevertheless, the rest of the metrics are also computed and logged.
+    Metrics were initially computed with normalized data, but it did not allow to compare over different normalization methods (the only normalization independent metric was :code:`mape`).
+    For comparison reasons, I decided to **denormalize predictions and compute metrics with the original data**. This way, we can compare the metrics over different models and normalization methods.
+    I found absolute magnitudes such as :code:`mse` not to be very explanatory as it is not the same to have a :code:`mse` of :code:`2$` when price is around 1 than when price is at :code:`20000$`.
 
 Hyperparameter search
 ---------------------
 I have also included a **very simple hyperparameter search module**. This module just runs **multiple experiments sequentially**
 by providing set of hyperparameters. May add complex hyperparameter search in the future, but kept as simple as possible
 as this was not the main focus of the project. This module purpose was to get to the results presented in the :ref:`results` section.
+
+.. code-block:: python
+
+    model_config_ranges = {
+        'd_model': [128, 256, 512],
+        'num_layers': [1, 2, 3],
+        'head_layers': [1, 2, 3],
+        'n_heads': [1, 2, 4],
+        'dim_feedforward': [2, 4],
+        'dropout': [0.0, 0.05, 0.1],
+        'max_seq_len': [12, 24, 36, 48],
+        'flatten_encoder_output': [False],
+        'fe_blocks': [1, 2],
+        'use_time2vec': [False, True],
+        'output_mode': ['mean'],
+        'use_resblocks_in_head': [False, True],
+        'use_resblocks_in_fe': [False, True],
+        'average_encoder_output': [False, True],
+        'norm_encoder_prev': [False, True]
+    }
+
+    training_ranges = {
+        'learning_rate': [1e-4, 1e-5],
+        'lr_mode': ['linear', 'cosine'],
+        'warmup_epochs': [5, 10, 20],
+        'batch_size': [64, 128],
+        'normalizer_mode': ['global_minmax', 'global_meanstd', 'window_meanstd', 'window_minmax'],
+        'resolution': ['4h'],
+        'tickers': ['btc_usd', 'eth_usd']
+    }
+
+    n_trainings = 20
+    trained_set = set()
+
+    counter_trains = 0
+    logger = get_logger()
+
+    while counter_trains < n_trainings:
+        logger.info(f"Training {counter_trains + 1}/{n_trainings}")
+
+        d_model = int(np.random.choice(model_config_ranges['d_model']))
+        num_layers = int(np.random.choice(model_config_ranges['num_layers']))
+        head_layers = int(np.random.choice(model_config_ranges['head_layers']))
+        n_heads = int(np.random.choice(model_config_ranges['n_heads']))
+        dim_feedforward = d_model * int(np.random.choice(model_config_ranges['dim_feedforward']))
+        dropout = float(np.random.choice(model_config_ranges['dropout']))
+        max_seq_len = int(np.random.choice(model_config_ranges['max_seq_len']))
+        flatten_encoder_output = bool(np.random.choice(model_config_ranges['flatten_encoder_output']))
+        fe_blocks = int(np.random.choice(model_config_ranges['fe_blocks']))
+        use_time2vec = bool(np.random.choice(model_config_ranges['use_time2vec']))
+        output_mode = str(np.random.choice(model_config_ranges['output_mode']))
+        use_resblocks_in_head = bool(np.random.choice(model_config_ranges['use_resblocks_in_head']))
+        use_resblocks_in_fe = bool(np.random.choice(model_config_ranges['use_resblocks_in_fe']))
+        average_encoder_output = bool(np.random.choice(model_config_ranges['average_encoder_output']))
+        norm_encoder_prev = bool(np.random.choice(model_config_ranges['norm_encoder_prev']))
+
+        learning_rate = float(np.random.choice(training_ranges['learning_rate']))
+        lr_mode = str(np.random.choice(training_ranges['lr_mode']))
+        warmup_epochs = int(np.random.choice(training_ranges['warmup_epochs']))
+        batch_size = int(np.random.choice(training_ranges['batch_size']))
+        normalizer_mode = str(np.random.choice(training_ranges['normalizer_mode']))
+        resolution = str(np.random.choice(training_ranges['resolution']))
+        tickers = str(np.random.choice(training_ranges['tickers']))
+
+        params = (d_model, num_layers, head_layers, n_heads, dim_feedforward, dropout, max_seq_len,
+                  flatten_encoder_output, fe_blocks, use_time2vec, output_mode, use_resblocks_in_head,
+                  use_resblocks_in_fe, learning_rate, lr_mode, warmup_epochs, batch_size, normalizer_mode,
+                  resolution, tickers)
+
+        if params in trained_set:
+            logger.warning(f"Already trained {params}, skipping...")
+            continue
+
+        counter_trains += 1
+        trained_set.add(params)
+
+        model_config = ModelConfig(
+            d_model=d_model,
+            num_layers=num_layers,
+            head_layers=head_layers,
+            n_heads=n_heads,
+            dim_feedforward=dim_feedforward,
+            dropout=dropout,
+            max_seq_len=max_seq_len,
+            flatten_encoder_output=flatten_encoder_output,
+            fe_blocks=fe_blocks,
+            use_time2vec=use_time2vec,
+            output_mode=output_mode,
+            use_resblocks_in_head=use_resblocks_in_head,
+            use_resblocks_in_fe=use_resblocks_in_fe,
+            average_encoder_output=average_encoder_output,
+            norm_encoder_prev=norm_encoder_prev
+        )
+
+        dataset_config = DatasetConfig(
+            datapath='./data/datasets/data',
+            output_mode=output_mode,
+            discrete_grid_levels=[],
+            initial_date='2018-01-01',
+            norm_mode=normalizer_mode,
+            resolution=resolution,
+            tickers=[tickers],
+            indicators=None,
+            seq_len=max_seq_len
+        )
+
+        config = ExperimentConfig(model_config=model_config,
+                                  log_dir="hp_search_report",
+                                  experiment_name=output_mode,
+                                  num_epochs=500,
+                                  learning_rate=learning_rate,
+                                  lr_mode=lr_mode,
+                                  warmup_epochs=warmup_epochs,
+                                  batch_size=batch_size,
+                                  test_split=0.1,
+                                  test_tickers=['btc_usd'],
+                                  seed=0,
+                                  save_weights=True,
+                                  dataset_config=dataset_config,
+                                  early_stopper=10000
+                                  )
+
+        trainer = Trainer(config=config)
+        trainer.train_and_evaluate()
+        del trainer

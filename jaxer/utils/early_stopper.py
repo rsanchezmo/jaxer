@@ -3,9 +3,21 @@ from dataclasses import dataclass
 
 @dataclass
 class EarlyStopper:
-    max_epochs: int  # max number of epochs without improvement
-    n_epochs: int = 0
-    optim_value: float = 1e9
+    """Early stopper class
+
+    :param max_epochs: max number of epochs without improvement
+    :type max_epochs: int
+
+    :param n_epochs: number of epochs without improvement
+    :type n_epochs: int
+
+    :param optim_value: best optimization value
+    :type optim_value: float
+    """
+
+    max_epochs: int
+    n_epochs: int
+    optim_value: float
     
     def __call__(self, optim_value: float):
         """ Returns True if the training should stop """
@@ -14,8 +26,10 @@ class EarlyStopper:
             self.n_epochs = 0
             return False
         
-        self.n_epochs += 1 # NOT IMPROVED
+        self.n_epochs += 1
 
-        if self.n_epochs >= self.max_epochs:  # STOP TRAINING
+        if self.n_epochs >= self.max_epochs:
             return True
+
+        return False
         

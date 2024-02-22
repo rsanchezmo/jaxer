@@ -31,7 +31,7 @@ dataset_config = jaxer.config.DatasetConfig(
     resolution='4h',
     tickers=['btc_usd'],
     indicators=None,
-    seq_len=seq_len,
+    seq_len=seq_len
 )
 
 config = jaxer.config.ExperimentConfig(
@@ -45,6 +45,7 @@ config = jaxer.config.ExperimentConfig(
     dataset_config=dataset_config,
     batch_size=128,
     test_split=0.1,
+    test_tickers=['btc_usd'],
     seed=0,
     save_weights=True,
     early_stopper=100

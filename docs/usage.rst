@@ -8,7 +8,7 @@ Usage
 Installation
 ------------
 
-I highly recommend to clone and run the repo on **linux** device because the installation of jax and related libs is easier,
+I highly recommend to clone and run the repo on **linux** device because the installation of :code:`jax` and related libraries is easier,
 but with a bit of time you may end up running on other compatible platform. To start, just clone the repo:
 
 .. code-block:: bash

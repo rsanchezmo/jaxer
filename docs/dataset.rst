@@ -9,15 +9,15 @@ The main goal was to obtain stock data, but the **quickest way** to get the **tr
 because crypto market is always open so there is no need to provide special care to deal with day open and close, weekends or holidays.
 Ultimately, it would have required some **data mining** of the data, which was not the main objective of this project.
 
-After researching different platforms for historical cryptocurrency data, free limits, and time resolutions, the platform that best solved my needs was `Tiingo <https://www.tiingo.com/>`_.
+After researching different platforms for **historical cryptocurrency data**, **free limits**, and **time resolutions**, the platform that best solved my needs was `Tiingo <https://www.tiingo.com/>`_.
 I used the free `Tiingo Python API REST <https://www.tiingo.com/documentation/crypto>`_ to get data from different tickers and time resolutions.
 
-After exploring its API, I was able to obtain data for **different tickers** (e.g., 'btc_usd', 'eth_usd') from January 2018
-to January 2024 with a **maximum resolution of 30 minutes**. Higher resolution was impossible with the free API. However,
+After exploring its API, I was able to obtain data for **different tickers** (e.g., :code:`'btc_usd'`, :code:`'eth_usd'`) from :code:`January 2018`
+to :code:`January 2024` with a **maximum resolution of 30 minutes**. Higher resolution was impossible with the free :code:`API`. However,
 as an initial approximation, I decided not to invest money in obtaining data with higher resolution. This project purpose
 was not to create a trading bot, but to **exploit the capabilities of the transformer model**.
 
-The available information that Tiingo provides is:
+The available information (time points) that :code:`Tiingo` provides is:
 
 - **Date**: the date of the time point
 - **Low/High price**: the lowest and highest price of the asset in the time resolution
@@ -26,7 +26,7 @@ The available information that Tiingo provides is:
 - **Notional volume**: total value of the assets traded, rather than the number of units
 - **Number of trades**: the number of trades done in the time resolution
 
-An example of a time point of 1h resolution on *'btc_usd'* ticker is:
+An example of a time point of 1h resolution on :code:`'btc_usd'` ticker is:
 
 .. code-block:: json
 
@@ -41,24 +41,24 @@ An example of a time point of 1h resolution on *'btc_usd'* ticker is:
         "tradesDone": 15347.0
     },
 
-You can find the data in the :code:`/data/dataset/` folder. Data has been compressed to be uploaded to the repository. Available data is:
+You can find the data in the :code:`/data/dataset/data/` folder. Data has been **compressed** to be uploaded to the repository. Available data is:
 
-+------------+--------------+----------------+----------------+
-| Resolution | Tickers      | Initial Date   | End Date       |
-+============+==============+================+================+
-| 4h         | 'btc_usd',   | 2018-01-01T00: | 2024-01-01T00: |
-|            | 'eth_usd'    | 00:00+00:00    | 00:00+0000     |
-+------------+--------------+----------------+----------------+
-| 1h         | 'btc_usd',   | 2018-01-01T00: | 2024-01-01T00: |
-|            | 'eth_usd'    | 00:00+00:00    | 00:00+0000     |
-+------------+--------------+----------------+----------------+
-| 30m        | 'btc_usd',   | 2018-01-01T00: | 2024-01-01T00: |
-|            | 'eth_usd'    | 00:00+00:00    | 00:00+0000     |
-+------------+--------------+----------------+----------------+
++------------+----------------------+----------------+----------------+
+| Resolution |       Tickers        | Initial Date   | End Date       |
++============+======================+================+================+
+| 4h         | :code:`'btc_usd'`,   | 2018-01-01T00: | 2024-01-01T00: |
+|            | :code:`'eth_usd'`    | 00:00+00:00    | 00:00+0000     |
++------------+----------------------+----------------+----------------+
+| 1h         | :code:`'btc_usd'`,   | 2018-01-01T00: | 2024-01-01T00: |
+|            | :code:`'eth_usd'`    | 00:00+00:00    | 00:00+0000     |
++------------+----------------------+----------------+----------------+
+| 30m        | :code:`'btc_usd'`,   | 2018-01-01T00: | 2024-01-01T00: |
+|            | :code:`'eth_usd'`    | 00:00+00:00    | 00:00+0000     |
++------------+----------------------+----------------+----------------+
 
-Additionally, some **financial indicators** such as EMA, RSI, or Bollinger Bands (BB) have been included. Indicators were computed
+Additionally, some **financial indicators** such as :code:`EMA`, :code:`RSI`, or :code:`Bollinger Bands (BB)` have been included. Indicators were computed
 with code from another project, so code is not available here, but I introduced them inside each time point on the jsons as additional fields.
-I am not a trader expert (and don't pretend to!). I am **pretty sure** the model (or a future version of it) could capture
+I **am not a trader expert** (and don't pretend to!). I am **pretty sure** the model (or a future version of it) could capture
 its own **internal patterns or representations** valid for predicting price. However, I thought it would be a good idea to
 introduce them as a starting point to guide training of a simpler architecture of the model.
 
@@ -66,7 +66,7 @@ introduce them as a starting point to guide training of a simpler architecture o
 - **Relative Strength Index (RSI)**: a momentum indicator comparing average gains and losses over a specified time period to determine potential overbought or oversold conditions (14 values window).
 - **Exponential Moving Average (EMA)**: a type of moving average giving more weight to recent data points, commonly used to identify trends in different timeframes.
 
-An example of 'btc_usd' ticker with 1h resolution is:
+An example of :code:`'btc_usd'` ticker with 1h resolution is:
 
 .. code-block:: json
 
@@ -117,8 +117,8 @@ large then resolution may be lost. If using multiple tickers, it is more pronoun
 
 Dataset class
 ~~~~~~~~~~~~~
-The dataset class has been implemented using **PyTorch** since there is no native version in Flax or JAX that provides
-the same functionality. To make it compatible with **JAX**, a function :code:`jax_collate_fn` has been implemented to transform data into :code:`jnp.array`
+The dataset class has been implemented using **PyTorch** since there is no native version in :code:`flax` or :code:`jax` that provides
+the same functionality. To make it compatible with :code:`jax`, a function :code:`jax_collate_fn` has been implemented to transform data into :code:`jnp.array`
 according to the `JAX official documentation <https://jax.readthedocs.io/en/latest/notebooks/Neural_Network_and_Data_Loading.html>`_.
 
 .. code-block:: python
@@ -139,14 +139,59 @@ according to the `JAX official documentation <https://jax.readthedocs.io/en/late
     batched_jax_labels = jnp.stack(labels)
 
     return (batched_jax_sequence_tokens, batched_jax_extra_tokens), batched_jax_labels, norms, timesteps
+
 The dataset class allows training with **multiple tickers**. Internally, it loads into a pandas dataframe the file of each ticker
 (in the specified JSON format) and manages training with data from each one altogether. This has been added because training
 with only one ticker resulted in too few data (you will see on :ref:`results` section), and because the more variability and patterns the agent sees, the better
 generalization it will have, regardless of the ticker.
 
 For better understanding of generalization capabilities, the test set is taken from the last dataset components; simulating real-world prediction.
-When training with multiple tickers, the test set is taken from the last dataset components of every ticker.
-Therefore, we **can test the model's performance on each ticker separately**.
+When training with multiple tickers, the test set is taken from the last dataset components of the **selected tickers**. I mean,
+we can test the model's performance on each ticker separately, which is very valuable (e.g. we can train on every ticker, and just compare if it is better for
+:code:`'btc_usd'` prediction than only to train with :code:`'btc_usd'` data). Test set is obtained with the following method:
+
+.. code-block:: python
+
+    def get_train_test_split(self, test_size: float = 0.1,
+                             test_tickers: Optional[List[str]] = None) -> Tuple[torch.utils.data.Dataset, torch.utils.data.Dataset]:
+        """ Returns a train and test set from the dataset
+
+        :param test_size: test size
+        :type test_size: float
+
+        :param test_tickers: tickers to include in the test set. If None, all tickers are included
+        :type test_tickers: Optional[List[str]]
+
+        :return: train and test dataset
+        :rtype: Tuple[torch.utils.data.Dataset, torch.utils.data.Dataset]
+        """
+
+        # Split the dataset ranges with itertools.chain
+        train_ranges = []
+        test_ranges = []
+        for ticker in range(len(self._data_len)):
+            if test_tickers is not None and self._tickers[ticker] not in test_tickers:
+                continue
+
+            test_samples = int(self._data_len[ticker] * test_size)
+            train_samples = self._data_len[ticker] - test_samples
+
+            if ticker == 0:
+                train_ranges.append(range(0, train_samples))
+                test_ranges.append(range(train_samples, self._data_len[ticker]))
+            else:
+                train_ranges.append(
+                    range(self._unrolled_len[ticker - 1], self._unrolled_len[ticker - 1] + train_samples))
+                test_ranges.append(range(self._unrolled_len[ticker - 1] + train_samples,
+                                         self._unrolled_len[ticker - 1] + self._data_len[ticker]))
+
+        train_ranges = itertools.chain(*train_ranges)
+        test_ranges = itertools.chain(*test_ranges)
+
+        train_dataset = torch.utils.data.Subset(self, list(train_ranges))
+        test_dataset = torch.utils.data.Subset(self, list(test_ranges))
+
+        return train_dataset, test_dataset
 
 Dataset compute internally the **normalization method**, and return it on the :code:`__item__` function to later plotting or denormalizing for metric computing.
 As previously mentioned, dataset can manage the inclusion of financial indicators if provided in the configuration file.
