@@ -372,4 +372,4 @@ def jax_collate_fn(batch: List[np.ndarray]) -> Tuple:
     batched_jax_labels = jnp.stack(labels)
     batched_norms = jnp.concatenate(norms, axis=0)
 
-    return (batched_jax_sequence_tokens, batched_jax_extra_tokens), batched_jax_labels, batched_norms, *window_info
+    return (batched_jax_sequence_tokens, batched_jax_extra_tokens), batched_jax_labels, batched_norms, window_info

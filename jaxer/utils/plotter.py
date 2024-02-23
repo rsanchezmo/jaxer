@@ -127,6 +127,7 @@ def plot_predictions(x: Tuple[jnp.ndarray],
     x_hist_volume = denormalize(x_hist[0, :, 4:5], normalizer[:, 4:8])
     x_hist_trades = denormalize(x_hist[0, :, 5:6], normalizer[:, 8:12])
 
+    window_info = window_info[0]
     ticker_name = window_info.get('ticker', '')
     initial_date = window_info.get('initial_date', '')
     end_date = window_info.get('end_date', '')
