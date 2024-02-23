@@ -17,7 +17,7 @@ class AgentBase:
     """
 
     def __init__(self, experiment: str, model_name: Tuple[Optional[str], str]) -> None:
-        self.experiment_path = os.path.join("results", experiment)
+        self.experiment_path = experiment
         subfolder, self.model_name = model_name
 
         self.ckpt_path = os.path.join(self.experiment_path, 'ckpt', subfolder, self.model_name, 'default')
@@ -26,13 +26,14 @@ class AgentBase:
             raise FileNotFoundError(f"Experiment {experiment} does not exist in results folder")
 
         if not os.path.exists(os.path.join(self.experiment_path, 'configs', subfolder, 'config.json')):
-            raise FileNotFoundError(f"Config file for experiment {experiment} does not exist in results folder")
+            raise FileNotFoundError(f"Config file for experiment {experiment} does not exist")
 
         if not os.path.exists(self.ckpt_path):
             raise FileNotFoundError(f"Model {self.model_name} does not exist in experiment {experiment} "
                                     f"with subfolder {subfolder}")
 
-        self.config = ExperimentConfig.load_config(os.path.join(self.experiment_path, 'configs', subfolder, 'config.json'))
+        self.config = ExperimentConfig.load_config(os.path.join(self.experiment_path, 'configs',
+                                                                subfolder, 'config.json'))
 
         if not self.config.save_weights:
             raise ValueError("Weights were not saved during training, cannot restore model")

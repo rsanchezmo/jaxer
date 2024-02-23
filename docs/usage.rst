@@ -146,11 +146,11 @@ can infer by using :code:`__call__` method:
 
     if __name__ == '__main__':
         # load the agent with best model weights
-        experiment = "exp_1"
+        experiment = "results/exp_1"
         agent = jaxer.run.Agent(experiment=experiment, model_name=jaxer.utils.get_best_model(experiment))
 
         # create dataloaders
-        dataset = jaxer.utils.Dataset(dataset_config=agent.config.dataset_config)
+        dataset = jaxer.utils.Dataset(dataset_config=jaxer.config.DatasetConfig.from_dict(agent.config.dataset_config))
         train_ds, test_ds = dataset.get_train_test_split(test_size=agent.config.test_split, test_tickers=agent.config.test_tickers)
 
         # infer entire dataset
@@ -161,12 +161,10 @@ can infer by using :code:`__call__` method:
 
         # infer once over the test set
         test_dataloader = DataLoader(test_ds, batch_size=1, shuffle=False, collate_fn=jaxer.utils.jax_collate_fn)
-        for batch in test_dataloader:
-            input, label, normalizer, initial_date = batch
-            output = agent(input)
-            jaxer.utils.plot_predictions(input.squeeze(0), label.squeeze(0), output, normalizer=normalizer[0], name='train',
-                                         initial_date=initial_date[0], output_mode=agent.config.model_config["output_mode"],
-                                         discrete_grid_levels=agent.config.dataset_config.discrete_levels)
+        for batch in train_dataloader:
+            x, y_true, normalizer, window_info = batch
+            y_pred = agent(x)
+            jaxer.utils.plot_predictions(x=x, y_true=y_true, y_pred=y_pred, normalizer=normalizer, window_info=window_info)
 
 On this example, a :code:`jaxer` **agent** is created with the **best weights** of the experiment :code:`exp_1`.
 The :code:`plot_entire_dataset` flag is used to plot over the entire dataset (:code:`train` and :code:`test`), which is useful to see model performance (debug if overfitting or generalization).

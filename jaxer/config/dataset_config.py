@@ -43,3 +43,18 @@ class DatasetConfig:
     resolution: str
     tickers: List[str]
     indicators: Optional[List[str]]
+
+    @classmethod
+    def from_dict(cls, d: dict) -> 'DatasetConfig':
+        datapath = d['datapath']
+        seq_len = d['seq_len']
+        norm_mode = d['norm_mode']
+        initial_date = d.get('initial_date')
+        output_mode = d['output_mode']
+        discrete_grid_levels = d.get('discrete_grid_levels')
+        resolution = d['resolution']
+        tickers = d['tickers']
+        indicators = d.get('indicators')
+        return cls(datapath, seq_len, norm_mode, initial_date, output_mode, discrete_grid_levels, resolution, tickers, indicators)
+
+

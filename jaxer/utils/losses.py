@@ -46,3 +46,46 @@ def mape(y_pred: jnp.ndarray, y_true: jnp.ndarray, eps: float = 1e-6) -> jnp.nda
 def binary_cross_entropy(y_pred: jnp.ndarray, y_true: jnp.ndarray, eps: float = 1e-6) -> jnp.ndarray:
     """ Binary Cross Entropy """
     return jnp.mean(-y_true * jnp.log(y_pred + eps) - (1 - y_true) * jnp.log(1 - y_pred + eps))
+
+
+@jax.jit
+def acc_dir(y_pred: jnp.ndarray, y_true: jnp.ndarray, last_price: jnp.ndarray) -> jnp.ndarray:
+    """Direction accuracy metric
+
+    :param y_pred: predicted values
+    :type y_pred: jnp.ndarray
+
+    :param y_true: true values
+    :type y_true: jnp.ndarray
+
+    :param last_price: last close price
+    :type last_price: jnp.ndarray
+
+    :return: direction accuracy (percentage)
+    :rtype: jnp.ndarray
+    """
+
+    y_true = jnp.sign(y_true[:, 0] - last_price)  # y_true is (batch, 1) and last_price is (batch,)
+    y_pred = jnp.sign(y_pred[:, 0] - last_price)
+
+    return jnp.mean(y_true == y_pred) * 100
+
+
+@jax.jit
+def acc_dir_discrete(y_pred: jnp.ndarray, y_true: jnp.ndarray) -> jnp.ndarray:
+    """Direction accuracy metric
+
+    :param y_pred: predicted values
+    :type y_pred: jnp.ndarray
+
+    :param y_true: true values
+    :type y_true: jnp.ndarray
+
+    :return: direction accuracy (percentage)
+    :rtype: jnp.ndarray
+    """
+
+    y_true = jnp.sign(y_true)
+    y_pred = jnp.sign(y_pred)
+
+    return jnp.mean(y_true == y_pred) * 100

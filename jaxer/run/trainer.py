@@ -9,7 +9,8 @@ import json
 import orbax
 
 from jaxer.utils.plotter import plot_predictions
-from jaxer.utils.losses import gaussian_negative_log_likelihood, mae, r2, rmse, mape, binary_cross_entropy
+from jaxer.utils.losses import (gaussian_negative_log_likelihood, mae,
+                                r2, rmse, mape, binary_cross_entropy, acc_dir, acc_dir_discrete)
 from jaxer.utils.early_stopper import EarlyStopper
 from jaxer.run.trainer_base import TrainerBase
 from jaxer.utils.schedulers import create_warmup_cosine_schedule
@@ -20,7 +21,7 @@ from flax.training import orbax_utils, train_state
 
 
 class FlaxTrainer(TrainerBase):
-    """Main class for training jaxer using flax, optax and jax
+    """Trainer class for training jaxer using flax, optax and jax
 
     :param config: training config for running an experiment
     :type config: Config
@@ -223,7 +224,7 @@ class FlaxTrainer(TrainerBase):
 
     @staticmethod
     @jax.jit
-    def _compute_metrics_dist(predictions: jnp.ndarray, targets: jnp.ndarray) -> Dict:
+    def _compute_metrics_dist(predictions: jnp.ndarray, targets: jnp.ndarray, last_price: jnp.ndarray) -> Dict:
         """ Computes metrics """
 
         means, stds = predictions
@@ -232,14 +233,13 @@ class FlaxTrainer(TrainerBase):
         rmse_ = rmse(means, targets)
         r2_ = r2(means, targets)
         mape_ = mape(means, targets)
+        acc_dir_ = acc_dir(means, targets, last_price)
 
-        loss_ = gaussian_negative_log_likelihood(means, stds, targets)
-
-        return {"mae": mae_, "r2": r2_, "rmse": rmse_, "mape": mape_, "loss": loss_}
+        return {"mae": mae_, "r2": r2_, "rmse": rmse_, "mape": mape_, "acc_dir": acc_dir_}
 
     @staticmethod
     @jax.jit
-    def _compute_metrics_mean(predictions: jnp.ndarray, targets: jnp.ndarray) -> Dict:
+    def _compute_metrics_mean(predictions: jnp.ndarray, targets: jnp.ndarray, last_price: jnp.ndarray) -> Dict:
         """ Computes metrics """
         means = predictions
 
@@ -247,8 +247,9 @@ class FlaxTrainer(TrainerBase):
         rmse_ = rmse(means, targets)
         r2_ = r2(means, targets)
         mape_ = mape(means, targets)
+        acc_dir_ = acc_dir(means, targets, last_price)
 
-        return {"mae": mae_, "r2": r2_, "rmse": rmse_, "mape": mape_}
+        return {"mae": mae_, "r2": r2_, "rmse": rmse_, "mape": mape_, "acc_dir": acc_dir_}
 
     @staticmethod
     @jax.jit
@@ -257,7 +258,9 @@ class FlaxTrainer(TrainerBase):
 
         accuracy = jnp.mean(jnp.equal(jnp.argmax(predictions, axis=-1), jnp.argmax(targets, axis=-1)))
 
-        return {"accuracy": accuracy}
+        acc_dir_ = acc_dir_discrete(predictions, targets)
+
+        return {"accuracy": accuracy, "acc_dir": acc_dir_}
 
     @staticmethod
     @jax.jit
@@ -279,14 +282,15 @@ class FlaxTrainer(TrainerBase):
             r2_ = r2(means_denorm, targets_denorm)
             rmse_ = rmse(means_denorm, targets_denorm)
             mape_ = mape(means_denorm, targets_denorm)
+            acc_dir_ = acc_dir(means, targets, inputs[0][:, -1, 3])
 
             loss = rmse(means, targets)
 
-            return loss, (mae_, r2_, rmse_, mape_)
+            return loss, (mae_, r2_, rmse_, mape_, acc_dir_)
 
-        (loss, (mae_, r2_, rmse_, mape_)), grads = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
+        (loss, (mae_, r2_, rmse_, mape_, acc_dir_)), grads = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
         state = state.apply_gradients(grads=grads)
-        metrics = {"mae": mae_, "r2": r2_, "loss": loss, "rmse": rmse_, "mape": mape_}
+        metrics = {"mae": mae_, "r2": r2_, "loss": loss, "rmse": rmse_, "mape": mape_, "acc_dir": acc_dir_}
         return state, metrics
 
     @staticmethod
@@ -309,14 +313,15 @@ class FlaxTrainer(TrainerBase):
             r2_ = r2(means_denorm, targets_denorm)
             rmse_ = rmse(means_denorm, targets_denorm)
             mape_ = mape(means_denorm, targets_denorm)
+            acc_dir_ = acc_dir(means, targets, inputs[0][:, -1, 3])  # close price is at 3 idx
 
             loss = gaussian_negative_log_likelihood(means, stds, targets)
 
-            return loss, (mae_, r2_, rmse_, mape_)
+            return loss, (mae_, r2_, rmse_, mape_, acc_dir_)
 
-        (loss, (mae_, r2_, rmse_, mape_)), grads = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
+        (loss, (mae_, r2_, rmse_, mape_, acc_dir_)), grads = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
         state = state.apply_gradients(grads=grads)
-        metrics = {"mae": mae_, "r2": r2_, "loss": loss, "rmse": rmse_, "mape": mape_}
+        metrics = {"mae": mae_, "r2": r2_, "loss": loss, "rmse": rmse_, "mape": mape_, "acc_dir": acc_dir_}
         return state, metrics
 
     @staticmethod
@@ -331,12 +336,13 @@ class FlaxTrainer(TrainerBase):
             loss = binary_cross_entropy(y_pred=predictions, y_true=targets)
 
             accuracy = jnp.mean(jnp.equal(jnp.argmax(predictions, axis=-1), jnp.argmax(targets, axis=-1)))
+            acc_dir_ = acc_dir_discrete(predictions, targets)
 
-            return loss, accuracy
+            return loss, (accuracy, acc_dir_)
 
-        (loss, (accuracy)), grads = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
+        (loss, (accuracy, acc_dir_)), grads = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
         state = state.apply_gradients(grads=grads)
-        metrics = {"accuracy": accuracy, "loss": loss}
+        metrics = {"accuracy": accuracy, "loss": loss, "acc_dir": acc_dir_}
         return state, metrics
 
     def _model_eval_step(self, state: train_state.TrainState, inputs: Tuple[jnp.ndarray, jnp.ndarray],
@@ -348,11 +354,12 @@ class FlaxTrainer(TrainerBase):
         # denormalize both predictions and targets
         targets_denorm = denormalize(targets, normalizer[:, 0:4])
         predictions_denorm = denormalize(predictions, normalizer[:, 0:4])
+        last_price_denorm = denormalize(inputs[0][:, -1, 0:4], normalizer[:, 0:4])[:, 3]
 
         if config.output_mode == 'distribution':
-            metrics = self._compute_metrics_dist(predictions_denorm, targets_denorm)
+            metrics = self._compute_metrics_dist(predictions_denorm, targets_denorm, last_price_denorm)
         elif config.output_mode == 'mean':
-            metrics = self._compute_metrics_mean(predictions_denorm, targets_denorm)
+            metrics = self._compute_metrics_mean(predictions_denorm, targets_denorm, last_price_denorm)
         elif config.output_mode == 'discrete_grid':
             metrics = self._compute_metrics_discrete(predictions, targets)
         else:
@@ -368,7 +375,7 @@ class FlaxTrainer(TrainerBase):
         lr = None
 
         for batch_idx, data in enumerate(self._train_dataloader):
-            inputs, targets, normalizer, _ = tuple(data)
+            inputs, targets, normalizer, window_info = data
             step = state.step
             lr = self._learning_rate_fn(step)
             if self._flax_model_config.output_mode == 'distribution':

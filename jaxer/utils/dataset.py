@@ -58,6 +58,8 @@ class Dataset(torch.utils.data.Dataset):
 
         self._seq_len = dataset_config.seq_len
 
+        self._resolution = dataset_config.resolution
+
         self._logger = get_logger()
 
         self.output_mode = dataset_config.output_mode
@@ -211,8 +213,17 @@ class Dataset(torch.utils.data.Dataset):
 
         # self._logger.info(f"Time to get item: {1e3 * (time.time() - init_t)}ms")
 
-        return timepoints_tokens, extra_tokens, label, normalizer, \
-            timestep.strftime("%Y-%m-%d")
+        window_info = {
+            'ticker': self._tickers[ticker_idx],
+            'initial_date': timestep,
+            'end_date': self._data[ticker_idx].iloc[label_idx-1].name,
+            'output_mode': self.output_mode,
+            'norm_mode': self._norm_mode,
+            'discrete_grid_levels': self._discrete_grid_levels,
+            'resolution': self._resolution
+        }
+
+        return timepoints_tokens, extra_tokens, label, normalizer, window_info
 
     def __len__(self) -> int:
         return sum(self._data_len)
@@ -351,14 +362,14 @@ def jax_collate_fn(batch: List[np.ndarray]) -> Tuple:
     :param batch: batch of data
     :type batch: List[jnp.ndarray]
 
-    :return: batched data (sequence_tokens, extra_tokens), labels, norms, timesteps
+    :return: batched data (sequence_tokens, extra_tokens), labels, norms, window_info
     :rtype: Tuple
     """
-    sequence_tokens, extra_tokens, labels, norms, timesteps = zip(*batch)
+    sequence_tokens, extra_tokens, labels, norms, window_info = zip(*batch)
 
     batched_jax_sequence_tokens = jnp.stack(sequence_tokens)
     batched_jax_extra_tokens = jnp.stack(extra_tokens)
     batched_jax_labels = jnp.stack(labels)
     batched_norms = jnp.concatenate(norms, axis=0)
 
-    return (batched_jax_sequence_tokens, batched_jax_extra_tokens), batched_jax_labels, batched_norms, timesteps
+    return (batched_jax_sequence_tokens, batched_jax_extra_tokens), batched_jax_labels, batched_norms, *window_info

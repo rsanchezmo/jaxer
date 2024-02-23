@@ -168,15 +168,43 @@ following table shows the metrics used for each case:
 
     * - Task
       - Metric
-    * - Classification
-      - Accuracy (:code:`acc`)
-    * - Regression
-      - Mean Squared Error (:code:`mae`), Mean Average Percentage Error (:code:`mape`), R2 Score (:code:`r2`), Mean Absolute Error (:code:`mae`)
+    * - :code:`Classification`
+      - Class Accuracy (:code:`acc_class`), Direction Accuracy (:code:`acc_dir`)
+    * - :code:`Regression`
+      - Mean Squared Error (:code:`mae`), Mean Average Percentage Error (:code:`mape`), R2 Score (:code:`r2`), Mean Absolute Error (:code:`mae`), Direction Accuracy (:code:`acc_dir`)
 
 .. note::
     Metrics were initially computed with normalized data, but it did not allow to compare over different normalization methods (the only normalization independent metric was :code:`mape`).
     For comparison reasons, I decided to **denormalize predictions and compute metrics with the original data**. This way, we can compare the metrics over different models and normalization methods.
     I found absolute magnitudes such as :code:`mse` not to be very explanatory as it is not the same to have a :code:`mse` of :code:`2$` when price is around 1 than when price is at :code:`20000$`.
+
+I have designed a **relative custom metric** :code:`acc_dir` to measure the accuracy of the model to **predict the right direction of the price**. This is motivated by the need to have
+relative (independent of price magnitude) comparative metrics and give **intuition of the model's ability to surf the price waves**. As this metric is independent of price, it can be computed
+on each of three time series prediction approaches developed in this work. :code:`acc_dir` defined as:
+
+.. code-block:: python
+
+    @jax.jit
+    def acc_dir(y_pred: jnp.ndarray, y_true: jnp.ndarray, last_price: jnp.ndarray) -> jnp.ndarray:
+        """Direction accuracy metric
+
+        :param y_pred: predicted values
+        :type y_pred: jnp.ndarray
+
+        :param y_true: true values
+        :type y_true: jnp.ndarray
+
+        :param last_price: last close price
+        :type last_price: jnp.ndarray
+
+        :return: direction accuracy
+        :rtype: jnp.ndarray
+        """
+
+        y_true = jnp.sign(y_true[:, 0] - last_price)  # y_true is (batch, 1) and last_price is (batch, )
+        y_pred = jnp.sign(y_pred[:, 0] - last_price)
+
+        return jnp.mean(y_true == y_pred)
 
 Hyperparameter search
 ---------------------

@@ -132,17 +132,17 @@ according to the `JAX official documentation <https://jax.readthedocs.io/en/late
         :param batch: batch of data
         :type batch: List[jnp.ndarray]
 
-        :return: batched data (sequence_tokens, extra_tokens), labels, norms, timesteps
+        :return: batched data (sequence_tokens, extra_tokens), labels, norms, window_info
         :rtype: Tuple
         """
-        sequence_tokens, extra_tokens, labels, norms, timesteps = zip(*batch)
+        sequence_tokens, extra_tokens, labels, norms, window_info = zip(*batch)
 
         batched_jax_sequence_tokens = jnp.stack(sequence_tokens)
         batched_jax_extra_tokens = jnp.stack(extra_tokens)
         batched_jax_labels = jnp.stack(labels)
-        batched_norms = jnp.stack(norms)
+        batched_norms = jnp.concatenate(norms, axis=0)
 
-        return (batched_jax_sequence_tokens, batched_jax_extra_tokens), batched_jax_labels, batched_norms, timesteps
+        return (batched_jax_sequence_tokens, batched_jax_extra_tokens), batched_jax_labels, batched_norms, window_info
 
 The dataset class allows training with **multiple tickers**. Internally, it loads into a pandas dataframe the file of each ticker
 (in the specified :code:`JSON` format) and manages training with data from each one altogether. This has been added because training
@@ -247,7 +247,7 @@ As you must have noticed, the :code:`jax_collate_fn` return several components:
             trades = np.array([[0, 1, min_vals, max_vals]])
 
             return np.concatenate((ohlc, volume, trades), axis=1)
-#. **timesteps**: the time value of each time point (useful for plotting and for time2vec).
+#. **window_info**: information about the window (e.g., initial date, end date, ticker, etc.).
 
 .. important::
     Instead of using or creating :code:`jnp.array` during the :code:`__item__` call, I have used :code:`np.array` to avoid unnecesary copies from :code:`cpu` to :code:`gpu`.

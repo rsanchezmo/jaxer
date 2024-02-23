@@ -4,7 +4,7 @@ Model
 =====
 
 
-In this section, we delve into the model and its peculiarities. Firstly, an **encoder-based transformer** was chosen because the
+In this section, we delve into the model and its peculiarities. Firstly, an :code:`encoder-based transformer` was chosen because the
 interest was in predicting the **next token rather than a sequence in an autoregressive** manner. If that were the case,
 an encoder-decoder approach would have been used, as the **encoder would provide context** and the **decoder would provide
 autoregressivity** to the model regarding the predictions.
