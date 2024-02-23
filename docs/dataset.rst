@@ -12,6 +12,9 @@ Ultimately, it would have required some **data mining** of the data, which was n
 After researching different platforms for **historical cryptocurrency data**, **free limits**, and **time resolutions**, the platform that best solved my needs was `Tiingo <https://www.tiingo.com/>`_.
 I used the free `Tiingo Python API REST <https://www.tiingo.com/documentation/crypto>`_ to get data from different tickers and time resolutions.
 
+.. warning::
+    :code:`Tiingo` data is only for internal use and not for redistribution! If you want to use it for commercial purposes, you must pay for it.
+
 After exploring its API, I was able to obtain data for **different tickers** (e.g., :code:`'btc_usd'`, :code:`'eth_usd'`) from :code:`January 2018`
 to :code:`January 2024` with a **maximum resolution of 30 minutes**. Higher resolution was impossible with the free :code:`API`. However,
 as an initial approximation, I decided not to invest money in obtaining data with higher resolution. This project purpose
@@ -86,7 +89,7 @@ An example of :code:`'btc_usd'` ticker with 1h resolution is:
 As you will see in the :ref:`dataset_configuration`, you can choose to use them (or some of them) for training the model.
 
 .. note::
-    As a result of reviewing the literature, I found that **better prediction accuracy** is obtained with the inclusion of **sentiment analysis**, as it captures traders feelings and emotions quicker. However, I did not include it in this project for **simplicity** reasons.
+    As a result of reviewing the literature, I found that **better prediction accuracy** is always obtained with the inclusion of **sentiment analysis**, as it captures traders feelings and emotions quicker. However, I did not include it in this project for **simplicity** reasons. What I would do is to use open source LLM model such as recently published `Gemma <https://ai.google.dev/gemma/?utm_source=keyword&utm_medium=referral&utm_campaign=gemma_cta&utm_content>`_ to compute sentiment score for daily news and include it in the dataset.
 
 
 Normalization techniques
@@ -117,7 +120,7 @@ large then resolution may be lost. If using multiple tickers, it is more pronoun
 
 Dataset class
 ~~~~~~~~~~~~~
-The dataset class has been implemented using **PyTorch** since there is no native version in :code:`flax` or :code:`jax` that provides
+The dataset class has been implemented using :code:`torch` since there is no native version in :code:`flax` or :code:`jax` that provides
 the same functionality. To make it compatible with :code:`jax`, a function :code:`jax_collate_fn` has been implemented to transform data into :code:`jnp.array`
 according to the `JAX official documentation <https://jax.readthedocs.io/en/latest/notebooks/Neural_Network_and_Data_Loading.html>`_.
 
@@ -141,7 +144,7 @@ according to the `JAX official documentation <https://jax.readthedocs.io/en/late
     return (batched_jax_sequence_tokens, batched_jax_extra_tokens), batched_jax_labels, norms, timesteps
 
 The dataset class allows training with **multiple tickers**. Internally, it loads into a pandas dataframe the file of each ticker
-(in the specified JSON format) and manages training with data from each one altogether. This has been added because training
+(in the specified :code:`JSON` format) and manages training with data from each one altogether. This has been added because training
 with only one ticker resulted in too few data (you will see on :ref:`results` section), and because the more variability and patterns the agent sees, the better
 generalization it will have, regardless of the ticker.
 
@@ -170,18 +173,23 @@ we can test the model's performance on each ticker separately, which is very val
         train_ranges = []
         test_ranges = []
         for ticker in range(len(self._data_len)):
-            if test_tickers is not None and self._tickers[ticker] not in test_tickers:
-                continue
-
             test_samples = int(self._data_len[ticker] * test_size)
             train_samples = self._data_len[ticker] - test_samples
 
             if ticker == 0:
                 train_ranges.append(range(0, train_samples))
+
+                if test_tickers is not None and self._tickers[ticker] not in test_tickers:
+                    continue
+
                 test_ranges.append(range(train_samples, self._data_len[ticker]))
             else:
                 train_ranges.append(
                     range(self._unrolled_len[ticker - 1], self._unrolled_len[ticker - 1] + train_samples))
+
+                if test_tickers is not None and self._tickers[ticker] not in test_tickers:
+                    continue
+
                 test_ranges.append(range(self._unrolled_len[ticker - 1] + train_samples,
                                          self._unrolled_len[ticker - 1] + self._data_len[ticker]))
 
@@ -192,6 +200,9 @@ we can test the model's performance on each ticker separately, which is very val
         test_dataset = torch.utils.data.Subset(self, list(test_ranges))
 
         return train_dataset, test_dataset
+
+.. note::
+    As you can see, the test set is taken from the specified ticker. If a ticker is not selected, then its test set is ignored and not included into training. Ticker tendency may be similar to the selected tickers so the **model would be training with the future**!
 
 Dataset compute internally the **normalization method**, and return it on the :code:`__item__` function to later plotting or denormalizing for metric computing.
 As previously mentioned, dataset can manage the inclusion of financial indicators if provided in the configuration file.

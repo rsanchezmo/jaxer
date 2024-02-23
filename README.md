@@ -106,6 +106,7 @@ config = jaxer.config.ExperimentConfig(
     dataset_config=dataset_config,
     batch_size=128,
     test_split=0.1,
+    test_tickers=['btc_usd'],
     seed=0,
     save_weights=True,
     early_stopper=100
@@ -113,7 +114,7 @@ config = jaxer.config.ExperimentConfig(
 ```
 
 #### Inference
-An agent class has been created so you can load a trained model and use it to predict any data you want:
+An agent class has been created, so you can load a trained model and use it to predict any data you want:
         
 ```python
 import jaxer
@@ -127,7 +128,7 @@ if __name__ == '__main__':
 
     # create dataloaders
     dataset = jaxer.utils.Dataset(dataset_config=agent.config.dataset_config)
-    train_ds, test_ds = dataset.get_train_test_split(test_size=agent.config.test_split)
+    train_ds, test_ds = dataset.get_train_test_split(test_size=agent.config.test_split, test_tickers=agent.config.test_tickers)
 
     # infer entire dataset
     plot_entire_dataset = False

@@ -278,18 +278,23 @@ class Dataset(torch.utils.data.Dataset):
         train_ranges = []
         test_ranges = []
         for ticker in range(len(self._data_len)):
-            if test_tickers is not None and self._tickers[ticker] not in test_tickers:
-                continue
-
             test_samples = int(self._data_len[ticker] * test_size)
             train_samples = self._data_len[ticker] - test_samples
 
             if ticker == 0:
                 train_ranges.append(range(0, train_samples))
+
+                if test_tickers is not None and self._tickers[ticker] not in test_tickers:
+                    continue
+
                 test_ranges.append(range(train_samples, self._data_len[ticker]))
             else:
                 train_ranges.append(
                     range(self._unrolled_len[ticker - 1], self._unrolled_len[ticker - 1] + train_samples))
+
+                if test_tickers is not None and self._tickers[ticker] not in test_tickers:
+                    continue
+
                 test_ranges.append(range(self._unrolled_len[ticker - 1] + train_samples,
                                          self._unrolled_len[ticker - 1] + self._data_len[ticker]))
 

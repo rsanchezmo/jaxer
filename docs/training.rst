@@ -75,7 +75,7 @@ everything is run from there. :code:`jax` is a bit more complex, but comes to so
 
 .. note::
 
-    The problem with torch magic PRNG state is that it’s hard to reason about how it’s being used and updated across different threads, processes, and devices, and it’s very easy to screw up when the details of entropy production and consumption are hidden from the end user.
+    The problem with :code:`torch` magic :code:`PRNG` state is that it’s hard to reason about how it’s being used and updated across different threads, processes, and devices, and it’s very easy to screw up when the details of entropy production and consumption are hidden from the end user.
 
 Additionally, I found interesting the use of :code:`orbax` to manage **checkpoint saving and loading** and it is recommended by `flax <https://flax.readthedocs.io/en/latest/guides/training_techniques/use_checkpointing.html>`_.
 For instance, we can define a checkpoint manager that saves up to 5 best models:
@@ -160,7 +160,7 @@ Training configuration must be filled on its dataclass:
 
 Metrics
 -------
-To proper evaluate how good is the model, we need to declare some metrics. As we have two main approaches: **classification** and **regression**, the
+To **proper evaluate how good is the model**, we need to declare some metrics. As we have two main approaches: **classification** and **regression**, the
 following table shows the metrics used for each case:
 
 .. list-table::
@@ -169,9 +169,9 @@ following table shows the metrics used for each case:
     * - Task
       - Metric
     * - Classification
-      - Accuracy
+      - Accuracy (:code:`acc`)
     * - Regression
-      - Mean Squared Error, Mean Average Percentage Error, R2 Score, Mean Absolute Error
+      - Mean Squared Error (:code:`mae`), Mean Average Percentage Error (:code:`mape`), R2 Score (:code:`r2`), Mean Absolute Error (:code:`mae`)
 
 .. note::
     Metrics were initially computed with normalized data, but it did not allow to compare over different normalization methods (the only normalization independent metric was :code:`mape`).
