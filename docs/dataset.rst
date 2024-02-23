@@ -126,22 +126,23 @@ according to the `JAX official documentation <https://jax.readthedocs.io/en/late
 
 .. code-block:: python
 
-    def jax_collate_fn(batch: List[np.ndarray]) -> Any:
-    """ Collate function for the jax dataset
+    def jax_collate_fn(batch: List[np.ndarray]) -> Tuple:
+        """ Collate function for the jax dataset
 
-    :param batch: batch of data
-    :type batch: np.ndarray
+        :param batch: batch of data
+        :type batch: List[jnp.ndarray]
 
-    :return: batched data (sequence_tokens, extra_tokens), labels, norms, timesteps
-    :rtype: Tuple
-    """
-    sequence_tokens, extra_tokens, labels, norms, timesteps = zip(*batch)
+        :return: batched data (sequence_tokens, extra_tokens), labels, norms, timesteps
+        :rtype: Tuple
+        """
+        sequence_tokens, extra_tokens, labels, norms, timesteps = zip(*batch)
 
-    batched_jax_sequence_tokens = jnp.stack(sequence_tokens)
-    batched_jax_extra_tokens = jnp.stack(extra_tokens)
-    batched_jax_labels = jnp.stack(labels)
+        batched_jax_sequence_tokens = jnp.stack(sequence_tokens)
+        batched_jax_extra_tokens = jnp.stack(extra_tokens)
+        batched_jax_labels = jnp.stack(labels)
+        batched_norms = jnp.stack(norms)
 
-    return (batched_jax_sequence_tokens, batched_jax_extra_tokens), batched_jax_labels, norms, timesteps
+        return (batched_jax_sequence_tokens, batched_jax_extra_tokens), batched_jax_labels, batched_norms, timesteps
 
 The dataset class allows training with **multiple tickers**. Internally, it loads into a pandas dataframe the file of each ticker
 (in the specified :code:`JSON` format) and manages training with data from each one altogether. This has been added because training
@@ -214,6 +215,7 @@ As you must have noticed, the :code:`jax_collate_fn` return several components:
 
     .. code-block:: python
 
+        @staticmethod
         def _encode_tokens(tokens: np.ndarray) -> np.ndarray:
             """ Encodes the tokens into integer (tokens are expected to be on [0, 1])
 
@@ -224,25 +226,33 @@ As you must have noticed, the :code:`jax_collate_fn` return several components:
             :rtype: np.ndarray
             """
             tokens = np.round(tokens * 100).astype(np.int16)
-            tokens = np.clip(tokens, 0, 101)
+            tokens = np.clip(tokens, 0, 100)
             return tokens
 #. **batched_jax_labels**: next time point to predict (aka labels).
-#. **norms**: a dict with the normalizers for that window (price, volume, etc.).
+#. **norms**: a :code:`np.array` with the normalization values. It contains (:code:`mean`, :code:`std`, :code:`min`, :code:`max`) for each sequence data (price, volume, trades).
 
     .. code-block:: python
 
-        self._global_normalizer = dict(
-            price=dict(min_val=self._data[0][Dataset.OHLC].min().min(),
-                        max_val=self._data[0][Dataset.OHLC].max().max(),
-                        mode="minmax"),
-            volume=dict(min_val=self._data[0]['volume'].min().min(),
-                        max_val=self._data[0]['volume'].max().max(),
-                        mode="minmax"),
-            trades=dict(min_val=self._data[0]['tradesDone'].min().min(),
-                        max_val=self._data[0]['tradesDone'].max().max(),
-                        mode="minmax"))
+        if self._norm_mode == "window_minmax":
+            min_vals = sequence_data_price.min().min()
+            max_vals = sequence_data_price.max().max()
+            ohlc = np.array([[0, 1, min_vals, max_vals]])
+
+            min_vals = sequence_data_volume.min().min()
+            max_vals = sequence_data_volume.max().max()
+            volume = np.array([[0, 1, min_vals, max_vals]])
+
+            min_vals = sequence_data_trades.min().min()
+            max_vals = sequence_data_trades.max().max()
+            trades = np.array([[0, 1, min_vals, max_vals]])
+
+            return np.concatenate((ohlc, volume, trades), axis=1)
 #. **timesteps**: the time value of each time point (useful for plotting and for time2vec).
 
+.. important::
+    Instead of using or creating :code:`jnp.array` during the :code:`__item__` call, I have used :code:`np.array` to avoid unnecesary copies from :code:`cpu` to :code:`gpu`.
+    It will only get copied to :code:`gpu` when the :code:`dataloader` is called. I have seen a :code:`20x` speedup in training with this approach. So,
+    don't get crazy by using :code:`jax` everywhere and think when it is really necessary to use it!
 
 .. _dataset_configuration:
 

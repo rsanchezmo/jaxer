@@ -297,7 +297,7 @@ as this was not the main focus of the project. This module purpose was to get to
                                   lr_mode=lr_mode,
                                   warmup_epochs=warmup_epochs,
                                   batch_size=batch_size,
-                                  test_split=0.1,
+                                  test_split=0.15,
                                   test_tickers=['btc_usd'],
                                   seed=0,
                                   save_weights=True,
@@ -308,3 +308,7 @@ as this was not the main focus of the project. This module purpose was to get to
         trainer = Trainer(config=config)
         trainer.train_and_evaluate()
         del trainer
+
+.. tip::
+    Debugging in :code:`jax` is not as easy as in :code:`torch`. I found it very useful to use the :code:`jax.debug.print` to evaluate traced arrays
+    inside :code:`jax.jit` functions or inside the :code:`flax` model. `Here <https://jax.readthedocs.io/en/latest/debugging/print_breakpoint.html>`_  you can find more info.

@@ -16,8 +16,8 @@ class EarlyStopper:
     """
 
     max_epochs: int
-    n_epochs: int
-    optim_value: float
+    n_epochs: int = 0
+    optim_value: float = 1.e9
     
     def __call__(self, optim_value: float):
         """ Returns True if the training should stop """

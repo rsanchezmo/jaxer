@@ -29,11 +29,11 @@ def rmse(y_pred: jnp.ndarray, y_true: jnp.ndarray) -> jnp.ndarray:
 
 
 @jax.jit
-def gaussian_negative_log_likelihood(mean: jnp.ndarray, variance: jnp.ndarray, targets: jnp.ndarray,
+def gaussian_negative_log_likelihood(mean: jnp.ndarray, std: jnp.ndarray, targets: jnp.ndarray,
                                      eps: float = 1e-6) -> jnp.ndarray:
-    first_term = jnp.log(jnp.maximum(2 * jnp.pi * variance, eps))
-    second_term = jnp.square((targets - mean)) / jnp.clip(variance, a_min=eps)
-    return jnp.mean(0.5 * (first_term + second_term))
+    first_term = jnp.log(jnp.maximum(2 * jnp.pi * jnp.square(std)))
+    second_term = jnp.square((targets - mean)) / jnp.clip(jnp.square(std), a_min=eps)
+    return 0.5 * jnp.mean(first_term + second_term)
 
 
 @jax.jit

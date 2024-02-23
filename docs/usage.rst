@@ -8,7 +8,7 @@ Usage
 Installation
 ------------
 
-I highly recommend to clone and run the repo on **linux** device because the installation of :code:`jax` and related libraries is easier,
+I highly recommend to clone and run the repo on :code:`linux` device because the installation of :code:`jax` and related libraries is easier,
 but with a bit of time you may end up running on other compatible platform. To start, just clone the repo:
 
 .. code-block:: bash
@@ -45,10 +45,11 @@ Running the code
 ----------------
 Dataset
 ~~~~~~~
-You should first unzip the dataset in the :code:`dataset` folder.
+You should first unzip the dataset in the :code:`dataset` folder. You will end up with several subfolders regarding each time resolution (e.g. :code:`1h`):
 
 .. code-block:: bash
 
+    cd ./data/datasets/
     unzip data.zip
 
 
@@ -134,7 +135,7 @@ You can find a more detailed explanation of each parameter in the :ref:`api`, :r
 Inference
 ~~~~~~~~~
 
-An **agent class** has been created so you can load a trained model and use it by calling with a proper input. Agent
+An **agent class** has been created so you can load a trained model and use it by providing the agent with a proper input. Agent
 can infer by using :code:`__call__` method:
 
 .. code-block:: python
@@ -168,5 +169,5 @@ can infer by using :code:`__call__` method:
                                          discrete_grid_levels=agent.config.dataset_config.discrete_levels)
 
 On this example, a :code:`jaxer` **agent** is created with the **best weights** of the experiment :code:`exp_1`.
-The :code:`plot_entire_dataset` flag is used to plot over the entire dataset (train and test), which is useful to see model performance (debug if overfitting or generalization).
-Finally, the agent is used to predict on separate windows from the test set to see a more detailed prediction.
+The :code:`plot_entire_dataset` flag is used to plot over the entire dataset (:code:`train` and :code:`test`), which is useful to see model performance (debug if overfitting or generalization).
+Finally, the agent is used to predict on separate windows from the test set to see a more detailed prediction plot.

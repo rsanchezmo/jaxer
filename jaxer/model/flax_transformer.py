@@ -4,6 +4,7 @@ import flax.struct
 import jax.numpy as jnp
 import numpy as np
 from typing import Tuple
+import jax
 
 
 @flax.struct.dataclass
@@ -464,7 +465,8 @@ class EncoderBlock(nn.Module):
 
 
 class Encoder(nn.Module):
-    """ Encoder Module (L * encoder blocks). Uses time2vec or positional encoding to encode the input sequence and calls L encoder blocks
+    """ Encoder Module (L * encoder blocks). Uses time2vec or positional encoding to encode the input sequence and
+    calls L encoder blocks
 
     :param config: transformer configuration
     :type config: TransformerConfig
@@ -483,9 +485,8 @@ class Encoder(nn.Module):
         extra_token_embeddings = nn.Embed(
             num_embeddings=101,  # vocab size of 100
             features=self.config.d_model,
-            dtype=self.config.dtype,
-            embedding_init=self.config.kernel_init
-        )(extra_tokens)
+            dtype=self.config.dtype
+        )(extra_tokens.astype(jnp.int32))
 
         """ Time2Vec """
         if self.config.use_time2vec:
@@ -567,14 +568,14 @@ class PredictionHead(nn.Module):
         if self.config.output_mode == 'mean':
             return mean
 
-        log_variance = nn.Dense(
+        log_std = nn.Dense(
             features=1,
             dtype=self.config.dtype,
             kernel_init=self.config.kernel_init,
             bias_init=self.config.bias_init,
         )(x)
 
-        return mean, log_variance
+        return mean, log_std
 
 
 class Transformer(nn.Module):
@@ -617,8 +618,8 @@ class Transformer(nn.Module):
 
         """ output a probability distribution """
         if self.config.output_mode == 'distribution':
-            mean, log_variance = x
-            variance = jnp.exp(log_variance)
-            return mean, variance
+            mean, log_std = x
+            std = jnp.exp(log_std)
+            return mean, std
 
         return x

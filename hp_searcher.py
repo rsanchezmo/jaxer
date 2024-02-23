@@ -5,7 +5,7 @@ from jaxer import get_logger
 
 if __name__ == '__main__':
     model_config_ranges = {
-        'd_model': [128, 256, 512],
+        'd_model': [64, 128, 256, 512],
         'num_layers': [1, 2, 3],
         'head_layers': [1, 2, 3],
         'n_heads': [1, 2, 4],
@@ -115,7 +115,7 @@ if __name__ == '__main__':
                                   lr_mode=lr_mode,
                                   warmup_epochs=warmup_epochs,
                                   batch_size=batch_size,
-                                  test_split=0.1,
+                                  test_split=0.15,
                                   test_tickers=['btc_usd'],
                                   seed=0,
                                   save_weights=True,

@@ -11,7 +11,8 @@ As you will see on the :ref:`conclusions` section, **this was my biggest bottlen
 
 To get a **representative study** over each model, I run the **hyperparameter search** for :code:`N` experiments (N adapted to the computation time and HW of my laptop)
 over a set of hyperparameters. Metrics were computed during training only on :code:`'btc_usd'` ticker, even if trained with
-all tickers. :code:`EarlyStopper` was used to save time by stopping the training when the model stops improving for a fixed number of epochs.
+all tickers. :code:`EarlyStopper` was used to save time by stopping the training when the model stops improving for a fixed number of epochs. A test ration of 0.15
+was used to validate the model (:code:`0.15` of the data of each ticker was used for validation and :code:`0.85` for training).
 
 Mean Prediction
 ---------------

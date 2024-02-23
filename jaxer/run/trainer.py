@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 import optax
 import os
-from typing import Tuple, Dict, Optional, Any
+from typing import Tuple, Dict, Optional, Any, List
 from torch.utils.data import DataLoader
 import time
 import json
@@ -15,7 +15,7 @@ from jaxer.run.trainer_base import TrainerBase
 from jaxer.utils.schedulers import create_warmup_cosine_schedule
 from jaxer.model.flax_transformer import Transformer, TransformerConfig
 from jaxer.config.experiment_config import ExperimentConfig
-from jaxer.utils.dataset import jax_collate_fn, Dataset
+from jaxer.utils.dataset import jax_collate_fn, Dataset, denormalize
 from flax.training import orbax_utils, train_state
 
 
@@ -172,7 +172,7 @@ class FlaxTrainer(TrainerBase):
                 self._save_best_model(epoch, train_state_, test_metrics)
 
         self.logger.info("Training finished!")
-        self._best_model_test()
+        # self._best_model_test()
         self._summary_writer.flush()
 
     def _save_best_model(self, epoch: int, state: train_state.TrainState, metrics: Dict) -> None:
@@ -226,16 +226,16 @@ class FlaxTrainer(TrainerBase):
     def _compute_metrics_dist(predictions: jnp.ndarray, targets: jnp.ndarray) -> Dict:
         """ Computes metrics """
 
-        means, variances = predictions
+        means, stds = predictions
 
         mae_ = mae(means, targets)
         rmse_ = rmse(means, targets)
         r2_ = r2(means, targets)
         mape_ = mape(means, targets)
 
-        loss = gaussian_negative_log_likelihood(means, variances, targets)
+        loss_ = gaussian_negative_log_likelihood(means, stds, targets)
 
-        return {"mae": mae_, "r2": r2_, "loss": loss, "rmse": rmse_, "mape": mape_}
+        return {"mae": mae_, "r2": r2_, "rmse": rmse_, "mape": mape_, "loss": loss_}
 
     @staticmethod
     @jax.jit
@@ -248,9 +248,7 @@ class FlaxTrainer(TrainerBase):
         r2_ = r2(means, targets)
         mape_ = mape(means, targets)
 
-        loss = rmse_
-
-        return {"mae": mae_, "r2": r2_, "loss": loss, "rmse": rmse_, "mape": mape_}
+        return {"mae": mae_, "r2": r2_, "rmse": rmse_, "mape": mape_}
 
     @staticmethod
     @jax.jit
@@ -259,13 +257,14 @@ class FlaxTrainer(TrainerBase):
 
         accuracy = jnp.mean(jnp.equal(jnp.argmax(predictions, axis=-1), jnp.argmax(targets, axis=-1)))
 
-        loss = binary_cross_entropy(y_pred=predictions, y_true=targets)
-
-        return {"accuracy": accuracy, "loss": loss}
+        return {"accuracy": accuracy}
 
     @staticmethod
     @jax.jit
-    def _model_train_step_mean(state: train_state.TrainState, inputs: jnp.ndarray, targets: jnp.ndarray,
+    def _model_train_step_mean(state: train_state.TrainState,
+                               inputs: Tuple[jnp.ndarray, jnp.ndarray],
+                               targets: jnp.ndarray,
+                               normalizer: jnp.ndarray,
                                rng: jax.random.PRNGKey):
 
         def loss_fn(params):
@@ -273,12 +272,15 @@ class FlaxTrainer(TrainerBase):
 
             means = predictions
 
-            mae_ = mae(means, targets)
-            r2_ = r2(means, targets)
-            rmse_ = rmse(means, targets)
-            mape_ = mape(means, targets)
+            means_denorm = denormalize(means, normalizer[:, 0:4])
+            targets_denorm = denormalize(targets, normalizer[:, 0:4])
 
-            loss = rmse_
+            mae_ = mae(means_denorm, targets_denorm)
+            r2_ = r2(means_denorm, targets_denorm)
+            rmse_ = rmse(means_denorm, targets_denorm)
+            mape_ = mape(means_denorm, targets_denorm)
+
+            loss = rmse(means, targets)
 
             return loss, (mae_, r2_, rmse_, mape_)
 
@@ -289,20 +291,26 @@ class FlaxTrainer(TrainerBase):
 
     @staticmethod
     @jax.jit
-    def _model_train_step_dist(state: train_state.TrainState, inputs: jnp.ndarray, targets: jnp.ndarray,
+    def _model_train_step_dist(state: train_state.TrainState,
+                               inputs: Tuple[jnp.ndarray, jnp.ndarray],
+                               targets: jnp.ndarray,
+                               normalizer: jnp.ndarray,
                                rng: jax.random.PRNGKey):
 
         def loss_fn(params):
             predictions = state.apply_fn(params, inputs, rngs={"dropout": rng})
 
-            means, variances = predictions
+            means, stds = predictions
 
-            mae_ = mae(means, targets)
-            r2_ = r2(means, targets)
-            rmse_ = rmse(means, targets)
-            mape_ = mape(means, targets)
+            means_denorm = denormalize(means, normalizer[:, 0:4])
+            targets_denorm = denormalize(targets, normalizer[:, 0:4])
 
-            loss = gaussian_negative_log_likelihood(means, variances, targets)
+            mae_ = mae(means_denorm, targets_denorm)
+            r2_ = r2(means_denorm, targets_denorm)
+            rmse_ = rmse(means_denorm, targets_denorm)
+            mape_ = mape(means_denorm, targets_denorm)
+
+            loss = gaussian_negative_log_likelihood(means, stds, targets)
 
             return loss, (mae_, r2_, rmse_, mape_)
 
@@ -313,7 +321,8 @@ class FlaxTrainer(TrainerBase):
 
     @staticmethod
     @jax.jit
-    def _model_train_step_discrete(state: train_state.TrainState, inputs: jnp.ndarray, targets: jnp.ndarray,
+    def _model_train_step_discrete(state: train_state.TrainState,
+                                   inputs: Tuple[jnp.ndarray, jnp.ndarray], targets: jnp.ndarray,
                                    rng: jax.random.PRNGKey):
 
         def loss_fn(params):
@@ -330,15 +339,20 @@ class FlaxTrainer(TrainerBase):
         metrics = {"accuracy": accuracy, "loss": loss}
         return state, metrics
 
-    def _model_eval_step(self, state: train_state.TrainState, inputs: jnp.ndarray, targets: jnp.ndarray,
+    def _model_eval_step(self, state: train_state.TrainState, inputs: Tuple[jnp.ndarray, jnp.ndarray],
+                         targets: jnp.ndarray, normalizer: jnp.ndarray,
                          config: TransformerConfig) -> Tuple[train_state.TrainState, Dict]:
 
         predictions = self._eval_model.apply(state.params, inputs)
 
+        # denormalize both predictions and targets
+        targets_denorm = denormalize(targets, normalizer[:, 0:4])
+        predictions_denorm = denormalize(predictions, normalizer[:, 0:4])
+
         if config.output_mode == 'distribution':
-            metrics = self._compute_metrics_dist(predictions, targets)
+            metrics = self._compute_metrics_dist(predictions_denorm, targets_denorm)
         elif config.output_mode == 'mean':
-            metrics = self._compute_metrics_mean(predictions, targets)
+            metrics = self._compute_metrics_mean(predictions_denorm, targets_denorm)
         elif config.output_mode == 'discrete_grid':
             metrics = self._compute_metrics_discrete(predictions, targets)
         else:
@@ -353,16 +367,16 @@ class FlaxTrainer(TrainerBase):
         metrics = {}
         lr = None
 
-        for data in self._train_dataloader:
-            inputs, targets, _, _ = tuple(data)
+        for batch_idx, data in enumerate(self._train_dataloader):
+            inputs, targets, normalizer, _ = tuple(data)
             step = state.step
             lr = self._learning_rate_fn(step)
             if self._flax_model_config.output_mode == 'distribution':
-                state, _metrics = self._model_train_step_dist(state, inputs, targets, rng)
+                state, _metrics = self._model_train_step_dist(state, inputs, targets, normalizer, rng)
             elif self._flax_model_config.output_mode == 'mean':
-                state, _metrics = self._model_train_step_mean(state, inputs, targets, rng)
+                state, _metrics = self._model_train_step_mean(state, inputs, targets, normalizer, rng)
             elif self._flax_model_config.output_mode == 'discrete_grid':
-                state, _metrics = self._model_train_step_discrete(state, inputs, targets, rng)
+                state, _metrics = self._model_train_step_discrete(state, inputs, targets, normalizer, rng)
             else:
                 raise NotImplementedError(f"Output mode {self._flax_model_config.output_mode} not implemented")
 
@@ -385,8 +399,8 @@ class FlaxTrainer(TrainerBase):
         metrics = {}
 
         for data in self._test_dataloader:
-            inputs, targets, _, _ = data
-            _, _metrics = self._model_eval_step(state, inputs, targets, config=self._flax_model_config_eval)
+            inputs, targets, normalizer, _ = data
+            _, _metrics = self._model_eval_step(state, inputs, targets, normalizer, config=self._flax_model_config_eval)
 
             for key, value in _metrics.items():
                 metric_list = metrics.get(key, [])

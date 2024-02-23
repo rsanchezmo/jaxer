@@ -11,9 +11,9 @@ the availability of the data. However, this could be used for any other time ser
 
 In order to solve cryptocurrency prediction, several approaches are proposed:
 
-- **Mean prediction**: Predict the next value of the time series (mean).
-- **Distribution prediction**: Predict the distribution over the next step (mean and log std) to cover the uncertainty.
-- **Classification prediction**: Predict the next step as a classification problem (% interval ranges).
+- :code:`Mean prediction`: Predict the next value of the time series (mean).
+- :code:`Distribution prediction`: Predict the distribution over the next step (mean and log std) to cover the uncertainty.
+- :code:`Classification prediction`: Predict the next step as a classification problem (% interval ranges).
 
 In the section :ref:`usage` you will find how to use the model. Dataset and normalization techniques are covered in the section :ref:`dataset`.
 In the section :ref:`model` you will find the details of the model architectures for each approach.

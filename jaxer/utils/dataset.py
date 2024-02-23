@@ -1,10 +1,13 @@
+import time
+
+import jax
 import torch
 import pandas as pd
 from typing import Tuple, Any
 import numpy as np
 import torch.utils.data
 import jax.numpy as jnp
-from typing import Union, List, Optional
+from typing import List, Optional
 import os
 import itertools
 from jaxer.utils.logger import get_logger
@@ -79,36 +82,42 @@ class Dataset(torch.utils.data.Dataset):
         self._norm_mode = dataset_config.norm_mode
 
         if self._norm_mode == "global_minmax":
-            # normalizing with the first ticker (for now)
-            self._global_normalizer = dict(
-                price=dict(min_val=self._data[0][Dataset.OHLC].min().min(),
-                           max_val=self._data[0][Dataset.OHLC].max().max(),
-                           mode="minmax"),
-                volume=dict(min_val=self._data[0]['volume'].min().min(),
-                            max_val=self._data[0]['volume'].max().max(),
-                            mode="minmax"),
-                trades=dict(min_val=self._data[0]['tradesDone'].min().min(),
-                            max_val=self._data[0]['tradesDone'].max().max(),
-                            mode="minmax")
-            )
+            self._global_normalizers = []
+            for ticker in range(len(self._data)):
+                min_vals = self._data[ticker][Dataset.OHLC].min().min()
+                max_vals = self._data[ticker][Dataset.OHLC].max().max()
+                ohlc = np.array([[0, 1, min_vals, max_vals]])  # mean, std, min_vals, max_vals
+                min_vals = self._data[ticker]['volume'].min().min()
+                max_vals = self._data[ticker]['volume'].max().max()
+                volume = np.array([[0, 1, min_vals, max_vals]])  # mean, std, min_vals, max_vals
+                min_vals = self._data[ticker]['tradesDone'].min().min()
+                max_vals = self._data[ticker]['tradesDone'].max().max()
+                trades = np.array([[0, 1, min_vals, max_vals]])  # mean, std, min_vals, max_vals
+                normalizer = np.concatenate((ohlc, volume, trades), axis=1)
+                self._global_normalizers.append(normalizer)
+
         elif self._norm_mode == "global_meanstd":
-            self._global_normalizer = dict(
-                price=dict(mean_val=self._data[0][Dataset.OHLC].mean().max(),
-                           std_val=self._data[0][Dataset.OHLC].std().max(),
-                           mode="meanstd"),
-                volume=dict(mean_val=self._data[0]['volume'].mean().max(),
-                            std_val=self._data[0]['volume'].std().max(),
-                            mode="meanstd"),
-                trades=dict(mean_val=self._data[0]['tradesDone'].mean().max(),
-                            std_val=self._data[0]['tradesDone'].std().max(),
-                            mode="meanstd")
-            )
+            self._global_normalizers = []
+            for ticker in range(len(self._data)):
+                mean_vals = self._data[ticker][Dataset.OHLC].mean().mean()
+                std_vals = self._data[ticker][Dataset.OHLC].std().max()
+                ohlc = np.array([[mean_vals, std_vals, 0, 1]])
+                mean_vals = self._data[ticker]['volume'].mean().mean()
+                std_vals = self._data[ticker]['volume'].std().max()
+                volume = np.array([[mean_vals, std_vals, 0, 1]])
+                mean_vals = self._data[ticker]['tradesDone'].mean().mean()
+                std_vals = self._data[ticker]['tradesDone'].std().max()
+                trades = np.array([[mean_vals, std_vals, 0, 1]])
+                normalizer = np.concatenate([ohlc, volume, trades], axis=1)
+                self._global_normalizers.append(normalizer)
         elif self._norm_mode == 'none':
-            self._global_normalizer = dict(
-                price=dict(min_val=0, max_val=1, mode="minmax"),
-                volume=dict(min_val=0, max_val=1, mode="minmax"),
-                trades=dict(min_val=0, max_val=1, mode="minmax")
-            )
+            self._global_normalizers = []
+            for ticker in range(len(self._data)):
+                ohlc = np.array([[0, 1, 0, 1]])
+                volume = np.array([[0, 1, 0, 1]])
+                trades = np.array([[0, 1, 0, 1]])
+                normalizer = np.concatenate((ohlc, volume, trades), axis=1)
+                self._global_normalizers.append(normalizer)
 
         self._logger.info(
             f"Dataset loaded with {len(self._data)} tickers and {len(self)} samples in total. "
@@ -137,6 +146,8 @@ class Dataset(torch.utils.data.Dataset):
         return sequence_tokens, extra_tokens
 
     def __getitem__(self, index):
+        # init_t = time.time()
+
         index, ticker_idx = self._map_idx(index)
         start_idx = index
         end_idx = index + self._seq_len
@@ -145,6 +156,7 @@ class Dataset(torch.utils.data.Dataset):
         sequence_data_price = self._data[ticker_idx].iloc[start_idx:end_idx][Dataset.OHLC]
         sequence_data_volume = self._data[ticker_idx].iloc[start_idx:end_idx][['volume']]
         sequence_data_trades = self._data[ticker_idx].iloc[start_idx:end_idx][['tradesDone']]
+
         sequence_data_time = np.array([idx / len(self._data[ticker_idx]) for idx in range(start_idx, end_idx)])[:, None]
 
         sequence_data_indicators = None
@@ -152,38 +164,36 @@ class Dataset(torch.utils.data.Dataset):
             sequence_data_indicators = self._data[ticker_idx].iloc[start_idx:end_idx][self._indicators]
 
         # Compute normalizers
-        normalizer_price, normalizer_volume, normalizer_trades = self._compute_normalizers(sequence_data_price,
-                                                                                           sequence_data_volume,
-                                                                                           sequence_data_trades)
+        normalizer = self._compute_normalizers(sequence_data_price,
+                                               sequence_data_volume,
+                                               sequence_data_trades,
+                                               ticker_idx)
 
         # data normalization
-        sequence_data_price = normalize(sequence_data_price, normalizer_price)
-        sequence_data_price_std = sequence_data_price.std().std() * 20
-        sequence_data_volume = normalize(sequence_data_volume, normalizer_volume)
-        sequence_data_volume_std = sequence_data_volume.std()['volume'] * 20
-        sequence_data_trades = normalize(sequence_data_trades, normalizer_trades)
-        sequence_data_trades_std = sequence_data_trades.std()['tradesDone'] * 20
+        sequence_data_price = normalize(np.array(sequence_data_price), normalizer[:, 0:4])
+        sequence_data_price_std = sequence_data_price.std() * 5  # to increase resolution
+        sequence_data_volume = normalize(np.array(sequence_data_volume), normalizer[:, 4:8])
+        sequence_data_volume_std = sequence_data_volume.std() * 5  # to increase resolution
+        sequence_data_trades = normalize(np.array(sequence_data_trades), normalizer[:, 8:12])
+        sequence_data_trades_std = sequence_data_trades.std() * 5  # to increase resolution
 
         if sequence_data_indicators is not None:
-            sequence_data_indicators = self._normalize_indicators(sequence_data_indicators, normalizer_price)
+            sequence_data_indicators = self._normalize_indicators(sequence_data_indicators, normalizer[:, 0:4])
 
         # Extract the labels
         label_idx = index + self._seq_len
         label = self._data[ticker_idx].iloc[label_idx]['close']
 
         if self.output_mode == 'mean' or self.output_mode == 'distribution':
-            label = normalize(label, normalizer_price)
             label = np.array([label], dtype=np.float32)
-
+            label = normalize(label, normalizer[:, 0:4])[0]
         else:
             prev_close_price = self._data[ticker_idx].iloc[label_idx - 1]['close']
             percent = (label - prev_close_price) / prev_close_price * 100
             label = np.digitize(percent, self._discrete_grid_levels) - 1
             # to one-hot
             label = np.eye(len(self._discrete_grid_levels) - 1)[label]
-
-        # Create a normalizer dict
-        normalizer = dict(price=normalizer_price, volume=normalizer_volume, trades=normalizer_trades)
+            label = np.array(label, dtype=np.float32)
 
         # Convert to NumPy arrays
         to_concatenate = [sequence_data_price, sequence_data_volume, sequence_data_trades, sequence_data_time]
@@ -199,7 +209,9 @@ class Dataset(torch.utils.data.Dataset):
 
         extra_tokens = self._encode_tokens(extra_tokens)
 
-        return jnp.array(timepoints_tokens), jnp.array(extra_tokens), jnp.array(label), normalizer, \
+        # self._logger.info(f"Time to get item: {1e3 * (time.time() - init_t)}ms")
+
+        return timepoints_tokens, extra_tokens, label, normalizer, \
             timestep.strftime("%Y-%m-%d")
 
     def __len__(self) -> int:
@@ -215,8 +227,8 @@ class Dataset(torch.utils.data.Dataset):
         :return: encoded tokens
         :rtype: np.ndarray
         """
-        tokens = np.round(tokens * 100).astype(np.int16)
-        tokens = np.clip(tokens, 0, 101)
+        tokens = np.round(tokens * 100)
+        tokens = np.clip(tokens, 0, 100)
         return tokens
 
     def _normalize_indicators(self, sequence_data_indicators, normalizer_price):
@@ -226,42 +238,43 @@ class Dataset(torch.utils.data.Dataset):
                 sequence_data_indicators[indicator] = normalize(sequence_data_indicators[indicator], normalizer_price)
         return sequence_data_indicators
 
-    def _compute_normalizers(self, sequence_data_price, sequence_data_volume, sequence_data_trades):
+    def _compute_normalizers(self, sequence_data_price, sequence_data_volume, sequence_data_trades, ticker_idx: int):
         if self._norm_mode == "window_minmax":
             min_vals = sequence_data_price.min().min()
             max_vals = sequence_data_price.max().max()
-            normalizer_price = dict(min_val=min_vals, max_val=max_vals, mode="minmax")
+            ohlc = np.array([[0, 1, min_vals, max_vals]])
 
             min_vals = sequence_data_volume.min().min()
             max_vals = sequence_data_volume.max().max()
-            normalizer_volume = dict(min_val=min_vals, max_val=max_vals, mode="minmax")
+            volume = np.array([[0, 1, min_vals, max_vals]])
 
             min_vals = sequence_data_trades.min().min()
             max_vals = sequence_data_trades.max().max()
-            normalizer_trades = dict(min_val=min_vals, max_val=max_vals, mode="minmax")
+            trades = np.array([[0, 1, min_vals, max_vals]])
 
-        elif self._norm_mode == "window_meanstd":
+            return np.concatenate((ohlc, volume, trades), axis=1)
+
+        if self._norm_mode == "window_meanstd":
             mean_vals = sequence_data_price.mean().max()
             std_vals = sequence_data_price.std().max()
-            normalizer_price = dict(mean_val=mean_vals, std_val=std_vals, mode="meanstd")
+            ohlc = np.array([[mean_vals, std_vals, 0, 1]])
 
             mean_vals = sequence_data_volume.mean().max()
             std_vals = sequence_data_volume.std().max()
-            normalizer_volume = dict(mean_val=mean_vals, std_val=std_vals, mode="meanstd")
+            volume = np.array([[mean_vals, std_vals, 0, 1]])
 
             mean_vals = sequence_data_trades.mean().max()
             std_vals = sequence_data_trades.std().max()
-            normalizer_trades = dict(mean_val=mean_vals, std_val=std_vals, mode="meanstd")
+            trades = np.array([[mean_vals, std_vals, 0, 1]])
 
-        else:
-            normalizer_price = self._global_normalizer['price']
-            normalizer_volume = self._global_normalizer['volume']
-            normalizer_trades = self._global_normalizer['trades']
+            return np.concatenate((ohlc, volume, trades), axis=1)
 
-        return normalizer_price, normalizer_volume, normalizer_trades
+        return self._global_normalizers[ticker_idx]
 
-    def get_train_test_split(self, test_size: float = 0.1,
-                             test_tickers: Optional[List[str]] = None) -> Tuple[torch.utils.data.Dataset, torch.utils.data.Dataset]:
+    def get_train_test_split(self,
+                             test_size: float = 0.1,
+                             test_tickers: Optional[List[str]] = None) \
+            -> Tuple[torch.utils.data.Dataset, torch.utils.data.Dataset]:
         """ Returns a train and test set from the dataset
 
         :param test_size: test size
@@ -307,77 +320,36 @@ class Dataset(torch.utils.data.Dataset):
         return train_dataset, test_dataset
 
 
-def _normalize_minmax(data: Union[np.ndarray, jnp.ndarray], normalizer) -> Union[np.ndarray, jnp.ndarray]:
-    """ Normalizes the data """
-    min_ = normalizer['min_val']
-    max_ = normalizer['max_val']
-    return (data - min_) / (max_ - min_ + 1e-6)
-
-
-def _normalize_meanstd(data: Union[np.ndarray, jnp.ndarray], normalizer) -> Union[np.ndarray, jnp.ndarray]:
-    """ Normalizes the data """
-    mean_ = normalizer['mean_val']
-    std_ = normalizer['std_val'] + 1e-6
-    return (data - mean_) / std_
-
-
-def _denormalize_minmax(data: Union[np.ndarray, jnp.ndarray], normalizer) -> Union[np.ndarray, jnp.ndarray]:
-    """ Denormalizes the data """
-    min_ = normalizer['min_val']
-    max_ = normalizer['max_val']
-    return data * (max_ - min_) + min_
-
-
-def _denormalize_meanstd(data: Union[np.ndarray, jnp.ndarray], normalizer) -> Union[np.ndarray, jnp.ndarray]:
-    """ Denormalizes the data """
-    mean_ = normalizer['mean_val']
-    std_ = normalizer['std_val']
-    return data * std_ + mean_
-
-
-def normalize(data: Union[np.ndarray, jnp.ndarray], normalizer: dict) -> Union[np.ndarray, jnp.ndarray]:
+def normalize(data: np.ndarray, normalizer: np.ndarray) -> np.ndarray:
     """ Normalizes the data """
 
-    mode = normalizer.get('mode', None)
-    if mode is None:
-        raise ValueError("normalizer must contain a 'mode' key")
+    min_ = normalizer[:, [2]]
+    max_ = normalizer[:, [3]]
+    temp_data = (data - min_) / (max_ - min_ + 1e-6)
 
-    if mode == "minmax":
-        return _normalize_minmax(data, normalizer)
-
-    if mode == "meanstd":
-        return _normalize_meanstd(data, normalizer)
-
-    raise ValueError("mode must be one of ['minmax', 'meanstd']")
+    mean_ = normalizer[:, [0]]
+    std_ = normalizer[:, [1]] + 1e-6
+    return (temp_data - mean_) / std_
 
 
-def denormalize_wrapper(data: Union[np.ndarray, jnp.ndarray],
-                        normalizer: dict, component: str = "price") -> Union[np.ndarray, jnp.ndarray]:
-    return denormalize(data, normalizer[component])
-
-
-def denormalize(data: Union[np.ndarray, jnp.ndarray], normalizer: dict, ) -> Union[np.ndarray, jnp.ndarray]:
+@jax.jit
+def denormalize(data: jnp.ndarray, normalizer: jnp.ndarray) -> jnp.ndarray:
     """ Denormalizes the data """
-    if isinstance(data, jnp.ndarray):
-        data = np.asarray(data)  # BUG: if too large, the jnp array overflows
 
-    mode = normalizer.get('mode', None)
-    if mode is None:
-        raise ValueError("normalizer must contain a 'mode' key")
+    min_ = normalizer[:, [2]]
+    max_ = normalizer[:, [3]]
+    temp_data = data * (max_ - min_) + min_
 
-    if mode == "minmax":
-        return _denormalize_minmax(data, normalizer)
-    if mode == "meanstd":
-        return _denormalize_meanstd(data, normalizer)
-
-    raise ValueError("mode must be one of ['minmax', 'meanstd']")
+    mean_ = normalizer[:, [0]]
+    std_ = normalizer[:, [1]]
+    return temp_data * std_ + mean_
 
 
-def jax_collate_fn(batch: List[np.ndarray]) -> Any:
+def jax_collate_fn(batch: List[np.ndarray]) -> Tuple:
     """ Collate function for the jax dataset
 
     :param batch: batch of data
-    :type batch: np.ndarray
+    :type batch: List[jnp.ndarray]
 
     :return: batched data (sequence_tokens, extra_tokens), labels, norms, timesteps
     :rtype: Tuple
@@ -387,5 +359,6 @@ def jax_collate_fn(batch: List[np.ndarray]) -> Any:
     batched_jax_sequence_tokens = jnp.stack(sequence_tokens)
     batched_jax_extra_tokens = jnp.stack(extra_tokens)
     batched_jax_labels = jnp.stack(labels)
+    batched_norms = jnp.concatenate(norms, axis=0)
 
-    return (batched_jax_sequence_tokens, batched_jax_extra_tokens), batched_jax_labels, norms, timesteps
+    return (batched_jax_sequence_tokens, batched_jax_extra_tokens), batched_jax_labels, batched_norms, timesteps

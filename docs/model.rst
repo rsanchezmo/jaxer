@@ -156,7 +156,7 @@ The loss function is the **negative log likelihood** of the predicted distributi
 
     \text{NLL} = -\log p(y | \mu, \sigma^2)
 
-Where :math:`\mu` is the mean and :math:`\sigma^2` is the variance of the distribution. The loss function is the sum of the
+Where :math:`\mu` is the mean and :math:`\sigma^2` is the variance of the distribution (:code:`gaussian`). The loss function is the sum of the
 log likelihood of the predicted distribution. The **negative log likelihood** is the most common loss function for distribution.
 
 I did not add the **KL divergence** to the loss function, but as it measures how different two distributions are, it could be
@@ -167,11 +167,11 @@ The :code:`jax` implementation of the loss function is:
 .. code-block:: python
 
     @jax.jit
-    def gaussian_negative_log_likelihood(mean: jnp.ndarray, variance: jnp.ndarray, targets: jnp.ndarray,
+    def gaussian_negative_log_likelihood(mean: jnp.ndarray, std: jnp.ndarray, targets: jnp.ndarray,
                                          eps: float = 1e-6) -> jnp.ndarray:
-        first_term = jnp.log(jnp.maximum(2 * jnp.pi * variance, eps))
-        second_term = jnp.square((targets - mean)) / jnp.clip(variance, a_min=eps)
-        return jnp.mean(0.5 * (first_term + second_term))
+        first_term = jnp.log(jnp.maximum(2 * jnp.pi * jnp.square(std), eps))
+        second_term = jnp.square((targets - mean)) / jnp.clip(jnp.square(std), a_min=eps)
+        return 0.5 * jnp.mean(first_term + second_term)
 
 .. _classification prediction:
 
