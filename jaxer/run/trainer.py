@@ -217,7 +217,7 @@ class FlaxTrainer(TrainerBase):
         else:
             raise NotImplementedError(f"Learning rate mode {self._config.lr_mode} not implemented")
 
-        tx = optax.adamw(self._learning_rate_fn)
+        tx = optax.adamw(self._learning_rate_fn, weight_decay=1e-3)
 
         """ wrap params, apply_fn and tx in a TrainState, to not keep passing them around """
         return train_state.TrainState.create(apply_fn=model.apply, params=params, tx=tx)

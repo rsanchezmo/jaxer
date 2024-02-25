@@ -10,7 +10,7 @@ if __name__ == '__main__':
         'head_layers': [1, 2, 3],
         'n_heads': [1, 2, 4],
         'dim_feedforward': [2, 4],
-        'dropout': [0.0, 0.05, 0.1, 0.2],
+        'dropout': [0.05, 0.1, 0.2],
         'max_seq_len': [12, 24, 36, 48],
         'flatten_encoder_output': [False],
         'fe_blocks': [1, 2],
@@ -23,13 +23,13 @@ if __name__ == '__main__':
     }
 
     training_ranges = {
-        'learning_rate': [1e-4, 1e-5],
+        'learning_rate': [1e-4, 3e-4, 8e-5],
         'lr_mode': ['linear', 'cosine'],
         'warmup_epochs': [5, 10, 20],
         'batch_size': [64, 128],
         'normalizer_mode': ['global_minmax', 'global_meanstd', 'window_minmax', 'window_meanstd'],
-        'resolution': ['4h'],
-        'tickers': ['btc_usd'],
+        'resolution': ['30m'],
+        'tickers': ['btc_usd', 'eth_usd'],
     }
 
     n_trainings = 20
@@ -102,15 +102,15 @@ if __name__ == '__main__':
             initial_date='2018-01-01',
             norm_mode=normalizer_mode,
             resolution=resolution,
-            tickers=[tickers],
+            tickers=['btc_usd', 'eth_usd'],
             indicators=None,
             seq_len=max_seq_len
         )
 
         config = ExperimentConfig(model_config=model_config,
-                                  log_dir="hp_search_report",
+                                  log_dir="hp_search_report_all_30m",
                                   experiment_name=output_mode,
-                                  num_epochs=600,
+                                  num_epochs=100,
                                   learning_rate=learning_rate,
                                   lr_mode=lr_mode,
                                   warmup_epochs=warmup_epochs,
@@ -120,7 +120,7 @@ if __name__ == '__main__':
                                   seed=0,
                                   save_weights=True,
                                   dataset_config=dataset_config,
-                                  early_stopper=100
+                                  early_stopper=20
                                   )
 
         trainer = Trainer(config=config)

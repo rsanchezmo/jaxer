@@ -46,18 +46,60 @@ An example of a time point of 1h resolution on :code:`'btc_usd'` ticker is:
 
 You can find the data in the :code:`/data/dataset/data/` folder. Data has been **compressed** to be uploaded to the repository. Available data is:
 
-+------------+----------------------+----------------+----------------+
-| Resolution |       Tickers        | Initial Date   | End Date       |
-+============+======================+================+================+
-| 4h         | :code:`'btc_usd'`,   | 2018-01-01T00: | 2024-01-01T00: |
-|            | :code:`'eth_usd'`    | 00:00+00:00    | 00:00+0000     |
-+------------+----------------------+----------------+----------------+
-| 1h         | :code:`'btc_usd'`,   | 2018-01-01T00: | 2024-01-01T00: |
-|            | :code:`'eth_usd'`    | 00:00+00:00    | 00:00+0000     |
-+------------+----------------------+----------------+----------------+
-| 30m        | :code:`'btc_usd'`,   | 2018-01-01T00: | 2024-01-01T00: |
-|            | :code:`'eth_usd'`    | 00:00+00:00    | 00:00+0000     |
-+------------+----------------------+----------------+----------------+
+.. list-table::
+    :widths: 25 25 25 25 25
+
+    * - Resolution
+      - Tickers
+      - Initial Date
+      - End Date
+      - Data path
+    * - 4h
+      - :code:`'btc_usd'`
+      - :code:`2018-01-01T00:00+00:00`
+      - :code:`2024-01-01T00:00+00:00`
+      - :code:`./data/datasets/4h/btc_usd_4h.json`
+    * - 4h
+      - :code:`'eth_usd'`
+      - :code:`2018-01-01T00:00+00:00`
+      - :code:`2024-01-01T00:00+00:00`
+      - :code:`./data/datasets/4h/eth_usd_4h.json`
+    * - 4h
+      - :code:`'sol_usd'`
+      - :code:`2020-08-23T16:00+00:00`
+      - :code:`2024-01-01T00:00+00:00`
+      - :code:`./data/datasets/4h/sol_usd_4h.json`
+    * - 1h
+      - :code:`'btc_usd'`
+      - :code:`2018-01-01T00:00+00:00`
+      - :code:`2024-01-01T00:00+00:00`
+      - :code:`./data/datasets/1h/btc_usd_1h.json`
+    * - 1h
+      - :code:`'eth_usd'`
+      - :code:`2018-01-01T00:00+00:00`
+      - :code:`2024-01-01T00:00+00:00`
+      - :code:`./data/datasets/1h/eth_usd_1h.json`
+    * - 1h
+      - :code:`'sol_usd'`
+      - :code:`2020-08-23T16:00+00:00`
+      - :code:`2024-01-01T00:00+00:00`
+      - :code:`./data/datasets/1h/sol_usd_1h.json`
+    * - 30m
+      - :code:`'btc_usd'`
+      - :code:`2018-01-01T00:00+00:00`
+      - :code:`2024-01-01T00:00+00:00`
+      - :code:`./data/datasets/30m/btc_usd_30m.json`
+    * - 30m
+      - :code:`'eth_usd'`
+      - :code:`2018-01-01T00:00+00:00`
+      - :code:`2024-01-01T00:00+00:00`
+      - :code:`./data/datasets/30m/eth_usd_30m.json`
+    * - 30m
+      - :code:`'sol_usd'`
+      - :code:`2020-08-23T16:00+00:00`
+      - :code:`2024-01-01T00:00+00:00`
+      - :code:`./data/datasets/30m/sol_usd_30m.json`
+
 
 Additionally, some **financial indicators** such as :code:`EMA`, :code:`RSI`, or :code:`Bollinger Bands (BB)` have been included. Indicators were computed
 with code from another project, so code is not available here, but I introduced them inside each time point on the jsons as additional fields.
@@ -250,7 +292,7 @@ As you must have noticed, the :code:`jax_collate_fn` return several components:
 #. **window_info**: information about the window (e.g., initial date, end date, ticker, etc.).
 
 .. important::
-    Instead of using or creating :code:`jnp.array` during the :code:`__item__` call, I have used :code:`np.array` to avoid unnecesary copies from :code:`cpu` to :code:`gpu`.
+    Instead of using or creating :code:`jnp.array` during the :code:`__item__` call, I have used :code:`np.array` to avoid unnecessary copies from :code:`cpu` to :code:`gpu`.
     It will only get copied to :code:`gpu` when the :code:`dataloader` is called. I have seen a :code:`20x` speedup in training with this approach. So,
     don't get crazy by using :code:`jax` everywhere and think when it is really necessary to use it!
 

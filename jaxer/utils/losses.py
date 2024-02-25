@@ -65,10 +65,13 @@ def acc_dir(y_pred: jnp.ndarray, y_true: jnp.ndarray, last_price: jnp.ndarray) -
     :rtype: jnp.ndarray
     """
 
-    y_true = jnp.sign(y_true[:, 0] - last_price)  # y_true is (batch, 1) and last_price is (batch,)
-    y_pred = jnp.sign(y_pred[:, 0] - last_price)
+    true_sign = jnp.sign(y_true[:, 0] - last_price)  # y_true is (batch, 1) and last_price is (batch,)
+    pred_sign = jnp.sign(y_pred[:, 0] - last_price)
 
-    return jnp.mean(y_true == y_pred) * 100
+    # jax.debug.print("🤯 {y_pred} {y_true} {last_price}", y_pred=y_pred, y_true=y_true, last_price=last_price)
+    # jax.debug.print("🤯 {true_sign} {pred_sign}", true_sign=true_sign, pred_sign=pred_sign)
+
+    return jnp.mean(true_sign == pred_sign) * 100
 
 
 @jax.jit

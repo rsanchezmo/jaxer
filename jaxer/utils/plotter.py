@@ -7,6 +7,7 @@ import numpy as np
 from dataclasses import dataclass
 from typing import Optional, Dict, Union, Tuple, List
 from jaxer.utils.dataset import denormalize
+from jaxer.utils.losses import acc_dir, mape, mae
 from jaxer.run.agent import FlaxAgent
 import torch
 from jaxer.utils.dataset import jax_collate_fn
@@ -134,6 +135,7 @@ def plot_predictions(x: Tuple[jnp.ndarray],
     output_mode = window_info.get('output_mode', 'mean')
     discrete_grid_levels = window_info.get('discrete_grid_levels', [])
     resolution = window_info.get('resolution', 1)
+    norm_mode = window_info.get('norm_mode', '')
 
     y_true = denormalize(y_true, normalizer[[0], 0:4])
 
@@ -183,8 +185,8 @@ def plot_predictions(x: Tuple[jnp.ndarray],
         pass
 
     ax0.set_ylim(
-        [jnp.min(x_hist_ohlc[:, -1]) - 0.05 * jnp.min(x_hist_ohlc[:, -1]),
-         jnp.max(x_hist_ohlc[:, -1]) + 0.05 * jnp.max(x_hist_ohlc[:, -1])]
+        [jnp.min(x_hist_ohlc[:, -1]) - 0.02 * jnp.min(x_hist_ohlc[:, -1]),
+         jnp.max(x_hist_ohlc[:, -1]) + 0.02 * jnp.max(x_hist_ohlc[:, -1])]
     )
 
     ax0.set_ylabel('Close Price [$]', fontsize=18, fontweight='bold')
@@ -212,10 +214,14 @@ def plot_predictions(x: Tuple[jnp.ndarray],
              markersize=markersize)
     ax3.set_ylabel('Trades', fontsize=18, fontweight='bold')
 
+    acc_dir_ = acc_dir(y_pred, y_true, x_hist_ohlc[-1, 3])
+    mape_ = mape(y_pred, y_true)
+    mae_ = mae(y_pred, y_true)
+
     initial_date_str = initial_date.strftime('%Y/%m/%d')
     end_date_str = end_date.strftime('%Y/%m/%d')
-    title = (f'Jaxer Predictor - {ticker_name} - {output_mode} - {resolution} - '
-             f'[{initial_date_str}, {end_date_str}]')
+    title = (f'{norm_mode} - {ticker_name} - {output_mode} - {resolution} - '
+             f'[{initial_date_str}, {end_date_str}] - acc_dir: {int(acc_dir_/100)} - mape: {mape_:.2f}% - mae: {mae_:.2f}$')
 
     plt.suptitle(title, fontsize=20, fontweight='bold')
     plt.tight_layout()

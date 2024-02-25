@@ -301,11 +301,18 @@ class Dataset(torch.utils.data.Dataset):
         # Split the dataset ranges with itertools.chain
         train_ranges = []
         test_ranges = []
+
+        limit_date = None
         for ticker in range(len(self._data_len)):
             test_samples = int(self._data_len[ticker] * test_size)
             train_samples = self._data_len[ticker] - test_samples
 
-            if ticker == 0:
+            if limit_date is None:  # first ticker (btc_usd always)
+                limit_date = self._data[ticker].index[train_samples]
+
+            # get the index of self._data[ticker].index for the date that is the limit
+
+            if ticker == 0:  # first ticker (btc_usd always)
                 train_ranges.append(range(0, train_samples))
 
                 if test_tickers is not None and self._tickers[ticker] not in test_tickers:
