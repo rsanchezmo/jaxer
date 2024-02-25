@@ -39,6 +39,11 @@ As :code:`4h 'btc_usd'` dataset is only :code:`13131` samples long, a strong **o
 As you can see, the model's ability to predict the direction of the price in the test set is really bad, :code:`50%` accuracy, which is the same as a random guess. However, :code:`mape` and :code:`rmse` are not that bad.
 This can be confusing because you may think that the model is quite good by only committing really small errors, but the truth is that the model has no intuition about where the price will go.
 
+.. note::
+
+    Using :code:`acc_dir` as a metric was really enlightening and it is really curious why it is not used in the literature. People may think there models are good enough and they are not.
+
+
 .. image:: images/4h_mean_btc_only/test_mape.svg
     :width: 100%
     :align: center
