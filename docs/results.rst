@@ -36,12 +36,12 @@ As :code:`4h 'btc_usd'` dataset is only :code:`13131` samples long, a strong **o
 
     <p style="text-align: center;"><em>Train acc_dir</em></p>
 
-As you can see, the model's ability to predict the direction of the price in the test set is really bad, :code:`50%` accuracy, which is the same as a random guess. However, :code:`mape` and :code:`rmse` are not that bad.
+As you can see, the model's ability to predict the direction of the price in the test set is **really bad**, :code:`50%` accuracy, which is the same as a **random guess**. However, :code:`mape` and :code:`rmse` are not that bad.
 This can be confusing because you may think that the model is quite good by only committing really small errors, but the truth is that the model has no intuition about where the price will go.
 
 .. note::
 
-    Using :code:`acc_dir` as a metric was really enlightening and it is really curious why it is not used in the literature. People may think there models are good enough and they are not.
+    Using :code:`acc_dir` as a metric was really enlightening and it is really curious why it is not used in the literature. People may think their models are good enough and they are not.
 
 
 .. image:: images/4h_mean_btc_only/test_mape.svg
@@ -96,7 +96,7 @@ but again, we end up **overfitting**.
         <p style="text-align: center;"><em>Train acc_dir</em></p>
 
 This made me think that we should **scale things up**. I downloaded more tickers such as :code:`sol_usd` and trained with
-:code:`30m resolution` and all tickers. I really would be happy if the :code:`test_acc_dir` is above :code:`60%`. This would be
+:code:`30m resolution` and all tickers. Dataset length is now up to :code:`208751` windows for training. I really would be happy if the :code:`test_acc_dir` went above :code:`60%`. This would be
 a really good indicator that the model is able to find some patterns in the data that can be used to guess the direction of the price.
 Scaling up the system, made the training become much slower with the same HW, so debugging and making guesses about where to move next
 gets harder.

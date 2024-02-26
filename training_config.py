@@ -28,8 +28,8 @@ dataset_config = jaxer.config.DatasetConfig(
     discrete_grid_levels=[-9e6, 0.0, 9e6],
     initial_date='2018-01-01',
     norm_mode="global_minmax",
-    resolution='4h',
-    tickers=['btc_usd'],
+    resolution='30m',
+    tickers=['btc_usd', 'eth_usd', 'sol_usd'],
     indicators=None,
     seq_len=seq_len
 )

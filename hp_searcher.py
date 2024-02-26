@@ -14,7 +14,7 @@ if __name__ == '__main__':
         'max_seq_len': [12, 24, 36, 48],
         'flatten_encoder_output': [False],
         'fe_blocks': [1, 2],
-        'use_time2vec': [False, True],
+        'use_time2vec': [False],
         'output_mode': ['mean'],
         'use_resblocks_in_head': [False, True],
         'use_resblocks_in_fe': [False, True],
@@ -27,9 +27,9 @@ if __name__ == '__main__':
         'lr_mode': ['linear', 'cosine'],
         'warmup_epochs': [5, 10, 20],
         'batch_size': [64, 128],
-        'normalizer_mode': ['global_minmax', 'global_meanstd', 'window_minmax', 'window_meanstd'],
+        'normalizer_mode': ['window_minmax', 'window_meanstd'],
         'resolution': ['30m'],
-        'tickers': ['btc_usd', 'eth_usd'],
+        'tickers': ['btc_usd', 'eth_usd', 'sol_usd']
     }
 
     n_trainings = 20
@@ -102,7 +102,7 @@ if __name__ == '__main__':
             initial_date='2018-01-01',
             norm_mode=normalizer_mode,
             resolution=resolution,
-            tickers=['btc_usd', 'eth_usd'],
+            tickers=['btc_usd', 'eth_usd', 'sol_usd'],
             indicators=None,
             seq_len=max_seq_len
         )
@@ -110,7 +110,7 @@ if __name__ == '__main__':
         config = ExperimentConfig(model_config=model_config,
                                   log_dir="hp_search_report_all_30m",
                                   experiment_name=output_mode,
-                                  num_epochs=100,
+                                  num_epochs=150,
                                   learning_rate=learning_rate,
                                   lr_mode=lr_mode,
                                   warmup_epochs=warmup_epochs,
@@ -120,7 +120,7 @@ if __name__ == '__main__':
                                   seed=0,
                                   save_weights=True,
                                   dataset_config=dataset_config,
-                                  early_stopper=20
+                                  early_stopper=50
                                   )
 
         trainer = Trainer(config=config)

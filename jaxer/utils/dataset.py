@@ -302,13 +302,16 @@ class Dataset(torch.utils.data.Dataset):
         train_ranges = []
         test_ranges = []
 
-        limit_date = None
-        for ticker in range(len(self._data_len)):
-            test_samples = int(self._data_len[ticker] * test_size)
-            train_samples = self._data_len[ticker] - test_samples
+        test_samples_btc = int(self._data_len[0] * test_size)
+        train_samples_btc = self._data_len[0] - test_samples_btc
+        initial_date_btc = self._data[0].index[0]
 
-            if limit_date is None:  # first ticker (btc_usd always)
-                limit_date = self._data[ticker].index[train_samples]
+        for ticker in range(len(self._data_len)):
+            if self._data[ticker].index[0] != initial_date_btc:
+                btc_transition_date = self._data[0].index[train_samples_btc]
+                train_samples = self._data[ticker].index.get_loc(btc_transition_date)
+            else:
+                train_samples = train_samples_btc
 
             # get the index of self._data[ticker].index for the date that is the limit
 
@@ -334,6 +337,9 @@ class Dataset(torch.utils.data.Dataset):
 
         train_dataset = torch.utils.data.Subset(self, list(train_ranges))
         test_dataset = torch.utils.data.Subset(self, list(test_ranges))
+
+        self._logger.info(f"Train dataset has {len(train_dataset)} samples and test "
+                          f"dataset has {len(test_dataset)} samples")
 
         return train_dataset, test_dataset
 
