@@ -284,7 +284,9 @@ class FlaxTrainer(TrainerBase):
             mape_ = mape(means_denorm, targets_denorm)
             acc_dir_ = acc_dir(means, targets, inputs[0][:, -1, 3])
 
-            loss = rmse(means, targets)
+            w_mape = 1.0
+            w_acc_dir = 0.1
+            loss = w_mape * mape_ + w_acc_dir * (1.0 - 0.01 * acc_dir_)
 
             return loss, (mae_, r2_, rmse_, mape_, acc_dir_)
 

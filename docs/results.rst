@@ -96,10 +96,10 @@ but again, we end up **overfitting**.
         <p style="text-align: center;"><em>Train acc_dir</em></p>
 
 This made me think that we should **scale things up**. I downloaded more tickers such as :code:`sol_usd` and trained with
-:code:`30m resolution` and all tickers. Dataset length is now up to :code:`208751` windows for training. I really would be happy if the :code:`test_acc_dir` went above :code:`60%`. This would be
+:code:`30m resolution` and all tickers. Dataset length is now up to :code:`208751` windows for training and :code:`14999` for test. I really would be happy if the :code:`test_acc_dir` went above :code:`60%`. This would be
 a really good indicator that the model is able to find some patterns in the data that can be used to guess the direction of the price.
 Scaling up the system, made the training become much slower with the same HW, so debugging and making guesses about where to move next
-gets harder.
+gets harder. I actually decided to change :code:`test_ratio` to :code:`0.1` to have more data for training and reduce the starve of the model.
 
 Distribution Prediction
 -------------------------

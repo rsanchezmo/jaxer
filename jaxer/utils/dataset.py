@@ -1,5 +1,5 @@
 import time
-
+import functools
 import jax
 import torch
 import pandas as pd
@@ -125,6 +125,8 @@ class Dataset(torch.utils.data.Dataset):
             f"Dataset loaded with {len(self._data)} tickers and {len(self)} samples in total. "
             f"Each ticker has {self._data_len} samples.")
 
+        self._sequence_data_time = np.arange(0, self._seq_len)[:, None]
+
     def _map_idx(self, index: int) -> Tuple[int, int]:
         """ Maps the index to the corresponding ticker and index using self._unrolled_len """
         for idx in range(len(self._unrolled_len)):
@@ -148,36 +150,32 @@ class Dataset(torch.utils.data.Dataset):
         return sequence_tokens, extra_tokens
 
     def __getitem__(self, index):
-        # init_t = time.time()
-
         index, ticker_idx = self._map_idx(index)
         start_idx = index
         end_idx = index + self._seq_len
 
         # retrieve the sequence data
-        sequence_data_price = self._data[ticker_idx].iloc[start_idx:end_idx][Dataset.OHLC]
-        sequence_data_volume = self._data[ticker_idx].iloc[start_idx:end_idx][['volume']]
-        sequence_data_trades = self._data[ticker_idx].iloc[start_idx:end_idx][['tradesDone']]
+        sequence_data = self._data[ticker_idx].iloc[start_idx:end_idx]
+        sequence_data_values = sequence_data.loc[:, Dataset.OHLC + ['volume', 'tradesDone']].values
 
-        sequence_data_time = np.array([idx / len(self._data[ticker_idx]) for idx in range(start_idx, end_idx)])[:, None]
+        sequence_data_time = (self._sequence_data_time + start_idx) / self._data_len[ticker_idx]
 
         sequence_data_indicators = None
         if self._indicators is not None:
-            sequence_data_indicators = self._data[ticker_idx].iloc[start_idx:end_idx][self._indicators]
+            sequence_data_indicators = sequence_data.loc[:, self._indicators]
 
         # Compute normalizers
-        normalizer = self._compute_normalizers(sequence_data_price,
-                                               sequence_data_volume,
-                                               sequence_data_trades,
-                                               ticker_idx)
+        normalizer = self._compute_normalizers(sequence_data_values, ticker_idx)
 
         # data normalization
-        sequence_data_price = normalize(np.array(sequence_data_price), normalizer[:, 0:4])
-        sequence_data_price_std = sequence_data_price.std() * 5  # to increase resolution
-        sequence_data_volume = normalize(np.array(sequence_data_volume), normalizer[:, 4:8])
-        sequence_data_volume_std = sequence_data_volume.std() * 5  # to increase resolution
-        sequence_data_trades = normalize(np.array(sequence_data_trades), normalizer[:, 8:12])
-        sequence_data_trades_std = sequence_data_trades.std() * 5  # to increase resolution
+        normalizer_ = np.concatenate([normalizer[:, 0:4], normalizer[:, 0:4], normalizer[:, 0:4],
+                                      normalizer[:, 0:4], normalizer[:, 4:8], normalizer[:, 8:12]], axis=0)
+        timepoints_tokens = self._normalize_all_at_once(sequence_data_values, normalizer_)
+
+        std_ = timepoints_tokens.std(axis=0)
+        std_[0] = std_[0:4].max()
+        std_[4] = std_[4]
+        std_[5] = std_[5]
 
         if sequence_data_indicators is not None:
             sequence_data_indicators = self._normalize_indicators(sequence_data_indicators, normalizer[:, 0:4])
@@ -198,25 +196,24 @@ class Dataset(torch.utils.data.Dataset):
             label = np.array(label, dtype=np.float32)
 
         # Convert to NumPy arrays
-        to_concatenate = [sequence_data_price, sequence_data_volume, sequence_data_trades, sequence_data_time]
+        timepoints_tokens = np.concatenate((timepoints_tokens, sequence_data_time), axis=1, dtype=np.float32)
         if sequence_data_indicators is not None:
-            to_concatenate.append(sequence_data_indicators)
-        timepoints_tokens = np.concatenate(to_concatenate, axis=1, dtype=np.float32)
+            timepoints_tokens = np.concatenate((timepoints_tokens, sequence_data_indicators), axis=1, dtype=np.float32)
 
         # get the initial timestep
         timestep = self._data[ticker_idx].iloc[start_idx].name
 
-        extra_tokens = np.array([sequence_data_price_std, sequence_data_volume_std, sequence_data_trades_std],
-                                dtype=np.float32)
+        extra_tokens = std_[[0, 4, 5]]
+
+        if self._norm_mode.__contains__('global'):
+            extra_tokens *= 5  # to increase resolution
 
         extra_tokens = self._encode_tokens(extra_tokens)
-
-        # self._logger.info(f"Time to get item: {1e3 * (time.time() - init_t)}ms")
 
         window_info = {
             'ticker': self._tickers[ticker_idx],
             'initial_date': timestep,
-            'end_date': self._data[ticker_idx].iloc[label_idx-1].name,
+            'end_date': self._data[ticker_idx].iloc[label_idx - 1].name,
             'output_mode': self.output_mode,
             'norm_mode': self._norm_mode,
             'discrete_grid_levels': self._discrete_grid_levels,
@@ -227,6 +224,13 @@ class Dataset(torch.utils.data.Dataset):
 
     def __len__(self) -> int:
         return sum(self._data_len)
+
+    @staticmethod
+    def _normalize_all_at_once(all_data: np.ndarray,
+                               normalizer: np.ndarray) -> np.ndarray:
+        """ Normalizes the data at once """
+        tmp = (all_data - normalizer[:, 2]) / (normalizer[:, 3] - normalizer[:, 2])
+        return (tmp - normalizer[:, 0]) / (normalizer[:, 1] + 1e-6)
 
     @staticmethod
     def _encode_tokens(tokens: np.ndarray) -> np.ndarray:
@@ -249,36 +253,26 @@ class Dataset(torch.utils.data.Dataset):
                 sequence_data_indicators[indicator] = normalize(sequence_data_indicators[indicator], normalizer_price)
         return sequence_data_indicators
 
-    def _compute_normalizers(self, sequence_data_price, sequence_data_volume, sequence_data_trades, ticker_idx: int):
+    def _compute_normalizers(self, sequence_data_values: np.ndarray, ticker_idx: int):
         if self._norm_mode == "window_minmax":
-            min_vals = sequence_data_price.min().min()
-            max_vals = sequence_data_price.max().max()
-            ohlc = np.array([[0, 1, min_vals, max_vals]])
+            min_values = sequence_data_values.min(axis=0)
+            max_values = sequence_data_values.max(axis=0)
 
-            min_vals = sequence_data_volume.min().min()
-            max_vals = sequence_data_volume.max().max()
-            volume = np.array([[0, 1, min_vals, max_vals]])
-
-            min_vals = sequence_data_trades.min().min()
-            max_vals = sequence_data_trades.max().max()
-            trades = np.array([[0, 1, min_vals, max_vals]])
-
-            return np.concatenate((ohlc, volume, trades), axis=1)
+            return np.array([
+                [0, 1, min_values[0:4].min(), max_values[0:4].max(),
+                 0, 1, min_values[4], max_values[4],
+                 0, 1, min_values[5], max_values[5]]
+            ])
 
         if self._norm_mode == "window_meanstd":
-            mean_vals = sequence_data_price.mean().max()
-            std_vals = sequence_data_price.std().max()
-            ohlc = np.array([[mean_vals, std_vals, 0, 1]])
+            mean_values = sequence_data_values.mean(axis=0)
+            std_values = sequence_data_values.std(axis=0)
 
-            mean_vals = sequence_data_volume.mean().max()
-            std_vals = sequence_data_volume.std().max()
-            volume = np.array([[mean_vals, std_vals, 0, 1]])
-
-            mean_vals = sequence_data_trades.mean().max()
-            std_vals = sequence_data_trades.std().max()
-            trades = np.array([[mean_vals, std_vals, 0, 1]])
-
-            return np.concatenate((ohlc, volume, trades), axis=1)
+            return np.array([
+                [mean_values[0:4].max(), std_values[0:4].max(), 0, 1,
+                 mean_values[4], std_values[4], 0, 1,
+                 mean_values[5], std_values[5], 0, 1]
+            ])
 
         return self._global_normalizers[ticker_idx]
 
@@ -340,6 +334,9 @@ class Dataset(torch.utils.data.Dataset):
 
         self._logger.info(f"Train dataset has {len(train_dataset)} samples and test "
                           f"dataset has {len(test_dataset)} samples")
+
+        self._logger.info(f"Training from {initial_date_btc} to {self._data[0].index[train_samples_btc]} and testing "
+                          f"since then to {self._data[0].index[-1]}")
 
         return train_dataset, test_dataset
 

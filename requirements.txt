@@ -4,3 +4,4 @@ optax==0.1.7
 torch
 orbax
 pandas
+tbparse

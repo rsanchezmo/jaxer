@@ -5,15 +5,15 @@ from jaxer import get_logger
 
 if __name__ == '__main__':
     model_config_ranges = {
-        'd_model': [64, 128, 256, 512],
+        'd_model': [128, 256],
         'num_layers': [1, 2, 3],
-        'head_layers': [1, 2, 3],
+        'head_layers': [1, 2],
         'n_heads': [1, 2, 4],
         'dim_feedforward': [2, 4],
-        'dropout': [0.05, 0.1, 0.2],
-        'max_seq_len': [12, 24, 36, 48],
+        'dropout': [0.05, 0.1],
+        'max_seq_len': [12, 24, 36],
         'flatten_encoder_output': [False],
-        'fe_blocks': [1, 2],
+        'fe_blocks': [1],
         'use_time2vec': [False],
         'output_mode': ['mean'],
         'use_resblocks_in_head': [False, True],
@@ -26,7 +26,7 @@ if __name__ == '__main__':
         'learning_rate': [1e-4, 3e-4, 8e-5],
         'lr_mode': ['linear', 'cosine'],
         'warmup_epochs': [5, 10, 20],
-        'batch_size': [64, 128],
+        'batch_size': [128],
         'normalizer_mode': ['window_minmax', 'window_meanstd'],
         'resolution': ['30m'],
         'tickers': ['btc_usd', 'eth_usd', 'sol_usd']
@@ -108,14 +108,14 @@ if __name__ == '__main__':
         )
 
         config = ExperimentConfig(model_config=model_config,
-                                  log_dir="hp_search_report_all_30m",
+                                  log_dir="hp_search_report_loss_all_30m",
                                   experiment_name=output_mode,
                                   num_epochs=150,
                                   learning_rate=learning_rate,
                                   lr_mode=lr_mode,
                                   warmup_epochs=warmup_epochs,
                                   batch_size=batch_size,
-                                  test_split=0.15,
+                                  test_split=0.05,
                                   test_tickers=['btc_usd'],
                                   seed=0,
                                   save_weights=True,

@@ -12,6 +12,8 @@ from jaxer.run.agent import FlaxAgent
 import torch
 from jaxer.utils.dataset import jax_collate_fn
 import torch.utils.data
+import seaborn as sns
+from tbparse import SummaryReader
 
 
 @dataclass
@@ -177,6 +179,12 @@ def plot_predictions(x: Tuple[jnp.ndarray],
 
         ax0.vlines(x=pred_base[1], ymin=y_true, ymax=y_pred, color=Color.black, linewidth=2)
 
+        # plot the mean
+        mean_base = jnp.array([len(x_hist_ohlc) - 1, len(x_hist_ohlc)])
+        ax0.plot(mean_base, [x_hist_ohlc[-1, 3], jnp.mean(x_hist_ohlc[:, 3])], label='Mean', color=Color.purple,
+                 linewidth=linewidth, marker='o',
+                 markersize=markersize, linestyle='--')
+
         if output_mode == 'distribution':
             ax0.errorbar(pred_base[1], y_pred[1], yerr=std * 1.96, color=Color.green, capsize=5, linewidth=2)
             ax0.fill_between(pred_base, y_pred - std * 1.96, y_pred + std * 1.96, alpha=0.2, color=Color.green)
@@ -184,13 +192,14 @@ def plot_predictions(x: Tuple[jnp.ndarray],
     else:
         pass
 
-    ax0.set_ylim(
-        [jnp.min(x_hist_ohlc[:, -1]) - 0.02 * jnp.min(x_hist_ohlc[:, -1]),
-         jnp.max(x_hist_ohlc[:, -1]) + 0.02 * jnp.max(x_hist_ohlc[:, -1])]
-    )
+    # ax0.set_ylim(
+    #     [jnp.min(x_hist_ohlc[:, -1]) - 0.02 * jnp.min(x_hist_ohlc[:, -1]),
+    #      jnp.max(x_hist_ohlc[:, -1]) + 0.02 * jnp.max(x_hist_ohlc[:, -1])]
+    # )
 
-    ax0.set_ylabel('Close Price [$]', fontsize=18, fontweight='bold')
+    ax0.set_ylabel('Predictions [$]', fontsize=18, fontweight='bold')
     ax0.legend()
+    ax0.set_yscale('log')
 
     """ Plot high/low price """
     high_data = x_hist_ohlc[:, 1]
@@ -392,3 +401,116 @@ def plot_predictions(x: Tuple[jnp.ndarray],
 #     else:
 #         plt.show()
 #     plt.close()
+
+
+def interquartile_mean(window):
+    q1, q3 = np.percentile(window, [25, 75])
+    iqm_vals = [x for x in window if q1 <= x <= q3]
+
+    if len(iqm_vals) == 0:  # Check for empty slice
+        return np.median(window)  # Return median as an alternative measure
+    else:
+        return np.mean(iqm_vals)
+
+
+def moving_iqm_and_bounds(data, window_size=20):
+    iqm_data = []
+    max_data = []
+    min_data = []
+    n = len(data)
+
+    # We smooth the data using a moving window and Interquartile mean, the last points
+    # have a reduced size window to keep the same dimensions as the input vector
+    for i in range(n):
+        start_idx = i
+        end_idx = min(n, i + window_size)
+        window = data[start_idx:end_idx]
+
+        iqm = interquartile_mean(window)
+        max_val = np.max(window)
+        min_val = np.min(window)
+
+        iqm_data.append(iqm)
+        max_data.append(max_val)
+        min_data.append(min_val)
+
+    return iqm_data, max_data, min_data
+
+
+def plot_tensorboard_experiment(exp_path: str, save_path: Optional[str] = None, window_size: int = 5):
+    """ Plot tensorboard experiment for documentation
+
+    :param exp_path: path to the experiment
+    :type exp_path: str
+
+    :param save_path: path to save the plot
+    :type save_path: Optional[str]
+
+    :param window_size: window size for the moving average
+    :type window_size: int
+    """
+
+    # Load the experiment
+    reader = SummaryReader(exp_path, pivot=True, extra_columns={'dir_name'})
+    df = reader.scalars
+
+    gs = gridspec.GridSpec(2, 2)
+    fig = plt.figure(figsize=(10, 8))
+
+    ax = [fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[0, 1]), fig.add_subplot(gs[1, :])]
+
+    # Plot the experiment
+    train_acc_dir = df['train/acc_dir']
+    test_acc_dir = df['test/acc_dir']
+    base = df['step']
+    avg_data, max_data, min_data = moving_iqm_and_bounds(train_acc_dir, window_size=window_size)
+    ax[0].plot(base, avg_data, label='train', color=Color.green, linewidth=2)
+    ax[0].plot(base, max_data, linestyle='--', color=Color.green, linewidth=0.5)
+    ax[0].plot(base, min_data, linestyle='--', color=Color.green, linewidth=0.5)
+    ax[0].fill_between(base, min_data, max_data, alpha=0.2, color=Color.green)
+
+    avg_data, max_data, min_data = moving_iqm_and_bounds(test_acc_dir, window_size=window_size)
+    ax[0].plot(base, avg_data, label='test', color=Color.yellow, linewidth=2)
+    ax[0].plot(base, max_data, linestyle='--', color=Color.yellow, linewidth=0.5)
+    ax[0].plot(base, min_data, linestyle='--', color=Color.yellow, linewidth=0.5)
+    ax[0].fill_between(base, min_data, max_data, alpha=0.2, color=Color.yellow)
+    ax[0].legend()
+    ax[0].set_xlabel('Epochs')
+    ax[0].set_ylabel('acc_dir (%)')
+
+    train_mape = df['train/mape']
+    test_mape = df['test/mape']
+    base = df['step']
+    avg_data, max_data, min_data = moving_iqm_and_bounds(train_mape, window_size=window_size)
+    ax[1].plot(base, avg_data, label='train', color=Color.green, linewidth=2)
+    ax[1].plot(base, max_data, linestyle='--', color=Color.green, linewidth=0.5)
+    ax[1].plot(base, min_data, linestyle='--', color=Color.green, linewidth=0.5)
+    ax[1].fill_between(base, min_data, max_data, alpha=0.2, color=Color.green)
+
+    avg_data, max_data, min_data = moving_iqm_and_bounds(test_mape, window_size=window_size)
+    ax[1].plot(base, avg_data, label='test', color=Color.yellow, linewidth=2)
+    ax[1].plot(base, max_data, linestyle='--', color=Color.yellow, linewidth=0.5)
+    ax[1].plot(base, min_data, linestyle='--', color=Color.yellow, linewidth=0.5)
+    ax[1].fill_between(base, min_data, max_data, alpha=0.2, color=Color.yellow)
+    ax[1].legend()
+    ax[1].set_xlabel('Epochs')
+    ax[1].set_ylabel('mape (%)')
+
+    train_loss = df['train/loss']
+    avg_data, max_data, min_data = moving_iqm_and_bounds(train_loss, window_size=window_size)
+    ax[2].plot(base, avg_data, label='train', color=Color.pink, linewidth=2)
+    ax[2].plot(base, max_data, linestyle='--', color=Color.pink, linewidth=0.5)
+    ax[2].plot(base, min_data, linestyle='--', color=Color.pink, linewidth=0.5)
+    ax[2].fill_between(base, min_data, max_data, alpha=0.2, color=Color.pink)
+    ax[2].legend()
+    ax[2].set_xlabel('Epochs')
+    ax[2].set_ylabel('loss')
+
+    plt.suptitle('Jaxer metrics')
+    plt.tight_layout()
+
+    if save_path is not None:
+        plt.savefig(save_path)
+    else:
+        plt.show()
+    plt.close()
