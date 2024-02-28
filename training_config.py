@@ -2,13 +2,13 @@ import jaxer
 
 output_mode = 'mean'  # 'mean' or 'distribution' or 'discrete_grid
 seq_len = 24
-d_model = 128
+d_model = 64
 
 model_config = jaxer.config.ModelConfig(
     d_model=d_model,
-    num_layers=2,
-    head_layers=2,
-    n_heads=4,
+    num_layers=1,
+    head_layers=1,
+    n_heads=1,
     dim_feedforward=4 * d_model,  # 4 * d_model
     dropout=0.05,
     max_seq_len=seq_len,
@@ -28,7 +28,7 @@ dataset_config = jaxer.config.DatasetConfig(
     discrete_grid_levels=[-9e6, 0.0, 9e6],
     initial_date='2018-01-01',
     norm_mode="window_minmax",
-    resolution='30m',
+    resolution='4h',
     tickers=['btc_usd', 'eth_usd', 'sol_usd'],
     indicators=None,
     seq_len=seq_len
@@ -43,7 +43,7 @@ config = jaxer.config.ExperimentConfig(
     lr_mode='cosine',  # 'cosine' 
     warmup_epochs=15,
     dataset_config=dataset_config,
-    batch_size=128,
+    batch_size=256,
     test_split=0.1,
     test_tickers=['btc_usd'],
     seed=0,

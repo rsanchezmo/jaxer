@@ -13,7 +13,7 @@ if __name__ == '__main__':
         'dropout': [0.05, 0.1],
         'max_seq_len': [12, 24, 36],
         'flatten_encoder_output': [False],
-        'fe_blocks': [1],
+        'fe_blocks': [1, 2],
         'use_time2vec': [False],
         'output_mode': ['mean'],
         'use_resblocks_in_head': [False, True],
@@ -23,11 +23,11 @@ if __name__ == '__main__':
     }
 
     training_ranges = {
-        'learning_rate': [1e-4, 3e-4, 8e-5],
+        'learning_rate': [5e-4, 7e-4, 1e-3],
         'lr_mode': ['linear', 'cosine'],
         'warmup_epochs': [5, 10, 20],
-        'batch_size': [128],
-        'normalizer_mode': ['window_minmax', 'window_meanstd'],
+        'batch_size': [512],
+        'normalizer_mode': ['window_meanstd'],  # 'window_minmax', 'window_meanstd', 'none'
         'resolution': ['30m'],
         'tickers': ['btc_usd', 'eth_usd', 'sol_usd']
     }
@@ -108,7 +108,7 @@ if __name__ == '__main__':
         )
 
         config = ExperimentConfig(model_config=model_config,
-                                  log_dir="hp_search_report_loss_all_30m",
+                                  log_dir="hp_search_meanstd_30m",
                                   experiment_name=output_mode,
                                   num_epochs=150,
                                   learning_rate=learning_rate,
@@ -120,7 +120,7 @@ if __name__ == '__main__':
                                   seed=0,
                                   save_weights=True,
                                   dataset_config=dataset_config,
-                                  early_stopper=50
+                                  early_stopper=40
                                   )
 
         trainer = Trainer(config=config)

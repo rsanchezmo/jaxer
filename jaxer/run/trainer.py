@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 import time
 import json
 import orbax
-
+import numpy as np
 from jaxer.utils.plotter import plot_predictions
 from jaxer.utils.losses import (gaussian_negative_log_likelihood, mae,
                                 r2, rmse, mape, binary_cross_entropy, acc_dir, acc_dir_discrete)
@@ -285,7 +285,7 @@ class FlaxTrainer(TrainerBase):
             acc_dir_ = acc_dir(means, targets, inputs[0][:, -1, 3])
 
             w_mape = 1.0
-            w_acc_dir = 0.1
+            w_acc_dir = 1.0
             loss = w_mape * mape_ + w_acc_dir * (1.0 - 0.01 * acc_dir_)
 
             return loss, (mae_, r2_, rmse_, mape_, acc_dir_)
@@ -302,7 +302,6 @@ class FlaxTrainer(TrainerBase):
                                targets: jnp.ndarray,
                                normalizer: jnp.ndarray,
                                rng: jax.random.PRNGKey):
-
         def loss_fn(params):
             predictions = state.apply_fn(params, inputs, rngs={"dropout": rng})
 
@@ -380,6 +379,7 @@ class FlaxTrainer(TrainerBase):
             inputs, targets, normalizer, window_info = data
             step = state.step
             lr = self._learning_rate_fn(step)
+
             if self._flax_model_config.output_mode == 'distribution':
                 state, _metrics = self._model_train_step_dist(state, inputs, targets, normalizer, rng)
             elif self._flax_model_config.output_mode == 'mean':
@@ -391,20 +391,19 @@ class FlaxTrainer(TrainerBase):
 
             for key, value in _metrics.items():
                 metric_list = metrics.get(key, [])
-                metric_list.append(value)
+                metric_list.append(value.item())
                 metrics[key] = metric_list
 
         for key, value in metrics.items():
-            metrics[key] = jnp.mean(jnp.array(value))
-            metrics[key] = jax.device_get(metrics[key])
+            metrics[key] = np.mean(value)
+            metrics[key] = metrics[key]
 
-        metrics["lr"] = jax.device_get(lr)
+        metrics["lr"] = lr.item()
 
         return state, metrics
 
     def _evaluate_step(self, state: train_state.TrainState) -> Dict:
         """ Runs an evaluation step """
-
         metrics = {}
 
         for data in self._test_dataloader:
@@ -413,12 +412,12 @@ class FlaxTrainer(TrainerBase):
 
             for key, value in _metrics.items():
                 metric_list = metrics.get(key, [])
-                metric_list.append(value)
+                metric_list.append(value.item())
                 metrics[key] = metric_list
 
         for key, value in metrics.items():
-            metrics[key] = jnp.mean(jnp.array(value))
-            metrics[key] = jax.device_get(metrics[key])
+            metrics[key] = np.mean(value)
+            metrics[key] = metrics[key]
 
         return metrics
 

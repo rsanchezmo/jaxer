@@ -174,8 +174,6 @@ class Dataset(torch.utils.data.Dataset):
 
         std_ = timepoints_tokens.std(axis=0)
         std_[0] = std_[0:4].max()
-        std_[4] = std_[4]
-        std_[5] = std_[5]
 
         if sequence_data_indicators is not None:
             sequence_data_indicators = self._normalize_indicators(sequence_data_indicators, normalizer[:, 0:4])
@@ -229,7 +227,7 @@ class Dataset(torch.utils.data.Dataset):
     def _normalize_all_at_once(all_data: np.ndarray,
                                normalizer: np.ndarray) -> np.ndarray:
         """ Normalizes the data at once """
-        tmp = (all_data - normalizer[:, 2]) / (normalizer[:, 3] - normalizer[:, 2])
+        tmp = (all_data - normalizer[:, 2]) / (normalizer[:, 3] - normalizer[:, 2] + 1e-6)
         return (tmp - normalizer[:, 0]) / (normalizer[:, 1] + 1e-6)
 
     @staticmethod
@@ -242,8 +240,8 @@ class Dataset(torch.utils.data.Dataset):
         :return: encoded tokens
         :rtype: np.ndarray
         """
-        tokens = np.round(tokens * 100)
-        tokens = np.clip(tokens, 0, 100)
+        tokens = np.round(tokens * 100)  # tokens are positive
+        tokens = np.minimum(tokens, 100)
         return tokens
 
     def _normalize_indicators(self, sequence_data_indicators, normalizer_price):
