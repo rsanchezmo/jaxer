@@ -12,7 +12,6 @@ from jaxer.run.agent import FlaxAgent
 import torch
 from jaxer.utils.dataset import jax_collate_fn
 import torch.utils.data
-import seaborn as sns
 from tbparse import SummaryReader
 
 
@@ -96,17 +95,18 @@ def predict_entire_dataset(agent: FlaxAgent, dataset: torch.utils.data.Dataset, 
     plt.close()
 
 
-def plot_predictions(x: Tuple[jnp.ndarray],
+def plot_predictions(x: Tuple[jnp.ndarray, jnp.ndarray],
                      y_true: jnp.ndarray,
                      y_pred: jnp.ndarray,
                      normalizer: jnp.ndarray,
                      window_info: Dict,
                      folder_name: Optional[str] = None,
-                     image_name: str = 'pred'):
+                     image_name: str = 'pred',
+                     denormalize_values: bool = True):
     """ Function to plot a window prediction. Batch size must be 1
 
     :param: x, input data (sequence, extra tokens)
-    :type: Tuple[jnp.ndarray]
+    :type: Tuple[jnp.ndarray, jnp.ndarray]
 
     :param: y_true, true values
     :type: jnp.ndarray
@@ -122,33 +122,47 @@ def plot_predictions(x: Tuple[jnp.ndarray],
 
     :param: folder_name, folder name to save the plot
     :type: Optional[str]
+
+    :param image_name, image name for the plot
+    :type: str
+
+    :param denormalize_values, denormalize the input for displaying
+    :type: bool
     """
 
     x_hist = x[0]
-    normalizer = jnp.tile(normalizer, (x_hist.shape[1], 1))
-    x_hist_ohlc = denormalize(x_hist[0, :, 0:4], normalizer[:, 0:4])  # first dimension must be batch of 1
-    x_hist_volume = denormalize(x_hist[0, :, 4:5], normalizer[:, 4:8])
-    x_hist_trades = denormalize(x_hist[0, :, 5:6], normalizer[:, 8:12])
+    if denormalize_values:
+        normalizer = jnp.tile(normalizer, (x_hist.shape[1], 1))
+        x_hist_ohlc = denormalize(x_hist[0, :, 0:4], normalizer[:, 0:4])  # first dimension must be batch of 1
+        x_hist_volume = denormalize(x_hist[0, :, 4:5], normalizer[:, 4:8])
+        x_hist_trades = denormalize(x_hist[0, :, 5:6], normalizer[:, 8:12])
+    else:
+        x_hist_ohlc = x_hist[0, :, 0:4]
+        x_hist_volume = x_hist[0, :, 4:5]
+        x_hist_trades = x_hist[0, :, 5:6]
 
-    window_info = window_info[0]
     ticker_name = window_info.get('ticker', '')
     initial_date = window_info.get('initial_date', '')
     end_date = window_info.get('end_date', '')
     output_mode = window_info.get('output_mode', 'mean')
+    window_size = window_info.get('window_size', 0)
     discrete_grid_levels = window_info.get('discrete_grid_levels', [])
     resolution = window_info.get('resolution', 1)
     norm_mode = window_info.get('norm_mode', '')
 
-    y_true = denormalize(y_true, normalizer[[0], 0:4])
+    if denormalize_values:
+        y_true = denormalize(y_true, normalizer[[0], 0:4])
 
     std = None
     if output_mode == 'distribution':
         y_pred, std = y_pred
-        std = denormalize(std, normalizer[[0], 0:4])
+        if denormalize_values:
+            std = denormalize(std, normalizer[[0], 0:4])
 
-    y_pred = denormalize(y_pred, normalizer[[0], 0:4])
+    if denormalize_values:
+        y_pred = denormalize(y_pred, normalizer[[0], 0:4])
 
-    fig = plt.figure(figsize=(20, 12))
+    fig = plt.figure(figsize=(12, 6))
     gs = gridspec.GridSpec(2, 3, height_ratios=[1, 1])
     ax0 = plt.subplot(gs[0, :])
     ax1 = plt.subplot(gs[1, 0])
@@ -164,7 +178,7 @@ def plot_predictions(x: Tuple[jnp.ndarray],
     linewidth = 3
     markersize = 4
 
-    ax0.plot(window_base, x_hist_ohlc[:, 4], label='Close', color=Color.blue, linewidth=linewidth, marker='o',
+    ax0.plot(window_base, x_hist_ohlc[:, 3], label='Close', color=Color.blue, linewidth=linewidth, marker='o',
              markersize=markersize)
 
     ax0.plot(window_base, x_hist_ohlc[:, 0], label='Open', color=Color.red, linewidth=linewidth, marker='o',
@@ -197,9 +211,9 @@ def plot_predictions(x: Tuple[jnp.ndarray],
     #      jnp.max(x_hist_ohlc[:, -1]) + 0.02 * jnp.max(x_hist_ohlc[:, -1])]
     # )
 
-    ax0.set_ylabel('Predictions [$]', fontsize=18, fontweight='bold')
+    ax0.set_ylabel('Predictions [$]', fontsize=14, fontweight='bold')
     ax0.legend()
-    ax0.set_yscale('log')
+    #ax0.set_yscale('log')
 
     """ Plot high/low price """
     high_data = x_hist_ohlc[:, 1]
@@ -208,31 +222,31 @@ def plot_predictions(x: Tuple[jnp.ndarray],
              markersize=markersize)
     ax1.plot(window_base, low_data, label='Low', color=Color.purple, linewidth=linewidth, marker='o',
              markersize=markersize)
-    ax1.set_ylabel('High/Low Price [$]', fontsize=18, fontweight='bold')
+    ax1.set_ylabel('High/Low Price [$]', fontsize=14, fontweight='bold')
     ax1.legend()
 
     """ Plot volume """
     volume_data = x_hist_volume
     ax2.plot(window_base, volume_data, label='Volume', color=Color.yellow, linewidth=linewidth, marker='o',
              markersize=markersize)
-    ax2.set_ylabel('Volume', fontsize=18, fontweight='bold')
+    ax2.set_ylabel('Volume', fontsize=14, fontweight='bold')
 
     """ Plot trades"""
     trades_data = x_hist_trades
     ax3.plot(window_base, trades_data, label='Trades', color=Color.blue, linewidth=linewidth, marker='o',
              markersize=markersize)
-    ax3.set_ylabel('Trades', fontsize=18, fontweight='bold')
+    ax3.set_ylabel('Trades', fontsize=14, fontweight='bold')
 
     acc_dir_ = acc_dir(y_pred, y_true, x_hist_ohlc[-1, 3])
     mape_ = mape(y_pred, y_true)
     mae_ = mae(y_pred, y_true)
 
-    initial_date_str = initial_date.strftime('%Y/%m/%d')
-    end_date_str = end_date.strftime('%Y/%m/%d')
+    initial_date_str = initial_date.strftime('%Y/%m/%d') if initial_date is not None else '0'
+    end_date_str = end_date.strftime('%Y/%m/%d') if end_date is not None else str(window_size)
     title = (f'{norm_mode} - {ticker_name} - {output_mode} - {resolution} - '
              f'[{initial_date_str}, {end_date_str}] - acc_dir: {int(acc_dir_/100)} - mape: {mape_:.2f}% - mae: {mae_:.2f}$')
 
-    plt.suptitle(title, fontsize=20, fontweight='bold')
+    plt.suptitle(title, fontsize=14, fontweight='bold')
     plt.tight_layout()
 
     if folder_name is not None:

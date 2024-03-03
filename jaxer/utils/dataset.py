@@ -206,7 +206,7 @@ class Dataset(torch.utils.data.Dataset):
         if self._norm_mode.__contains__('global'):
             extra_tokens *= 5  # to increase resolution
 
-        extra_tokens = self._encode_tokens(extra_tokens)
+        extra_tokens = self.encode_tokens(extra_tokens)
 
         window_info = {
             'ticker': self._tickers[ticker_idx],
@@ -215,7 +215,8 @@ class Dataset(torch.utils.data.Dataset):
             'output_mode': self.output_mode,
             'norm_mode': self._norm_mode,
             'discrete_grid_levels': self._discrete_grid_levels,
-            'resolution': self._resolution
+            'resolution': self._resolution,
+            'window_size': self._seq_len
         }
 
         return timepoints_tokens, extra_tokens, label, normalizer, window_info
@@ -231,7 +232,7 @@ class Dataset(torch.utils.data.Dataset):
         return (tmp - normalizer[:, 0]) / (normalizer[:, 1] + 1e-6)
 
     @staticmethod
-    def _encode_tokens(tokens: np.ndarray) -> np.ndarray:
+    def encode_tokens(tokens: np.ndarray) -> np.ndarray:
         """ Encodes the tokens into integer (tokens are expected to be on [0, 1])
 
         :param tokens: tokens to encode

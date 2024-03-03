@@ -42,4 +42,5 @@ if __name__ == '__main__':
     for batch in dataloader:
         x, y_true, normalizer, window_info = batch
         y_pred = agent(x)
-        jaxer.utils.plot_predictions(x=x, y_true=y_true, y_pred=y_pred, normalizer=normalizer, window_info=window_info)
+        jaxer.utils.plot_predictions(x=x, y_true=y_true, y_pred=y_pred, normalizer=normalizer,
+                                     window_info=window_info[0])
