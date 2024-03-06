@@ -17,6 +17,7 @@ from jaxer.utils.schedulers import create_warmup_cosine_schedule
 from jaxer.model.flax_transformer import Transformer, TransformerConfig
 from jaxer.config.experiment_config import ExperimentConfig
 from jaxer.utils.dataset import jax_collate_fn, Dataset, denormalize
+from jaxer.utils.synthetic_dataset import SyntheticDataset
 from flax.training import orbax_utils, train_state
 
 
@@ -39,14 +40,25 @@ class FlaxTrainer(TrainerBase):
             str(self._ckpts_dir), self._orbax_checkpointer, options)
 
         """ Dataloaders """
-        self._dataset = Dataset(dataset_config=self._config.dataset_config)
+        if self._config.dataset_mode == 'real':
+            self._dataset = Dataset(dataset_config=self._config.dataset_config)
 
-        self._train_ds, self._test_ds = self._dataset.get_train_test_split(test_size=self._config.test_split,
-                                                                           test_tickers=self._config.test_tickers)
-        self._train_dataloader = DataLoader(self._train_ds, batch_size=self._config.batch_size, shuffle=True,
-                                            collate_fn=jax_collate_fn)
-        self._test_dataloader = DataLoader(self._test_ds, batch_size=self._config.batch_size, shuffle=True,
-                                           collate_fn=jax_collate_fn)
+            self._train_ds, self._test_ds = self._dataset.get_train_test_split(test_size=self._config.test_split,
+                                                                               test_tickers=self._config.test_tickers)
+            self._train_dataloader = DataLoader(self._train_ds, batch_size=self._config.batch_size, shuffle=True,
+                                                collate_fn=jax_collate_fn)
+            self._test_dataloader = DataLoader(self._test_ds, batch_size=self._config.batch_size, shuffle=True,
+                                               collate_fn=jax_collate_fn)
+        else:
+            self._dataset = SyntheticDataset(config=self._config.synthetic_dataset_config)
+            self._train_dataloader = self._dataset.generator(batch_size=self._config.batch_size,
+                                                             seed=self._config.seed)
+            self._test_dataloader = self._dataset.generator(batch_size=self._config.batch_size,
+                                                            seed=self._config.seed+1)
+
+        discrete_grid_levels = None
+        if self._config.dataset_mode == 'real' and self._config.dataset_config.discrete_grid_levels is not None:
+            discrete_grid_levels = len(self._config.dataset_config.discrete_grid_levels) - 1
 
         """ Best model state: eval purposes """
         self._best_model_state: Optional[train_state.TrainState] = None
@@ -65,8 +77,7 @@ class FlaxTrainer(TrainerBase):
             fe_blocks=self._config.model_config.fe_blocks,
             use_time2vec=self._config.model_config.use_time2vec,
             output_mode=self._config.model_config.output_mode,
-            discrete_grid_levels=len(
-                self._config.dataset_config.discrete_grid_levels) - 1 if self._config.dataset_config.discrete_grid_levels is not None else None,
+            discrete_grid_levels=discrete_grid_levels,
             use_resblocks_in_head=self._config.model_config.use_resblocks_in_head,
             use_resblocks_in_fe=self._config.model_config.use_resblocks_in_fe,
             average_encoder_output=self._config.model_config.average_encoder_output,
@@ -106,7 +117,11 @@ class FlaxTrainer(TrainerBase):
     def _warmup_eval(self, state: train_state.TrainState) -> None:
         """ Warmup models """
         self._eval_model = Transformer(self._flax_model_config_eval)
-        self._eval_model.apply(state.params, self._dataset.get_random_input())
+
+        if self._config.dataset_mode == 'real':
+            self._eval_model.apply(state.params, self._dataset.get_random_input())
+        else:
+            self._eval_model.apply(state.params, next(self._train_dataloader)[0])
 
     def train_and_evaluate(self) -> None:
         """ Runs the training loop with evaluation """
@@ -374,6 +389,8 @@ class FlaxTrainer(TrainerBase):
 
         metrics = {}
         lr = None
+
+        # TODO: add synthetic dataset training (for step in steps_per_epoch)
 
         for batch_idx, data in enumerate(self._train_dataloader):
             inputs, targets, normalizer, window_info = data

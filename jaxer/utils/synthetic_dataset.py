@@ -3,31 +3,50 @@ import jax.numpy as jnp
 import numpy as np
 from jaxer.utils.plotter import plot_predictions
 from jaxer.utils.dataset import Dataset, normalize
+from jaxer.config.synthetic_dataset_config import SyntheticDatasetConfig
+from typing import Optional
 
 
 class SyntheticDataset:
-    def __init__(self, window_size: int, seed: int = 0, output_mode: str = 'mean',
-                 normalizer_mode: str = 'window_minmax', add_noise: bool = False):
-        np.random.seed(seed)
-        random.seed(seed)
-        self._window_size = window_size
-        self._output_mode = output_mode
-        self._add_noise = add_noise
-        self._normalizer_mode = normalizer_mode
+    """ Synthetic dataset generator. It generates a window size historic data with sinusoidal signals with the same shape
+    as the real dataset. Only historical prices are generated because volume and trades were not easily simulated.
 
-    def generator(self, batch_size: int):
+    :param config: configuration for the synthetic dataset
+    :type config: SyntheticDatasetConfig
+    """
+
+    def __init__(self, config: SyntheticDatasetConfig):
+        self._config = config
+
+    def generator(self, batch_size: int, seed: Optional[int] = None):
+        """ Generator for the synthetic dataset
+
+        :param batch_size: batch size
+        :type batch_size: int
+
+        :param seed: seed for reproducibility
+        :type seed: int
+
+        :return: generator for the synthetic dataset
+        """
+        if seed is not None:
+            np.random.seed(seed)
+            random.seed(seed)
+            
         while True:
-            yield self._get_data(batch_size=batch_size,
-                                 window_size=self._window_size,
-                                 output_mode=self._output_mode
-                                 )
+            yield self._get_data(batch_size=batch_size)
 
-    def _get_data(self, batch_size: int, window_size: int,
-                  min_amplitude: float = 0.1, max_amplitude: float = 1.0, min_frequency: float = 0.5,
-                  max_frequency: float = 50, output_mode: str = 'mean'):
+    def _get_data(self, batch_size: int):
+        """ Generate a batch of synthetic data
 
-        time_ = np.linspace(0, 1, window_size+1)
-        historical_timepoints = np.zeros((batch_size, window_size, 7))
+        :param batch_size: batch size
+        :type batch_size: int
+
+        :return: batch of synthetic data
+        """
+
+        time_ = np.linspace(0, 1, self._config.window_size+1)
+        historical_timepoints = np.zeros((batch_size, self._config.window_size, 7))
         labels = np.zeros((batch_size, 1))
         extra_tokens = np.zeros((batch_size, 3), dtype=np.int16)
         num_sinusoids = np.random.randint(1, 10, size=batch_size)
@@ -35,33 +54,37 @@ class SyntheticDataset:
         normalizers[:, [1, 3, 5, 7, 9, 11]] = 1.0
 
         for idx in range(batch_size):
-            amplitude = np.random.uniform(min_amplitude, max_amplitude, size=num_sinusoids[idx])
+            amplitude = np.random.uniform(self._config.min_amplitude,
+                                          self._config.max_amplitude, size=num_sinusoids[idx])
             # weight them to sum 1
-            amplitude = self.softmax(amplitude) * max_amplitude
-            frequency = np.random.uniform(min_frequency, max_frequency, size=num_sinusoids[idx])
+            amplitude = self.softmax(amplitude) * self._config.max_amplitude
+            frequency = np.random.uniform(self._config.min_frequency,
+                                          self._config.max_frequency, size=num_sinusoids[idx])
             phase = np.random.uniform(0, 2 * np.pi, size=num_sinusoids[idx])
 
-            window_signal = np.zeros((window_size+1, ))
+            window_signal = np.zeros((self._config.window_size+1, ))
             for sinusoid in range(num_sinusoids[idx]):
                 window_signal += amplitude[sinusoid] * np.sin(2 * np.pi * frequency[sinusoid] * time_ + phase[sinusoid])
-            window_signal += 2 * max_amplitude
+            window_signal += 2 * self._config.max_amplitude
 
-            if self._add_noise:
-                window_signal += np.random.uniform(0, np.max(amplitude)/2, size=(window_size+1, ))
+            if self._config.add_noise:
+                window_signal += np.random.uniform(0, np.max(amplitude)/2, size=(self._config.window_size+1, ))
 
             historical_timepoints[idx, :, 0] = np.roll(window_signal[:-1], 1)
             historical_timepoints[idx, 0, 0] = window_signal[0]
             historical_timepoints[idx, :, 3] = window_signal[:-1]
             historical_timepoints[idx, :, 1] = window_signal[:-1] + np.random.uniform(0, np.max(amplitude),
-                                                                                      size=(window_size,))
+                                                                                      size=(self._config.window_size,))
             historical_timepoints[idx, :, 2] = window_signal[:-1] + np.random.uniform(-np.max(amplitude), 0,
-                                                                                      size=(window_size,))
+                                                                                      size=(self._config.window_size,))
 
-            normalizers[idx, 0:4] = self._compute_normalizer(historical_timepoints[idx, :, 0:4], self._normalizer_mode)
+            normalizers[idx, 0:4] = self._compute_normalizer(historical_timepoints[idx, :, 0:4],
+                                                             self._config.normalizer_mode)
 
             labels[idx, :] = window_signal[-1]
 
-            historical_timepoints[idx, :, 0:4] = normalize(historical_timepoints[idx, :, 0:4], normalizers[idx, 0:4][np.newaxis, ...])
+            historical_timepoints[idx, :, 0:4] = normalize(historical_timepoints[idx, :, 0:4],
+                                                           normalizers[idx, 0:4][np.newaxis, ...])
             labels[idx] = normalize(labels[idx], normalizers[idx, 0:4][np.newaxis, ...])
 
             extra_tokens[idx, 0] = np.std(historical_timepoints[idx, :, 0:4])
@@ -76,11 +99,11 @@ class SyntheticDataset:
             'ticker': 'synthetic',
             'initial_date': None,
             'end_date': None,
-            'output_mode': output_mode,
-            'norm_mode': self._normalizer_mode,
-            'window_size': window_size,
+            'output_mode': self._config.output_mode,
+            'norm_mode': self._config.normalizer_mode,
+            'window_size': self._config.window_size,
             'discrete_grid_levels': [],
-            'resolution': 'synthetic'
+            'resolution': 'delta'
         }
 
         return ((jnp.array(historical_timepoints), jnp.array(extra_tokens)),
@@ -111,9 +134,18 @@ class SyntheticDataset:
 
 
 if __name__ == '__main__':
-    dataset = SyntheticDataset(window_size=100, seed=0, add_noise=False, normalizer_mode='window_minmax')
 
-    dataset_generator = dataset.generator(1)
+    dataset_config = SyntheticDatasetConfig(window_size=100,
+                                            add_noise=False,
+                                            normalizer_mode='window_minmax',
+                                            min_amplitude=0.1,
+                                            max_amplitude=1.0,
+                                            min_frequency=0.5,
+                                            max_frequency=20)
+
+    dataset = SyntheticDataset(config=dataset_config)
+
+    dataset_generator = dataset.generator(1, seed=0)
     for _ in range(10):
         x, y_true, normalizer, window_info = next(dataset_generator)
         y_pred = y_true

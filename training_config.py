@@ -34,15 +34,29 @@ dataset_config = jaxer.config.DatasetConfig(
     seq_len=seq_len
 )
 
+synthetic_dataset_config = jaxer.config.SyntheticDatasetConfig(
+    window_size=seq_len,
+    output_mode=output_mode,  # 'mean' or 'distribution' or 'discrete_grid
+    normalizer_mode='window_minmax',  # 'window_meanstd' or 'window_minmax'
+    add_noise=False,
+    min_amplitude=0.1,
+    max_amplitude=1.0,
+    min_frequency=0.5,
+    max_frequency=30
+)
+
 config = jaxer.config.ExperimentConfig(
     model_config=model_config,
     log_dir="results",
     experiment_name="exp_1",
-    num_epochs=500,
+    num_epochs=1000,
+    steps_per_epoch=100,  # for synthetic dataset only
     learning_rate=5e-4,
     lr_mode='cosine',  # 'cosine' 
     warmup_epochs=15,
+    dataset_mode='real',  # 'real' or 'synthetic' (in the future may be both, will see)
     dataset_config=dataset_config,
+    synthetic_dataset_config=synthetic_dataset_config,
     batch_size=256,
     test_split=0.1,
     test_tickers=['btc_usd'],
