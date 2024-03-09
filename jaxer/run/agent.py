@@ -39,8 +39,7 @@ class FlaxAgent(AgentBase):
             norm_encoder_prev=self.config.model_config["norm_encoder_prev"]
         )
 
-        options = orbax.checkpoint.CheckpointManagerOptions()
-        manager = orbax.checkpoint.CheckpointManager(self.ckpt_path, options=options)
-        restored_state = manager.restore(int(self.model_name))
+        orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
+        restored_state = orbax_checkpointer.restore(self.ckpt_path)
 
         self.model = Transformer(self._flax_config).bind(restored_state["model"]["params"])

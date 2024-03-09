@@ -29,7 +29,7 @@ dataset_config = jaxer.config.DatasetConfig(
     initial_date='2018-01-01',
     norm_mode="window_minmax",
     resolution='4h',
-    tickers=['btc_usd', 'eth_usd', 'sol_usd'],
+    tickers=['btc_usd'],  # , 'eth_usd', 'sol_usd'],
     indicators=None,
     seq_len=seq_len
 )

@@ -1,6 +1,6 @@
 flax[all]
 tensorboard
 optax
-orbax
+orbax-checkpoint==0.5.1
 pandas
 tbparse

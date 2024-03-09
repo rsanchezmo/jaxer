@@ -89,13 +89,12 @@ For instance, we can define a checkpoint manager that saves up to 5 best models:
 
         # to save the model
         if test_metric < best_test_metric:
-            ckpt = {'model': state}
+            ckpt = {'model': trained_state}
             save_args = orbax_utils.save_args_from_target(ckpt)
             self._checkpoint_manager.save(epoch, ckpt, save_kwargs={'save_args': save_args})
-            self._checkpoint_manager.wait_until_finished()
 
         # to load the model
-        restored_model = self._checkpoint_manager.restore(epoch)['model']
+        restored_state = self._orbax_checkpointer.restore('model_path')['model']
 
 
 To later visualize the training process, I used :code:`tensorboard` to record logs of train/test metrics. This is a very useful tool to **visualize** the :ref:`metrics`
