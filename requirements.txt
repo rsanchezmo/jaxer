@@ -1,8 +1,9 @@
---index-url https://download.pytorch.org/whl/cu118
-torch
 flax[all]
 tensorboard
 optax
 orbax-checkpoint==0.5.1
 pandas
 tbparse
+
+--index-url https://download.pytorch.org/whl/cu118
+torch
