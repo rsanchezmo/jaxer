@@ -25,7 +25,7 @@ Create a python venv and source it:
 
 Install your desired Jax version (more info at https://jax.readthedocs.io/en/latest/installation.html). You must notice
 that jax only provides 2 distributions with cuda (12.3 and 11.8). As this repo also depends on torch, you could install 
-torch in cpu and jax in gpu, torch is only used for the dataloaders. However, I decided to better install torch 11.8 and jax 11.8.
+torch in cpu and jax in gpu, torch is only used for the dataloaders. However, I decided to better install torch+cuda11.8 and jax+cuda11.8.
 For example, if already installed CUDA 11.8 on Linux (make sure to have exported to PATH your CUDA version):
     
   ```bash

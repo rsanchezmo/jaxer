@@ -34,10 +34,9 @@ class FlaxTrainer(TrainerBase):
         """ Checkpoints """
         self._ckpts_dir = os.path.join(self._log_dir, "ckpt", self._config.__str__())
         os.makedirs(self._ckpts_dir, exist_ok=True)
-        self._orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
         options = orbax.checkpoint.CheckpointManagerOptions(create=True, max_to_keep=5)
         self._checkpoint_manager = orbax.checkpoint.CheckpointManager(
-            str(self._ckpts_dir), self._orbax_checkpointer, options)
+            str(self._ckpts_dir), options=options)
 
         """ Dataloaders """
         if self._config.dataset_mode == 'real':
@@ -101,6 +100,7 @@ class FlaxTrainer(TrainerBase):
         ckpt = {'model': state}
         save_args = orbax_utils.save_args_from_target(ckpt)
         self._checkpoint_manager.save(epoch, ckpt, save_kwargs={'save_args': save_args})
+        self._checkpoint_manager.wait_until_finished()
 
     def _load_model(self, epoch: int) -> Any:
         """ Loads a model checkpoint
@@ -111,7 +111,7 @@ class FlaxTrainer(TrainerBase):
         :return: the model state
         :rtype: train_state.TrainState
         """
-        ckpt = self._orbax_checkpointer.restore(os.path.join(str(self._ckpts_dir), str(epoch)))
+        ckpt = self._checkpoint_manager.restore(epoch)
         return ckpt['model']
 
     def _warmup_eval(self, state: train_state.TrainState) -> None:
