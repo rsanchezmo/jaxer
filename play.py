@@ -5,9 +5,7 @@ from torch.utils.data import DataLoader
 if __name__ == '__main__':
     """ LOAD THE AGENT """
     experiment = "hp_search_report_loss_all_30m/mean"
-    # model_name = jaxer.utils.get_best_model(experiment)
-    model_name = ('lr_0.0003_linear_bs_64_ep_150_wmp_20_seed_0_dmodel_256_nlayers_2_ndl_1_nhds_4_dimff_1024_drpt_0.2_maxlen_12_flat_False_feblk_1_t2v_False_window_meanstd_ind_False_ds_0.05_2018-01-01_outmd_mean_reshd_False_resfe_True_avout_True_nrmpre_False',
-                  '117')
+    model_name = jaxer.utils.get_best_model(experiment)
     agent = jaxer.run.FlaxAgent(experiment=experiment, model_name=model_name)
 
     """ plot experiment"""
