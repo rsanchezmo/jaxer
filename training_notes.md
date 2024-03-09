@@ -8,5 +8,5 @@
 ## Output Mean/Distribution
 - Unable to distinguish how good the model is --> achieve 2% of mape in train/test set. But it depends on the input data normalization. It is not the same 2% in a very noisy input with a very big std than 2% in a very flat and stable input (really low std). 
 - TODO: check if adding std of the input makes better generalization results. 
-- Must find a metric that measures how good the model is without this issues. Thats why accuracy on ```output discrete grid``` is more explainable. 
+- Must find a metric that measures how good the model is without these issues. That is why accuracy on ```output discrete grid``` is more explainable. 
 - TODO: remove n trades (the variable is really correlated to the volume)

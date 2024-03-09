@@ -23,12 +23,25 @@ Create a python **venv** and source it:
     python -m venv venv
     source venv/bin/activate
 
-Install your desired :code:`jax` version (more info at `jax installation official doc <https://jax.readthedocs.io/en/latest/installation.html>`_).
-For example, if already installed :code:`CUDA 12` on linux (make sure to have exported to :code:`PATH` your :code:`CUDA` version):
+You can install your desired :code:`jax` version (more info at `jax installation official doc <https://jax.readthedocs.io/en/latest/installation.html>`_).
+You must notice that jax :code:`currently` only provides 2 distributions with cuda (:code:`12.3` and :code:`11.8`).
+As this repo also depends on :code:`torch`, you could install :code:`torch` in cpu and :code:`jax` in gpu, :code:`torch`
+is only used for the dataloaders. However, I decided to better install cuda 11.8 versions as they are compatible.
+For example, if already installed :code:`CUDA 11.8` on linux (make sure to have exported to :code:`PATH` your :code:`CUDA` version):
 
 .. code-block:: bash
 
-    (venv) $ pip install jax[cuda12_local] -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+    (venv) $ pip install jax[cuda11_local] -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+    (venv) $ pip install torch --index-url https://download.pytorch.org/whl/cu118
+
+If :code:`CUDA` is not installed, you may better use pip installation and let pip install the right version for your gpu. Make sure that
+when doing ::code:`nvcc --version`, it says that you should install cuda toolkit (just remove if you have a release already reported on
+:code:`.bashrc`):
+
+.. code-block:: bash
+
+    (venv) $ pip install --upgrade jax[cuda11_pip] -f https://storage.googleapis.com/jax-releases/jax_releases.html
+    (venv) $ pip install torch --index-url https://download.pytorch.org/whl/cu118
 
 Then install the rest of the dependencies (which are in the :code:`requirements.txt` file):
 
