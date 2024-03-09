@@ -117,11 +117,7 @@ class FlaxTrainer(TrainerBase):
     def _warmup_eval(self, state: train_state.TrainState) -> None:
         """ Warmup models """
         self._eval_model = Transformer(self._flax_model_config_eval)
-
-        if self._config.dataset_mode == 'real':
-            self._eval_model.apply(state.params, self._dataset.get_random_input())
-        else:
-            self._eval_model.apply(state.params, next(self._train_dataloader)[0])
+        self._eval_model.apply(state.params, self._dataset.get_random_input())
 
     def train_and_evaluate(self) -> None:
         """ Runs the training loop with evaluation """
@@ -220,7 +216,7 @@ class FlaxTrainer(TrainerBase):
         params = model.init({"dropout": key_dropout, "params": key_params}, self._dataset.get_random_input())
 
         """ Create lr scheduler """
-        steps_per_epoch = len(self._train_dataloader)
+        steps_per_epoch = len(self._train_dataloader) if self._config.dataset_mode == 'real' else self._config.steps_per_epoch
         if self._config.lr_mode == 'cosine':
             self._learning_rate_fn = create_warmup_cosine_schedule(learning_rate=self._config.learning_rate,
                                                                    warmup_epochs=self._config.warmup_epochs,
@@ -390,26 +386,44 @@ class FlaxTrainer(TrainerBase):
         metrics = {}
         lr = None
 
-        # TODO: add synthetic dataset training (for step in steps_per_epoch)
+        if self._config.dataset_mode == 'synthetic':
+            for step in range(self._config.steps_per_epoch):
+                inputs, targets, normalizer, window_info = next(self._train_dataloader)
+                step = state.step
+                lr = self._learning_rate_fn(step)
 
-        for batch_idx, data in enumerate(self._train_dataloader):
-            inputs, targets, normalizer, window_info = data
-            step = state.step
-            lr = self._learning_rate_fn(step)
+                if self._flax_model_config.output_mode == 'distribution':
+                    state, _metrics = self._model_train_step_dist(state, inputs, targets, normalizer, rng)
+                elif self._flax_model_config.output_mode == 'mean':
+                    state, _metrics = self._model_train_step_mean(state, inputs, targets, normalizer, rng)
+                elif self._flax_model_config.output_mode == 'discrete_grid':
+                    state, _metrics = self._model_train_step_discrete(state, inputs, targets, rng)
+                else:
+                    raise NotImplementedError(f"Output mode {self._flax_model_config.output_mode} not implemented")
 
-            if self._flax_model_config.output_mode == 'distribution':
-                state, _metrics = self._model_train_step_dist(state, inputs, targets, normalizer, rng)
-            elif self._flax_model_config.output_mode == 'mean':
-                state, _metrics = self._model_train_step_mean(state, inputs, targets, normalizer, rng)
-            elif self._flax_model_config.output_mode == 'discrete_grid':
-                state, _metrics = self._model_train_step_discrete(state, inputs, targets, normalizer, rng)
-            else:
-                raise NotImplementedError(f"Output mode {self._flax_model_config.output_mode} not implemented")
+                for key, value in _metrics.items():
+                    metric_list = metrics.get(key, [])
+                    metric_list.append(value.item())
+                    metrics[key] = metric_list
+        else:
+            for batch_idx, data in enumerate(self._train_dataloader):
+                inputs, targets, normalizer, window_info = data
+                step = state.step
+                lr = self._learning_rate_fn(step)
 
-            for key, value in _metrics.items():
-                metric_list = metrics.get(key, [])
-                metric_list.append(value.item())
-                metrics[key] = metric_list
+                if self._flax_model_config.output_mode == 'distribution':
+                    state, _metrics = self._model_train_step_dist(state, inputs, targets, normalizer, rng)
+                elif self._flax_model_config.output_mode == 'mean':
+                    state, _metrics = self._model_train_step_mean(state, inputs, targets, normalizer, rng)
+                elif self._flax_model_config.output_mode == 'discrete_grid':
+                    state, _metrics = self._model_train_step_discrete(state, inputs, targets, normalizer, rng)
+                else:
+                    raise NotImplementedError(f"Output mode {self._flax_model_config.output_mode} not implemented")
+
+                for key, value in _metrics.items():
+                    metric_list = metrics.get(key, [])
+                    metric_list.append(value.item())
+                    metrics[key] = metric_list
 
         for key, value in metrics.items():
             metrics[key] = np.mean(value)
@@ -423,14 +437,24 @@ class FlaxTrainer(TrainerBase):
         """ Runs an evaluation step """
         metrics = {}
 
-        for data in self._test_dataloader:
-            inputs, targets, normalizer, _ = data
-            _, _metrics = self._model_eval_step(state, inputs, targets, normalizer, config=self._flax_model_config_eval)
+        if self._config.dataset_mode == 'synthetic':
+            for step in range(self._config.steps_per_epoch):
+                inputs, targets, normalizer, window_info = next(self._test_dataloader)
+                state, _metrics = self._model_eval_step(state, inputs, targets, normalizer, self._flax_model_config_eval)
 
-            for key, value in _metrics.items():
-                metric_list = metrics.get(key, [])
-                metric_list.append(value.item())
-                metrics[key] = metric_list
+                for key, value in _metrics.items():
+                    metric_list = metrics.get(key, [])
+                    metric_list.append(value.item())
+                    metrics[key] = metric_list
+        else:
+            for data in self._test_dataloader:
+                inputs, targets, normalizer, _ = data
+                _, _metrics = self._model_eval_step(state, inputs, targets, normalizer, config=self._flax_model_config_eval)
+
+                for key, value in _metrics.items():
+                    metric_list = metrics.get(key, [])
+                    metric_list.append(value.item())
+                    metrics[key] = metric_list
 
         for key, value in metrics.items():
             metrics[key] = np.mean(value)

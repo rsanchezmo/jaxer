@@ -18,6 +18,13 @@ class SyntheticDataset:
     def __init__(self, config: SyntheticDatasetConfig):
         self._config = config
 
+    def get_random_input(self):
+        """ Get a random input for the synthetic dataset
+
+        :return: random input for the synthetic dataset
+        """
+        return self._get_data(batch_size=1)[0]
+
     def generator(self, batch_size: int, seed: Optional[int] = None):
         """ Generator for the synthetic dataset
 
@@ -48,7 +55,7 @@ class SyntheticDataset:
         time_ = np.linspace(0, 1, self._config.window_size+1)
         historical_timepoints = np.zeros((batch_size, self._config.window_size, 7))
         labels = np.zeros((batch_size, 1))
-        extra_tokens = np.zeros((batch_size, 3), dtype=np.int16)
+        extra_tokens = np.zeros((batch_size, 3), dtype=np.float32)
         num_sinusoids = np.random.randint(1, 10, size=batch_size)
         normalizers = np.zeros((batch_size, 12))
         normalizers[:, [1, 3, 5, 7, 9, 11]] = 1.0
@@ -87,9 +94,10 @@ class SyntheticDataset:
                                                            normalizers[idx, 0:4][np.newaxis, ...])
             labels[idx] = normalize(labels[idx], normalizers[idx, 0:4][np.newaxis, ...])
 
-            extra_tokens[idx, 0] = np.std(historical_timepoints[idx, :, 0:4])
+            price_std = np.std(historical_timepoints[idx, :, 0])
+            extra_tokens[idx, 0] = price_std
 
-        extra_tokens = Dataset.encode_tokens(extra_tokens)
+        extra_tokens = Dataset.encode_tokens(extra_tokens).astype(np.int16)
 
         # mask variables that cannot be computed
         historical_timepoints[:, :, 4:6] = -1
@@ -106,9 +114,7 @@ class SyntheticDataset:
             'resolution': 'delta'
         }
 
-        return ((jnp.array(historical_timepoints), jnp.array(extra_tokens)),
-                jnp.array(labels), jnp.array(normalizers),
-                window_info)
+        return (jnp.array(historical_timepoints), jnp.array(extra_tokens)), jnp.array(labels), jnp.array(normalizers), window_info
 
     @staticmethod
     def _compute_normalizer(x: np.ndarray, normalizer_mode: str):

@@ -1,14 +1,14 @@
 import jaxer
 
 output_mode = 'mean'  # 'mean' or 'distribution' or 'discrete_grid
-seq_len = 24
-d_model = 64
+seq_len = 50
+d_model = 128
 
 model_config = jaxer.config.ModelConfig(
     d_model=d_model,
-    num_layers=1,
-    head_layers=1,
-    n_heads=1,
+    num_layers=4,
+    head_layers=2,
+    n_heads=2,
     dim_feedforward=4 * d_model,  # 4 * d_model
     dropout=0.05,
     max_seq_len=seq_len,
@@ -48,13 +48,13 @@ synthetic_dataset_config = jaxer.config.SyntheticDatasetConfig(
 config = jaxer.config.ExperimentConfig(
     model_config=model_config,
     log_dir="results",
-    experiment_name="exp_1",
+    experiment_name="exp_synthetic",
     num_epochs=1000,
-    steps_per_epoch=100,  # for synthetic dataset only
+    steps_per_epoch=500,  # for synthetic dataset only
     learning_rate=5e-4,
     lr_mode='cosine',  # 'cosine' 
     warmup_epochs=15,
-    dataset_mode='real',  # 'real' or 'synthetic' (in the future may be both, will see)
+    dataset_mode='synthetic',  # 'real' or 'synthetic' (in the future may be both, will see)
     dataset_config=dataset_config,
     synthetic_dataset_config=synthetic_dataset_config,
     batch_size=256,
