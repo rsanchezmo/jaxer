@@ -1,7 +1,7 @@
 import jaxer
 
 output_mode = 'mean'  # 'mean' or 'distribution' or 'discrete_grid
-seq_len = 50
+seq_len = 100
 d_model = 128
 
 model_config = jaxer.config.ModelConfig(
@@ -48,7 +48,7 @@ synthetic_dataset_config = jaxer.config.SyntheticDatasetConfig(
 config = jaxer.config.ExperimentConfig(
     model_config=model_config,
     log_dir="results",
-    experiment_name="exp_synthetic",
+    experiment_name="exp_synthetic_context",
     num_epochs=1000,
     steps_per_epoch=500,  # for synthetic dataset only
     learning_rate=5e-4,

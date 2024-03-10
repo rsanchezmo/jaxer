@@ -64,7 +64,7 @@ class SyntheticDataset:
             amplitude = np.random.uniform(self._config.min_amplitude,
                                           self._config.max_amplitude, size=num_sinusoids[idx])
             # weight them to sum 1
-            # amplitude = self.softmax(amplitude) * self._config.max_amplitude
+            amplitude = self.softmax(amplitude) * self._config.max_amplitude
             frequency = np.random.uniform(self._config.min_frequency,
                                           self._config.max_frequency, size=num_sinusoids[idx])
             phase = np.random.uniform(0, 2 * np.pi, size=num_sinusoids[idx])
@@ -73,7 +73,7 @@ class SyntheticDataset:
             for sinusoid in range(num_sinusoids[idx]):
                 window_signal += amplitude[sinusoid] * np.sin(2 * np.pi * frequency[sinusoid] * time_ + phase[sinusoid])
             window_signal += num_sinusoids[idx] * self._config.max_amplitude  # to be positive
-            window_signal /= 2  # num_sinusoids[idx]  # to make everything a bit smaller
+            # window_signal /= 2  # num_sinusoids[idx]  # to make everything a bit smaller
 
             if self._config.add_noise:
                 window_signal += np.random.uniform(0, np.max(amplitude)/2, size=(self._config.window_size+1, ))
@@ -120,8 +120,8 @@ class SyntheticDataset:
     @staticmethod
     def _compute_normalizer(x: np.ndarray, normalizer_mode: str):
         if normalizer_mode == 'window_meanstd':
-            mean_values = np.mean(x)
-            std_values = np.std(x)
+            mean_values = np.mean(x, axis=0)
+            std_values = np.std(x, axis=0)
 
             return np.array([mean_values.max(), std_values.max(), 0, 1])
 
@@ -144,7 +144,7 @@ if __name__ == '__main__':
 
     dataset_config = SyntheticDatasetConfig(window_size=100,
                                             add_noise=False,
-                                            normalizer_mode='window_minmax',
+                                            normalizer_mode='window_meanstd',
                                             min_amplitude=.1,
                                             max_amplitude=.2,
                                             min_frequency=0.5,
