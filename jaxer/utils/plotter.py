@@ -1,5 +1,4 @@
 import os.path
-
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
 import jax.numpy as jnp
@@ -465,13 +464,13 @@ def plot_tensorboard_experiment(exp_path: str, save_path: Optional[str] = None, 
     """
 
     # Load the experiment
-    reader = SummaryReader(exp_path, pivot=True, extra_columns={'dir_name'})
+    reader = SummaryReader(exp_path, pivot=True, extra_columns={'dir_name', 'wall_time'})
     df = reader.scalars
 
     gs = gridspec.GridSpec(2, 2)
     fig = plt.figure(figsize=(10, 8))
 
-    ax = [fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[0, 1]), fig.add_subplot(gs[1, :])]
+    ax = [fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[0, 1]), fig.add_subplot(gs[1, 0]), fig.add_subplot(gs[1, 1])]
 
     # Plot the experiment
     train_acc_dir = df['train/acc_dir']
@@ -519,8 +518,22 @@ def plot_tensorboard_experiment(exp_path: str, save_path: Optional[str] = None, 
     ax[2].legend()
     ax[2].set_xlabel('Epochs')
     ax[2].set_ylabel('loss')
+    # log format
+    ax[2].set_yscale('log')
 
-    plt.suptitle('Jaxer metrics')
+    lr = df['train/lr']
+    ax[3].plot(base, lr, label='lr', color=Color.red, linewidth=2)
+    ax[3].legend()
+    ax[3].set_xlabel('Epochs')
+    ax[3].set_ylabel('learning rate')
+
+    # get training time
+    times = df["wall_time"].values
+    begin = times[0][0]
+    end = times[-1][0]
+    elapsed_time = (end - begin) / 60.
+
+    plt.suptitle(f'jaxer training metrics | elapsed: {elapsed_time:.2f} min ({elapsed_time/60.:.2f} hours)')
     plt.tight_layout()
 
     if save_path is not None:

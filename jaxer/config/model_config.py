@@ -66,3 +66,7 @@ class ModelConfig:
     use_resblocks_in_fe: bool
     average_encoder_output: bool
     norm_encoder_prev: bool
+
+    @classmethod
+    def from_dict(cls, d):
+        return cls(**d)

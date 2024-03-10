@@ -1,3 +1,5 @@
+import os.path
+
 import jaxer
 
 output_mode = 'mean'  # 'mean' or 'distribution' or 'discrete_grid
@@ -45,16 +47,21 @@ synthetic_dataset_config = jaxer.config.SyntheticDatasetConfig(
     max_frequency=30
 )
 
+pretrained_folder = "results/exp_synthetic_context"
+pretrained_path_subfolder, pretrained_path_ckpt = jaxer.utils.get_best_model(pretrained_folder)
+pretrained_model = (pretrained_folder, pretrained_path_subfolder, pretrained_path_ckpt)
+
 config = jaxer.config.ExperimentConfig(
     model_config=model_config,
+    pretrained_model=pretrained_model,
     log_dir="results",
-    experiment_name="exp_synthetic_context",
+    experiment_name="exp_real_pretrained_synthetic",
     num_epochs=1000,
     steps_per_epoch=500,  # for synthetic dataset only
     learning_rate=5e-4,
     lr_mode='cosine',  # 'cosine' 
     warmup_epochs=15,
-    dataset_mode='synthetic',  # 'real' or 'synthetic' (in the future may be both, will see)
+    dataset_mode='real',  # 'real' or 'synthetic' (in the future may be both, will see)
     dataset_config=dataset_config,
     synthetic_dataset_config=synthetic_dataset_config,
     batch_size=256,

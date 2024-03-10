@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader
 
 if __name__ == '__main__':
     """ LOAD THE AGENT """
-    experiment = "results/exp_synthetic"
+    experiment = "results/exp_synthetic_context"
     model_name = jaxer.utils.get_best_model(experiment)
     agent = jaxer.run.FlaxAgent(experiment=experiment, model_name=model_name)
 

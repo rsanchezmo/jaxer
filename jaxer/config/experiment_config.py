@@ -3,7 +3,7 @@ import json
 from jaxer.config.dataset_config import DatasetConfig
 from jaxer.config.synthetic_dataset_config import SyntheticDatasetConfig
 from jaxer.config.model_config import ModelConfig
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 
 @dataclass
@@ -12,6 +12,9 @@ class ExperimentConfig:
 
     :param model_config: model configuration (transformer architecture)
     :type model_config: ModelConfig
+
+    :param pretrained_model: experiment path and best model
+    :type pretrained_model: Optional[Tuple[str, str, str]]
 
     :param log_dir: directory to save the logs
     :type log_dir: str
@@ -72,6 +75,7 @@ class ExperimentConfig:
     seed: int
     save_weights: bool
     early_stopper: int
+    pretrained_model: Optional[Tuple[str, str, str]] = None
     steps_per_epoch: int = 100
 
     def save_config(self, path):

@@ -16,6 +16,7 @@ from jaxer.run.trainer_base import TrainerBase
 from jaxer.utils.schedulers import create_warmup_cosine_schedule
 from jaxer.model.flax_transformer import Transformer, TransformerConfig
 from jaxer.config.experiment_config import ExperimentConfig
+from jaxer.config.model_config import ModelConfig
 from jaxer.utils.dataset import jax_collate_fn, Dataset, denormalize
 from jaxer.utils.synthetic_dataset import SyntheticDataset
 from flax.training import orbax_utils, train_state
@@ -30,6 +31,20 @@ class FlaxTrainer(TrainerBase):
 
     def __init__(self, config: ExperimentConfig) -> None:
         super().__init__(config)
+
+        """ check pretrained model """
+        self._pretrained_params = None
+        if self._config.pretrained_model is not None:
+            experiment_folder, experiment_subfolder, best_model = self._config.pretrained_model
+            pretrained_config = ExperimentConfig.load_config(os.path.join(experiment_folder, 'configs', experiment_subfolder, 'config.json'))
+            pretrained_model_config = ModelConfig.from_dict(pretrained_config.model_config)
+
+            if pretrained_model_config != self._config.model_config:
+                raise ValueError(f"Pretrained model config {pretrained_model_config} does not match current model config {self._config.model_config}")
+
+            ckpt_path = os.path.join(experiment_folder, "ckpt", experiment_subfolder, best_model, 'default')
+            orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
+            self._pretrained_params = orbax_checkpointer.restore(ckpt_path)["model"]["params"]
 
         """ Checkpoints """
         self._ckpts_dir = os.path.join(self._log_dir, "ckpt", self._config.__str__())
@@ -124,6 +139,7 @@ class FlaxTrainer(TrainerBase):
 
         """ Create a training state """
         rng = jax.random.PRNGKey(self._config.seed)
+
         train_state_ = self._create_train_state(rng)
 
         self.logger.info("Warming up model...")
@@ -213,7 +229,10 @@ class FlaxTrainer(TrainerBase):
                                         self._dataset.get_random_input(),
                                         console_kwargs={'width': 120}))
 
-        params = model.init({"dropout": key_dropout, "params": key_params}, self._dataset.get_random_input())
+        if self._pretrained_params is not None:
+            params = self._pretrained_params
+        else:
+            params = model.init({"dropout": key_dropout, "params": key_params}, self._dataset.get_random_input())
 
         """ Create lr scheduler """
         steps_per_epoch = len(self._train_dataloader) if self._config.dataset_mode == 'real' else self._config.steps_per_epoch
