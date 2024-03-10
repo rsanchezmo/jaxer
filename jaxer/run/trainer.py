@@ -36,11 +36,13 @@ class FlaxTrainer(TrainerBase):
         self._pretrained_params = None
         if self._config.pretrained_model is not None:
             experiment_folder, experiment_subfolder, best_model = self._config.pretrained_model
-            pretrained_config = ExperimentConfig.load_config(os.path.join(experiment_folder, 'configs', experiment_subfolder, 'config.json'))
+            pretrained_config = ExperimentConfig.load_config(
+                os.path.join(experiment_folder, 'configs', experiment_subfolder, 'config.json'))
             pretrained_model_config = ModelConfig.from_dict(pretrained_config.model_config)
 
             if pretrained_model_config != self._config.model_config:
-                raise ValueError(f"Pretrained model config {pretrained_model_config} does not match current model config {self._config.model_config}")
+                raise ValueError(
+                    f"Pretrained model config {pretrained_model_config} does not match current model config {self._config.model_config}")
 
             ckpt_path = os.path.join(experiment_folder, "ckpt", experiment_subfolder, best_model, 'default')
             orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
@@ -55,21 +57,37 @@ class FlaxTrainer(TrainerBase):
             str(self._ckpts_dir), self._orbax_checkpointer, options)
 
         """ Dataloaders """
-        if self._config.dataset_mode == 'real':
-            self._dataset = Dataset(dataset_config=self._config.dataset_config)
+        self._dataset_real = None
+        self._dataset_synth = None
+        self._train_dataloader_real = None
+        self._test_dataloader_real = None
+        self._train_dataloader_synth = None
+        self._test_dataloader_synth = None
 
-            self._train_ds, self._test_ds = self._dataset.get_train_test_split(test_size=self._config.test_split,
-                                                                               test_tickers=self._config.test_tickers)
-            self._train_dataloader = DataLoader(self._train_ds, batch_size=self._config.batch_size, shuffle=True,
-                                                collate_fn=jax_collate_fn)
-            self._test_dataloader = DataLoader(self._test_ds, batch_size=self._config.batch_size, shuffle=True,
-                                               collate_fn=jax_collate_fn)
-        else:
-            self._dataset = SyntheticDataset(config=self._config.synthetic_dataset_config)
-            self._train_dataloader = self._dataset.generator(batch_size=self._config.batch_size,
-                                                             seed=self._config.seed)
-            self._test_dataloader = self._dataset.generator(batch_size=self._config.batch_size,
-                                                            seed=self._config.seed + 1)
+        batch_size_real = self._config.batch_size
+        batch_size_synth = self._config.batch_size
+        if self._config.dataset_mode == 'both':
+            batch_size_real = int(0.25 * self._config.batch_size)
+            batch_size_synth = self._config.batch_size - batch_size_real
+
+        if self._config.dataset_mode in ['real', 'both']:
+            self._dataset_real = Dataset(dataset_config=self._config.dataset_config)
+
+            self._train_ds, self._test_ds = self._dataset_real.get_train_test_split(test_size=self._config.test_split,
+                                                                                    test_tickers=self._config.test_tickers)
+
+            self._train_dataloader_real = DataLoader(self._train_ds, batch_size=batch_size_real, shuffle=True,
+                                                     collate_fn=jax_collate_fn)
+            # leave the batch size on test at the maximum as if both mode, then will only test on real data
+            self._test_dataloader_real = DataLoader(self._test_ds, batch_size=self._config.batch_size, shuffle=True,
+                                                    collate_fn=jax_collate_fn)
+
+        if self._config.dataset_mode in ['synthetic', 'both']:
+            self._dataset_synth = SyntheticDataset(config=self._config.synthetic_dataset_config)
+            self._train_dataloader_synth = self._dataset_synth.generator(batch_size=batch_size_synth,
+                                                                         seed=self._config.seed)
+            self._test_dataloader_synth = self._dataset_synth.generator(batch_size=self._config.batch_size,
+                                                                        seed=self._config.seed + 1)
 
         discrete_grid_levels = None
         if self._config.dataset_mode == 'real' and self._config.dataset_config.discrete_grid_levels is not None:
@@ -132,7 +150,8 @@ class FlaxTrainer(TrainerBase):
     def _warmup_eval(self, state: train_state.TrainState) -> None:
         """ Warmup models """
         self._eval_model = Transformer(self._flax_model_config_eval)
-        self._eval_model.apply(state.params, self._dataset.get_random_input())
+        dataset = self._dataset_real if self._dataset_real is not None else self._dataset_synth
+        self._eval_model.apply(state.params, dataset.get_random_input())
 
     def train_and_evaluate(self) -> None:
         """ Runs the training loop with evaluation """
@@ -225,17 +244,23 @@ class FlaxTrainer(TrainerBase):
 
         key_dropout, key_params = jax.random.split(rng)
 
+        dataset = self._dataset_real if self._dataset_real is not None else self._dataset_synth
         self.logger.info(model.tabulate({"dropout": key_dropout, "params": key_params},
-                                        self._dataset.get_random_input(),
+                                        dataset.get_random_input(),
                                         console_kwargs={'width': 120}))
 
         if self._pretrained_params is not None:
             params = self._pretrained_params
         else:
-            params = model.init({"dropout": key_dropout, "params": key_params}, self._dataset.get_random_input())
+            params = model.init({"dropout": key_dropout, "params": key_params}, dataset.get_random_input())
 
         """ Create lr scheduler """
-        steps_per_epoch = len(self._train_dataloader) if self._config.dataset_mode == 'real' else self._config.steps_per_epoch
+        steps_per_epoch = 1
+        if self._config.dataset_mode in ['real', 'both']:
+            steps_per_epoch = len(self._train_dataloader_real)
+        elif self._config.dataset_mode == 'synthetic':
+            steps_per_epoch = self._config.steps_per_epoch
+
         if self._config.lr_mode == 'cosine':
             self._learning_rate_fn = create_warmup_cosine_schedule(learning_rate=self._config.learning_rate,
                                                                    warmup_epochs=self._config.warmup_epochs,
@@ -405,9 +430,13 @@ class FlaxTrainer(TrainerBase):
         metrics = {}
         lr = None
 
-        if self._config.dataset_mode == 'synthetic':
+        do_synth = True if self._config.dataset_mode == 'synthetic' else False
+        do_real = True if self._config.dataset_mode == 'real' else False
+        do_both = True if self._config.dataset_mode == 'both' else False
+
+        if do_synth:
             for step in range(self._config.steps_per_epoch):
-                inputs, targets, normalizer, window_info = next(self._train_dataloader)
+                inputs, targets, normalizer, window_info = next(self._train_dataloader_synth)
                 step = state.step
                 lr = self._learning_rate_fn(step)
 
@@ -424,9 +453,46 @@ class FlaxTrainer(TrainerBase):
                     metric_list = metrics.get(key, [])
                     metric_list.append(value.item())
                     metrics[key] = metric_list
-        else:
-            for batch_idx, data in enumerate(self._train_dataloader):
+        if do_real:
+            for batch_idx, data in enumerate(self._train_dataloader_real):
                 inputs, targets, normalizer, window_info = data
+                step = state.step
+                lr = self._learning_rate_fn(step)
+
+                if self._flax_model_config.output_mode == 'distribution':
+                    state, _metrics = self._model_train_step_dist(state, inputs, targets, normalizer, rng)
+                elif self._flax_model_config.output_mode == 'mean':
+                    state, _metrics = self._model_train_step_mean(state, inputs, targets, normalizer, rng)
+                elif self._flax_model_config.output_mode == 'discrete_grid':
+                    state, _metrics = self._model_train_step_discrete(state, inputs, targets, normalizer, rng)
+                else:
+                    raise NotImplementedError(f"Output mode {self._flax_model_config.output_mode} not implemented")
+
+                for key, value in _metrics.items():
+                    metric_list = metrics.get(key, [])
+                    metric_list.append(value.item())
+                    metrics[key] = metric_list
+
+        if do_both:
+            for batch_idx, data in enumerate(self._train_dataloader_real):
+                inputs_real, targets_real, normalizer_real, _ = data
+                inputs_synth, targets_synth, normalizer_synth, _ = next(self._train_dataloader_synth)
+
+                # mix them randomly along the batch
+                randomer = jnp.arange(0, self._config.batch_size)
+
+                rng, key = jax.random.split(rng)
+                random_idx = jax.random.permutation(rng, randomer, independent=True)
+                inputs_hist = jnp.concatenate((inputs_synth[0], inputs_real[0]), axis=0)
+                inputs_hist = inputs_hist[random_idx, ...]
+                inputs_extra = jnp.concatenate((inputs_synth[1], inputs_real[1]), axis=0)
+                inputs_extra = inputs_extra[random_idx, ...]
+                inputs = (inputs_hist, inputs_extra)
+                targets = jnp.concatenate((targets_synth, targets_real), axis=0)
+                targets = targets[random_idx, ...]
+                normalizer = jnp.concatenate((normalizer_synth, normalizer_real), axis=0)
+                normalizer = normalizer[random_idx, ...]
+
                 step = state.step
                 lr = self._learning_rate_fn(step)
 
@@ -458,17 +524,19 @@ class FlaxTrainer(TrainerBase):
 
         if self._config.dataset_mode == 'synthetic':
             for step in range(self._config.steps_per_epoch):
-                inputs, targets, normalizer, window_info = next(self._test_dataloader)
-                state, _metrics = self._model_eval_step(state, inputs, targets, normalizer, self._flax_model_config_eval)
+                inputs, targets, normalizer, window_info = next(self._test_dataloader_synth)
+                state, _metrics = self._model_eval_step(state, inputs, targets, normalizer,
+                                                        self._flax_model_config_eval)
 
                 for key, value in _metrics.items():
                     metric_list = metrics.get(key, [])
                     metric_list.append(value.item())
                     metrics[key] = metric_list
-        else:
-            for data in self._test_dataloader:
+        else:  # just test on real dataset when both or only real
+            for data in self._test_dataloader_real:
                 inputs, targets, normalizer, _ = data
-                _, _metrics = self._model_eval_step(state, inputs, targets, normalizer, config=self._flax_model_config_eval)
+                _, _metrics = self._model_eval_step(state, inputs, targets, normalizer,
+                                                    config=self._flax_model_config_eval)
 
                 for key, value in _metrics.items():
                     metric_list = metrics.get(key, [])
