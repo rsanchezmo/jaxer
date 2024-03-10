@@ -4,6 +4,5 @@ optax
 orbax-checkpoint==0.5.1
 pandas
 tbparse
+torch --index-url https://download.pytorch.org/whl/cu118
 
---extra-index-url https://download.pytorch.org/whl/cu118
-torch

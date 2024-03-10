@@ -72,7 +72,8 @@ class SyntheticDataset:
             window_signal = np.zeros((self._config.window_size+1, ))
             for sinusoid in range(num_sinusoids[idx]):
                 window_signal += amplitude[sinusoid] * np.sin(2 * np.pi * frequency[sinusoid] * time_ + phase[sinusoid])
-            window_signal += 2 * self._config.max_amplitude
+            window_signal += num_sinusoids[idx] * self._config.max_amplitude  # to be positive
+            window_signal /= 2  # num_sinusoids[idx]  # to make everything a bit smaller
 
             if self._config.add_noise:
                 window_signal += np.random.uniform(0, np.max(amplitude)/2, size=(self._config.window_size+1, ))
