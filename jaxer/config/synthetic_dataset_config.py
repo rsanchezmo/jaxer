@@ -37,3 +37,7 @@ class SyntheticDatasetConfig:
     max_amplitude: float = 1.0
     min_frequency: float = 0.5
     max_frequency: float = 30
+
+    @classmethod
+    def from_dict(cls, d):
+        return cls(**d)

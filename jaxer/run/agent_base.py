@@ -20,7 +20,7 @@ class AgentBase:
         self.experiment_path = experiment
         subfolder, self.model_name = model_name
 
-        self.ckpt_path = os.path.join(self.experiment_path, 'ckpt', subfolder)
+        self.ckpt_path = os.path.join(self.experiment_path, 'ckpt', subfolder, self.model_name, 'default')
 
         if not os.path.exists(self.experiment_path):
             raise FileNotFoundError(f"Experiment {experiment} does not exist in results folder")
@@ -28,7 +28,7 @@ class AgentBase:
         if not os.path.exists(os.path.join(self.experiment_path, 'configs', subfolder, 'config.json')):
             raise FileNotFoundError(f"Config file for experiment {experiment} does not exist")
 
-        if not os.path.exists(os.path.join(self.ckpt_path, self.model_name)):
+        if not os.path.exists(self.ckpt_path):
             raise FileNotFoundError(f"Model {self.model_name} does not exist in experiment {experiment} "
                                     f"with subfolder {subfolder}")
 
