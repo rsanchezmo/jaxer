@@ -64,7 +64,7 @@ class SyntheticDataset:
             amplitude = np.random.uniform(self._config.min_amplitude,
                                           self._config.max_amplitude, size=num_sinusoids[idx])
             # weight them to sum 1
-            amplitude = self.softmax(amplitude) * self._config.max_amplitude
+            # amplitude = self.softmax(amplitude) * self._config.max_amplitude
             frequency = np.random.uniform(self._config.min_frequency,
                                           self._config.max_frequency, size=num_sinusoids[idx])
             phase = np.random.uniform(0, 2 * np.pi, size=num_sinusoids[idx])
@@ -144,8 +144,8 @@ if __name__ == '__main__':
     dataset_config = SyntheticDatasetConfig(window_size=100,
                                             add_noise=False,
                                             normalizer_mode='window_minmax',
-                                            min_amplitude=0.1,
-                                            max_amplitude=1.0,
+                                            min_amplitude=.1,
+                                            max_amplitude=.2,
                                             min_frequency=0.5,
                                             max_frequency=20)
 
@@ -156,5 +156,5 @@ if __name__ == '__main__':
         x, y_true, normalizer, window_info = next(dataset_generator)
         y_pred = y_true
         plot_predictions(x=x, y_true=y_true, y_pred=y_pred, normalizer=normalizer, window_info=window_info,
-                         denormalize_values=False)
+                         denormalize_values=True)
 
