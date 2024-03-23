@@ -104,29 +104,29 @@ def plot_predictions(x: Tuple[jnp.ndarray, jnp.ndarray],
                      denormalize_values: bool = True):
     """ Function to plot a window prediction. Batch size must be 1
 
-    :param: x, input data (sequence, extra tokens)
-    :type: Tuple[jnp.ndarray, jnp.ndarray]
+    :param x: input data (sequence, extra tokens)
+    :type x: Tuple[jnp.ndarray, jnp.ndarray]
 
-    :param: y_true, true values
-    :type: jnp.ndarray
+    :param y_true: true values
+    :type y_true: jnp.ndarray
 
-    :param: y_pred, predicted values
-    :type: jnp.ndarray
+    :param y_pred: predicted values
+    :type y_pred: jnp.ndarray
 
-    :param: normalizer, normalizer values (see doc)
-    :type: jnp.ndarray
+    :param normalizer: normalizer values
+    :type normalizer: jnp.ndarray
 
-    :param: window_info, window information
-    :type: Dict
+    :param window_info: window information
+    :type window_info: Dict
 
-    :param: folder_name, folder name to save the plot
-    :type: Optional[str]
+    :param folder_name: folder name to save the image
+    :type folder_name: Optional[str]
 
-    :param image_name, image name for the plot
-    :type: str
+    :param image_name: image name
+    :type image_name: str
 
-    :param denormalize_values, denormalize the input for displaying
-    :type: bool
+    :param denormalize_values: denormalize the values on the plot
+    :type denormalize_values: bool
     """
 
     x_hist = x[0]

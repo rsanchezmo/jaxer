@@ -322,5 +322,16 @@ TBC
 
 Synthetic Dataset configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The dataset configuration acts as an **abstraction of the synthetic dataset class**:
 
-TBC
+.. code-block:: python
+
+    window_size: int            # window size of the context
+    output_mode: str = 'mean'   # output mode (related to model config: 'mean', 'distribution', 'discrete_grid')
+    normalizer_mode: str = 'window_mean'  # normalization mode (window_minmax, window_meanstd, window_mean, global_minmax, global_meanstd, none)
+    add_noise: bool = False     # add noise to the data
+    min_amplitude: float = 0.1  # minimum amplitude of the sinusoids
+    max_amplitude: float = 1.0  # maximum amplitude of the sinusoids
+    min_frequency: float = 0.5  # minimum frequency of the sinusoids
+    max_frequency: float = 30   # maximum frequency of the sinusoids
+    num_sinusoids: int = 3      # number of sinusoids to generate
