@@ -156,11 +156,12 @@ large then resolution may be lost. If using multiple tickers, it is more pronoun
 
    * - :code:`window_minmax`
      - :code:`window_meanstd`
+     - :code:`window_mean`
      - :code:`global_minmax`
      - :code:`global_meanstd`
      - :code:`none`
 
-Dataset class
+Real Dataset class
 ~~~~~~~~~~~~~
 The dataset class has been implemented using :code:`torch` since there is no native version in :code:`flax` or :code:`jax` that provides
 the same functionality. To make it compatible with :code:`jax`, a function :code:`jax_collate_fn` has been implemented to transform data into :code:`jnp.array`
@@ -298,8 +299,8 @@ As you must have noticed, the :code:`jax_collate_fn` return several components:
 
 .. _dataset_configuration:
 
-Dataset configuration
-~~~~~~~~~~~~~~~~~~~~~
+Real Dataset configuration
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 The dataset configuration acts as an **abstraction of the dataset class**:
 
 .. code-block:: python
@@ -313,3 +314,13 @@ The dataset configuration acts as an **abstraction of the dataset class**:
     resolution: str # resolution of the data (4h, 1h, 30m)
     tickers: List[str]  # tickers to train with (must be in the data folder)
     indicators: Optional[List[str]]  # financial indicators to include in the dataset (e.g., ['rsi'])
+
+
+Synthetic Dataset class
+~~~~~~~~~~~~~~~~~~~~~~~
+TBC
+
+Synthetic Dataset configuration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+TBC

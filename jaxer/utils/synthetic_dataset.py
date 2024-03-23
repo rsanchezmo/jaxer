@@ -56,7 +56,7 @@ class SyntheticDataset:
         historical_timepoints = np.zeros((batch_size, self._config.window_size, 7))
         labels = np.zeros((batch_size, 1))
         extra_tokens = np.zeros((batch_size, 3), dtype=np.float32)
-        num_sinusoids = np.random.randint(1, 10, size=batch_size)
+        num_sinusoids = np.random.randint(1, self._config.num_sinusoids, size=batch_size)
         normalizers = np.zeros((batch_size, 12))
         normalizers[:, [1, 3, 5, 7, 9, 11]] = 1.0
 
@@ -75,6 +75,9 @@ class SyntheticDataset:
             window_signal += 2 * self._config.max_amplitude  # to be positive
             # window_signal /= 2  # num_sinusoids[idx]  # to make everything a bit smaller
 
+            # random scaling
+            scaler = np.random.uniform(1, 200)
+
             if self._config.add_noise:
                 window_signal += np.random.uniform(0, np.max(amplitude)/2, size=(self._config.window_size+1, ))
 
@@ -86,10 +89,12 @@ class SyntheticDataset:
             historical_timepoints[idx, :, 2] = window_signal[:-1] + np.random.uniform(-np.max(amplitude), 0,
                                                                                       size=(self._config.window_size,))
 
+            historical_timepoints[idx, :, 0:4] = historical_timepoints[idx, :, 0:4] * scaler
+
             normalizers[idx, 0:4] = self._compute_normalizer(historical_timepoints[idx, :, 0:4],
                                                              self._config.normalizer_mode)
 
-            labels[idx, :] = window_signal[-1]
+            labels[idx, :] = window_signal[-1] * scaler
 
             historical_timepoints[idx, :, 0:4] = normalize(historical_timepoints[idx, :, 0:4],
                                                            normalizers[idx, 0:4][np.newaxis, ...])
@@ -131,6 +136,10 @@ class SyntheticDataset:
 
             return np.array([0, 1, min_values, max_values])
 
+        if normalizer_mode == 'window_mean':
+            mean_values = np.mean(x, axis=0)
+            return np.array([0, mean_values.max(), 0, 1])  # mean scaling is just to divide by the mean
+
         raise ValueError('Not supported normalizer mode')
 
     @staticmethod
@@ -142,13 +151,14 @@ class SyntheticDataset:
 
 if __name__ == '__main__':
 
-    dataset_config = SyntheticDatasetConfig(window_size=100,
+    dataset_config = SyntheticDatasetConfig(window_size=10,
                                             add_noise=False,
-                                            normalizer_mode='window_meanstd',
+                                            normalizer_mode='window_mean',
                                             min_amplitude=.1,
                                             max_amplitude=.2,
                                             min_frequency=0.5,
-                                            max_frequency=20)
+                                            max_frequency=20,
+                                            num_sinusoids=3)
 
     dataset = SyntheticDataset(config=dataset_config)
 

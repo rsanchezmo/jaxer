@@ -28,6 +28,9 @@ class SyntheticDatasetConfig:
 
     :param max_frequency: maximum frequency for the sinusoids
     :type max_frequency: float
+
+    :param num_sinusoids: number of sinusoids to generate
+    :type num_sinusoids: int
     """
     window_size: int
     output_mode: str = 'mean'
@@ -37,6 +40,7 @@ class SyntheticDatasetConfig:
     max_amplitude: float = 1.0
     min_frequency: float = 0.5
     max_frequency: float = 30
+    num_sinusoids: int = 3
 
     @classmethod
     def from_dict(cls, d):

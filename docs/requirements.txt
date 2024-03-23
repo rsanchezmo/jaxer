@@ -76,3 +76,6 @@ urllib3==2.2.0
     # via requests
 zipp==3.17.0
     # via importlib-metadata
+
+torch  # workaround to avoid torch version conflict
+

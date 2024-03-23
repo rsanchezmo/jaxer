@@ -22,16 +22,6 @@ if __name__ == '__main__':
 
         train_ds, test_ds = dataset.get_train_test_split(test_size=agent.config.test_split,
                                                          test_tickers=agent.config.test_tickers)
-
-        """ INFERENCE """
-
-        # infer entire dataset
-        plot_entire_dataset = False
-        if plot_entire_dataset:
-            jaxer.utils.predict_entire_dataset(agent, test_ds, mode='test')
-            jaxer.utils.predict_entire_dataset(agent, train_ds, mode='train')
-
-        # infer once
         train_dataloader = DataLoader(train_ds, batch_size=1, shuffle=True, collate_fn=jaxer.utils.jax_collate_fn)
         test_dataloader = DataLoader(test_ds, batch_size=1, shuffle=False, collate_fn=jaxer.utils.jax_collate_fn)
 

@@ -27,7 +27,7 @@ class Dataset(torch.utils.data.Dataset):
     """
 
     OHLC = ['open', 'high', 'low', 'close']
-    NORM_MODES = ['window_minmax', 'window_meanstd', 'global_minmax', 'global_meanstd', 'none']
+    NORM_MODES = ['window_minmax', 'window_meanstd', 'window_mean', 'global_minmax', 'global_meanstd', 'none']
     INDICATORS = ['rsi', 'bb_upper', 'bb_lower', 'bb_middle']
     INDICATORS_TO_NORMALIZE = ['bb_upper', 'bb_lower', 'bb_middle']
 
@@ -271,6 +271,14 @@ class Dataset(torch.utils.data.Dataset):
                 [mean_values[0:4].max(), std_values[0:4].max(), 0, 1,
                  mean_values[4], std_values[4], 0, 1,
                  mean_values[5], std_values[5], 0, 1]
+            ])
+
+        if self._norm_mode =="window_mean":
+            mean_values = sequence_data_values.mean(axis=0)
+            return np.array([
+                [0, mean_values[0:4].max(), 0, 1,  # mean scaling is just to divide by the mean (as if it was std)
+                 0, mean_values[4], 0, 1,
+                 0, mean_values[5], 0, 1]
             ])
 
         return self._global_normalizers[ticker_idx]

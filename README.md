@@ -73,22 +73,22 @@ An example of the configuration file is in the `training_config.py` file. Here i
 ```python
 import jaxer
 
-output_mode = 'mean'
-seq_len = 24
+output_mode = 'mean'  # 'mean' or 'distribution' or 'discrete_grid
+seq_len = 100
 d_model = 128
 
 model_config = jaxer.config.ModelConfig(
     d_model=d_model,
-    num_layers=2,
+    num_layers=4,
     head_layers=2,
-    n_heads=4,
-    dim_feedforward=4 * d_model,
+    n_heads=2,
+    dim_feedforward=4 * d_model,  # 4 * d_model
     dropout=0.05,
     max_seq_len=seq_len,
     flatten_encoder_output=False,
-    fe_blocks=0,
+    fe_blocks=0,  # feature extractor is incremental, for instance input_shape, 128/2, 128 (d_model)
     use_time2vec=False,
-    output_mode=output_mode,
+    output_mode=output_mode,  # 'mean' or 'distribution' or 'discrete_grid'
     use_resblocks_in_head=False,
     use_resblocks_in_fe=True,
     average_encoder_output=False,
@@ -101,8 +101,8 @@ dataset_config = jaxer.config.DatasetConfig(
     discrete_grid_levels=[-9e6, 0.0, 9e6],
     initial_date='2018-01-01',
     norm_mode="window_minmax",
-    resolution='4h',
-    tickers=['btc_usd'],  # , 'eth_usd', 'sol_usd'],
+    resolution='30m',
+    tickers=['btc_usd', 'eth_usd', 'sol_usd'],
     indicators=None,
     seq_len=seq_len
 )
@@ -110,24 +110,30 @@ dataset_config = jaxer.config.DatasetConfig(
 synthetic_dataset_config = jaxer.config.SyntheticDatasetConfig(
     window_size=seq_len,
     output_mode=output_mode,  # 'mean' or 'distribution' or 'discrete_grid
-    normalizer_mode='window_minmax',  # 'window_meanstd' or 'window_minmax'
+    normalizer_mode='window_minmax',  # 'window_meanstd' or 'window_minmax' or 'window_mean'
     add_noise=False,
     min_amplitude=0.1,
     max_amplitude=1.0,
     min_frequency=0.5,
-    max_frequency=30
+    max_frequency=30,
+    num_sinusoids=5
 )
+
+pretrained_folder = "results/exp_synthetic_context"
+pretrained_path_subfolder, pretrained_path_ckpt = jaxer.utils.get_best_model(pretrained_folder)
+pretrained_model = (pretrained_folder, pretrained_path_subfolder, pretrained_path_ckpt)
 
 config = jaxer.config.ExperimentConfig(
     model_config=model_config,
+    pretrained_model=pretrained_model,
     log_dir="results",
-    experiment_name="exp_synthetic",
+    experiment_name="exp_both_pretrained_synthetic",
     num_epochs=1000,
     steps_per_epoch=500,  # for synthetic dataset only
     learning_rate=5e-4,
     lr_mode='cosine',  # 'cosine' 
     warmup_epochs=15,
-    dataset_mode='synthetic',  # 'real' or 'synthetic' (in the future may be both, will see)
+    dataset_mode='both',  # 'real' or 'synthetic' or 'both'
     dataset_config=dataset_config,
     synthetic_dataset_config=synthetic_dataset_config,
     batch_size=256,
@@ -137,6 +143,7 @@ config = jaxer.config.ExperimentConfig(
     save_weights=True,
     early_stopper=100
 )
+
 ```
 
 #### Inference
@@ -151,23 +158,40 @@ if __name__ == '__main__':
     # load the agent with best model weights
     experiment = "exp_1"
     agent = jaxer.run.Agent(experiment=experiment, model_name=jaxer.utils.get_best_model(experiment))
+    
+    # creater dataloaders
+    if agent.config.dataset_mode == 'synthetic':
+        dataset = jaxer.utils.SyntheticDataset(config=jaxer.config.SyntheticDatasetConfig.from_dict(agent.config.synthetic_dataset_config))
+        test_dataloader = dataset.generator(batch_size=1, seed=100)
+        train_dataloader = dataset.generator(batch_size=1, seed=200)
+    else:
+        dataset = jaxer.utils.Dataset(dataset_config=jaxer.config.DatasetConfig.from_dict(agent.config.dataset_config))
 
-    # create dataloaders
-    dataset = jaxer.utils.Dataset(dataset_config=agent.config.dataset_config)
-    train_ds, test_ds = dataset.get_train_test_split(test_size=agent.config.test_split, test_tickers=agent.config.test_tickers)
+        train_ds, test_ds = dataset.get_train_test_split(test_size=agent.config.test_split,
+                                                         test_tickers=agent.config.test_tickers)
+        train_dataloader = DataLoader(train_ds, batch_size=1, shuffle=True, collate_fn=jaxer.utils.jax_collate_fn)
+        test_dataloader = DataLoader(test_ds, batch_size=1, shuffle=False, collate_fn=jaxer.utils.jax_collate_fn)
 
-    # infer entire dataset
-    plot_entire_dataset = False
-    if plot_entire_dataset:
-        jaxer.utils.predict_entire_dataset(agent, test_ds, mode='test')
-        jaxer.utils.predict_entire_dataset(agent, train_ds, mode='train')
+    infer_test = False
 
-    # infer once over the test set
-    test_dataloader = DataLoader(test_ds, batch_size=1, shuffle=False, collate_fn=jaxer.utils.jax_collate_fn)
-    for batch in test_dataloader:
-        x, y_true, normalizer, window_info = batch
-        y_pred = agent(x)
-        jaxer.utils.plot_predictions(x, y_true, y_pred, normalizer, window_info)
+    if infer_test:
+        dataloader = test_dataloader
+    else:
+        dataloader = train_dataloader
+
+    if agent.config.dataset_mode == 'synthetic':
+        for i in range(30):
+            x, y_true, normalizer, window_info = next(dataloader)
+            y_pred = agent(x)
+            jaxer.utils.plot_predictions(x=x, y_true=y_true, y_pred=y_pred, normalizer=normalizer,
+                                         window_info=window_info, denormalize_values=True)
+
+    else:
+        for batch in dataloader:
+            x, y_true, normalizer, window_info = batch
+            y_pred = agent(x)
+            jaxer.utils.plot_predictions(x=x, y_true=y_true, y_pred=y_pred, normalizer=normalizer,
+                                         window_info=window_info[0], denormalize_values=True)
 ```
 
 ## Contributors

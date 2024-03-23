@@ -1,5 +1,3 @@
-import os.path
-
 import jaxer
 
 output_mode = 'mean'  # 'mean' or 'distribution' or 'discrete_grid
@@ -39,12 +37,13 @@ dataset_config = jaxer.config.DatasetConfig(
 synthetic_dataset_config = jaxer.config.SyntheticDatasetConfig(
     window_size=seq_len,
     output_mode=output_mode,  # 'mean' or 'distribution' or 'discrete_grid
-    normalizer_mode='window_minmax',  # 'window_meanstd' or 'window_minmax'
+    normalizer_mode='window_mean',  # 'window_meanstd' or 'window_minmax' or 'window_mean'
     add_noise=False,
     min_amplitude=0.1,
     max_amplitude=1.0,
     min_frequency=0.5,
-    max_frequency=30
+    max_frequency=30,
+    num_sinusoids=5
 )
 
 pretrained_folder = "results/exp_synthetic_context"
@@ -61,7 +60,7 @@ config = jaxer.config.ExperimentConfig(
     learning_rate=5e-4,
     lr_mode='cosine',  # 'cosine' 
     warmup_epochs=15,
-    dataset_mode='both',  # 'real' or 'synthetic' (in the future may be both, will see)
+    dataset_mode='both',  # 'real' or 'synthetic' or 'both'
     dataset_config=dataset_config,
     synthetic_dataset_config=synthetic_dataset_config,
     batch_size=256,
