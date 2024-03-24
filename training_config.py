@@ -2,15 +2,15 @@ import jaxer
 
 output_mode = 'mean'  # 'mean' or 'distribution' or 'discrete_grid
 seq_len = 128
-d_model = 384
-precision = 'fp16'
+d_model = 256
+precision = 'fp32'
 
 model_config = jaxer.config.ModelConfig(
     precision=precision,  # 'fp32' or 'fp16'
     d_model=d_model,
     num_layers=4,
     head_layers=2,
-    n_heads=8,
+    n_heads=4,
     dim_feedforward=4 * d_model,  # 4 * d_model
     dropout=0.05,
     max_seq_len=seq_len,
@@ -51,9 +51,9 @@ synthetic_dataset_config = jaxer.config.SyntheticDatasetConfig(
     precision=precision
 )
 
-# pretrained_folder = "results/exp_synthetic_context"
+# pretrained_folder = "results/synth_tiny"
 # pretrained_path_subfolder, pretrained_path_ckpt = jaxer.utils.get_best_model(pretrained_folder)
-# pretrained_model = (pretrained_folder, pretrained_path_subfolder, pretrained_path_ckpt)]
+# pretrained_model = (pretrained_folder, pretrained_path_subfolder, pretrained_path_ckpt)
 
 pretrained_model = None
 
@@ -61,17 +61,17 @@ config = jaxer.config.ExperimentConfig(
     model_config=model_config,
     pretrained_model=pretrained_model,
     log_dir="results",
-    experiment_name="synth_tiny",
+    experiment_name="synth_tiny_from_pretrained",
     num_epochs=500,
     steps_per_epoch=500,  # for synthetic dataset only
-    learning_rate=1e-3,
+    learning_rate=1e-4,
     lr_mode='cosine',  # 'cosine' 
-    warmup_epochs=50,
+    warmup_epochs=20,
     dataset_mode='synthetic',  # 'real' or 'synthetic' or 'both'
     real_proportion=0.3,
     dataset_config=dataset_config,
     synthetic_dataset_config=synthetic_dataset_config,
-    batch_size=512,
+    batch_size=256,
     test_split=0.1,
     test_tickers=['btc_usd'],
     seed=0,

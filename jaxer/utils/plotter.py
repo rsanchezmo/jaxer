@@ -170,9 +170,9 @@ def plot_predictions(x: Tuple[jnp.ndarray, jnp.ndarray],
 
     window_base = jnp.arange(len(x_hist_ohlc))
     pred_base = jnp.array([len(x_hist_ohlc) - 1, len(x_hist_ohlc)])
-    y_pred_base = [x_hist_ohlc[-1, -1], y_pred[0, 0]]
+    y_pred_base = [x_hist_ohlc[-1, -1].item(), y_pred[0, 0].item()]
     true_base = jnp.array([len(x_hist_ohlc) - 1, len(x_hist_ohlc)])
-    y_true_base = [x_hist_ohlc[-1, -1], y_true[0, 0]]
+    y_true_base = [x_hist_ohlc[-1, -1].item(), y_true[0, 0].item()]
 
     linewidth = 3
     markersize = 4
@@ -194,7 +194,7 @@ def plot_predictions(x: Tuple[jnp.ndarray, jnp.ndarray],
 
         # plot the mean
         mean_base = jnp.array([len(x_hist_ohlc) - 1, len(x_hist_ohlc)])
-        ax0.plot(mean_base, [x_hist_ohlc[-1, 3], jnp.mean(x_hist_ohlc[:, 3])], label='Mean', color=Color.purple,
+        ax0.plot(mean_base, [x_hist_ohlc[-1, 3].item(), jnp.mean(x_hist_ohlc[:, 3]).item()], label='Mean', color=Color.purple,
                  linewidth=linewidth, marker='o',
                  markersize=markersize, linestyle='--')
 
@@ -243,7 +243,8 @@ def plot_predictions(x: Tuple[jnp.ndarray, jnp.ndarray],
     initial_date_str = initial_date.strftime('%Y/%m/%d') if initial_date is not None else '0'
     end_date_str = end_date.strftime('%Y/%m/%d') if end_date is not None else str(window_size)
     title = (f'{norm_mode} - {ticker_name} - {output_mode} - {resolution} - '
-             f'[{initial_date_str}, {end_date_str}] - acc_dir: {int(acc_dir_/100)} - mape: {mape_:.2f}% - mae: {mae_:.2f}$')
+             f'[{initial_date_str}, {end_date_str}] - acc_dir: {int(acc_dir_.item()/100)} - '
+             f'mape: {mape_.item():.2f}% - mae: {mae_.item():.2f}$')
 
     plt.suptitle(title, fontsize=14, fontweight='bold')
     plt.tight_layout()

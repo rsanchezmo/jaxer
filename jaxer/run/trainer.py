@@ -104,7 +104,7 @@ class FlaxTrainer(TrainerBase):
             dim_feedforward=self._config.model_config.dim_feedforward,
             dropout=self._config.model_config.dropout,
             max_seq_len=self._config.model_config.max_seq_len,
-            dtype=jnp.float32 if self._config.model_config.precision == 'float32' else jnp.bfloat16,
+            dtype=jnp.float32 if self._config.model_config.precision == 'fp32' else jnp.bfloat16,
             deterministic=False,
             flatten_encoder_output=self._config.model_config.flatten_encoder_output,
             fe_blocks=self._config.model_config.fe_blocks,
@@ -178,10 +178,16 @@ class FlaxTrainer(TrainerBase):
             rng, key = jax.random.split(rng)  # creates a new subkey
 
             """ Training """
+            init_t = time.time()
             train_state_, metrics = self._train_epoch(train_state_, key)
+            end_t = time.time()
+            train_epoch_time = (end_t - init_t)
 
             """ Logging """
+            init_t = time.time()
             test_metrics = self._evaluate_step(train_state_)
+            end_t = time.time()
+            test_time = (end_t - init_t)
 
             end_time = time.time()
             delta_time = end_time - init_time
@@ -200,8 +206,11 @@ class FlaxTrainer(TrainerBase):
                 self._summary_writer.add_scalar(f"test/{key}", value, epoch)
                 test_msg += f"                  Test {key}: {value:>8.4f} \n"
 
-            time_msg = f"                  Epoch time: {delta_time:.2f} seconds\n" \
+            time_msg = f"                  Epoch time (T + E): {delta_time:.2f} seconds\n" \
                        f"                  Total training time: {(end_time - begin_time) / 60:.2f} min\n"
+
+            self._summary_writer.add_scalar("train/epoch_time", train_epoch_time, epoch)
+            self._summary_writer.add_scalar("test/epoch_time", test_time, epoch)
 
             self.logger.info(train_msg + test_msg + time_msg)
 
@@ -526,7 +535,7 @@ class FlaxTrainer(TrainerBase):
         metrics = {}
 
         if self._config.dataset_mode == 'synthetic':
-            for step in range(self._config.steps_per_epoch):
+            for step in range(int(self._config.steps_per_epoch/4)):  # just test on 1/4 of the steps
                 inputs, targets, normalizer, window_info = next(self._test_dataloader_synth)
                 state, _metrics = self._model_eval_step(state, inputs, targets, normalizer,
                                                         self._flax_model_config_eval)
