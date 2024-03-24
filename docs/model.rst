@@ -111,7 +111,7 @@ problems, and it is defined as:
 
 .. math::
 
-    \text{MSE} = \frac{1}{n} \sum_{i=1}^{n} (y_i - \hat{y}_i)^2
+    \text{MSE} = 0.5 * \frac{1}{n} \sum_{i=1}^{n} (y_i - \hat{y}_i)^2
 
 Where :math:`y_i` is the actual value and :math:`\hat{y}_i` is the predicted value. However, there are other loss functions
 that could be used such as the **mean average percentage error** or the **huber loss**.

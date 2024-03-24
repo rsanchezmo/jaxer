@@ -112,6 +112,7 @@ class FeedForwardBlock(nn.Module):
         x = nn.Dense(
             features=self.config.dim_feedforward,
             dtype=self.config.dtype,
+            param_dtype=self.config.dtype,
             kernel_init=self.config.kernel_init,
             bias_init=self.config.bias_init,
         )(x)
@@ -122,6 +123,7 @@ class FeedForwardBlock(nn.Module):
         x = nn.Dense(
             features=self.out_dim,
             dtype=self.config.dtype,
+            param_dtype=self.config.dtype,
             kernel_init=self.config.kernel_init,
             bias_init=self.config.bias_init,
         )(x)
@@ -152,6 +154,7 @@ class FeedForwardBlockConv1D(nn.Module):
         x = nn.Conv(
             features=self.config.dim_feedforward,
             dtype=self.config.dtype,
+            param_dtype=self.config.dtype,
             kernel_size=(1,),
             kernel_init=self.config.kernel_init,
             bias_init=self.config.bias_init,
@@ -162,6 +165,7 @@ class FeedForwardBlockConv1D(nn.Module):
         )
         x = nn.Conv(
             features=self.out_dim,
+            param_dtype=self.config.dtype,
             dtype=self.config.dtype,
             kernel_size=(1,),
             kernel_init=self.config.kernel_init,
@@ -175,13 +179,14 @@ class FeedForwardBlockConv1D(nn.Module):
         return x
 
 
-def sinusoidal_init(max_len: int = 2048, min_scale: float = 1.0, max_scale: float = 10000.0) -> Callable:
+def sinusoidal_init(max_len: int = 2048, min_scale: float = 1.0, max_scale: float = 10000.0,
+                    dtype=np.float32) -> Callable:
     """ 1D Sinusoidal Position Embedding Initializer """
 
     def init(shape):
         """ Sinusoidal init """
         d_feature = shape[-1]
-        pe = np.zeros((max_len, d_feature), dtype=np.float32)
+        pe = np.zeros((max_len, d_feature), dtype=dtype)
         position = np.arange(0, max_len)[:, np.newaxis]
         scale_factor = -np.log(max_scale / min_scale) / (d_feature // 2 - 1)
         div_term = min_scale * np.exp(np.arange(0, d_feature // 2) * scale_factor)
@@ -208,7 +213,7 @@ class AddPositionalEncoding(nn.Module):
         pos_embed_shape = (1, self.config.max_seq_len, x.shape[-1])
         pos_embedding = sinusoidal_init(self.config.max_seq_len)(
             pos_embed_shape
-        )
+        ).astype(self.config.dtype)
 
         pe = pos_embedding[:, :x.shape[1], :]
 
@@ -311,11 +316,12 @@ class ResidualBlock(nn.Module):
         assert x.shape[-1] == self.feature_dim, f"Expected x to have {self.feature_dim} dimensions, got {x.shape[-1]}"
 
         if self.norm and self.norm_prev:
-            x = nn.LayerNorm()(x)
+            x = nn.LayerNorm(dtype=self.dtype, param_dtype=self.dtype)(x)
 
         x = nn.Dense(
             features=self.feature_dim,
             dtype=self.dtype,
+            param_dtype=self.dtype,
             kernel_init=self.kernel_init,
             bias_init=self.bias_init,
         )(x)
@@ -325,7 +331,10 @@ class ResidualBlock(nn.Module):
         x = inputs + x
 
         if self.norm and not self.norm_prev:
-            x = nn.LayerNorm()(x)
+            x = nn.LayerNorm(
+                dtype=self.dtype,
+                param_dtype=self.dtype
+            )(x)
 
         return x
 
@@ -355,6 +364,7 @@ class FeatureExtractor(nn.Module):
         x = nn.Dense(
             features=feature_dim,  # time embeddings will be concatenated later
             dtype=self.config.dtype,
+            param_dtype=self.config.dtype,
             kernel_init=self.config.kernel_init,
             bias_init=self.config.bias_init,
         )(x)
@@ -385,6 +395,7 @@ class FeatureExtractor(nn.Module):
                 x = nn.Dense(
                     features=feature_dim,  # time embeddings will be concatenated later
                     dtype=self.config.dtype,
+                    param_dtype=self.config.dtype,
                     kernel_init=self.config.kernel_init,
                     bias_init=self.config.bias_init,
                 )(x)
@@ -394,6 +405,7 @@ class FeatureExtractor(nn.Module):
             x = nn.Dense(
                 features=self.config.d_model,  # time embeddings will be concatenated later
                 dtype=self.config.dtype,
+                param_dtype=self.config.dtype,
                 kernel_init=self.config.kernel_init,
                 bias_init=self.config.bias_init,
             )(x)
@@ -417,13 +429,15 @@ class EncoderBlock(nn.Module):
 
         """ Self Attention Block"""
         if self.config.norm_encoder_prev:
-            x = nn.LayerNorm(dtype=self.config.dtype)(inputs)
+            x = nn.LayerNorm(dtype=self.config.dtype,
+                             param_dtype=self.config.dtype)(inputs)
         else:
             x = inputs
 
         x = nn.SelfAttention(
             num_heads=self.config.n_heads,
             dtype=self.config.dtype,
+            param_dtype=self.config.dtype,
             qkv_features=self.config.d_model,
             kernel_init=self.config.kernel_init,
             bias_init=self.config.bias_init,
@@ -439,11 +453,13 @@ class EncoderBlock(nn.Module):
         x = x + inputs
 
         if not self.config.norm_encoder_prev:
-            x = nn.LayerNorm(dtype=self.config.dtype)(x)
+            x = nn.LayerNorm(dtype=self.config.dtype,
+                             param_dtype=self.config.dtype)(x)
 
         """ Feed Forward Block """
         if self.config.norm_encoder_prev:
-            y = nn.LayerNorm(dtype=self.config.dtype)(x)
+            y = nn.LayerNorm(dtype=self.config.dtype,
+                             param_dtype=self.config.dtype)(x)
         else:
             y = x
         # y = FeedForwardBlockConv1D(
@@ -459,7 +475,8 @@ class EncoderBlock(nn.Module):
         result = x + y
 
         if not self.config.norm_encoder_prev:
-            result = nn.LayerNorm(dtype=self.config.dtype)(result)
+            result = nn.LayerNorm(dtype=self.config.dtype,
+                                  param_dtype=self.config.dtype)(result)
 
         return result
 
@@ -485,7 +502,8 @@ class Encoder(nn.Module):
         extra_token_embeddings = nn.Embed(
             num_embeddings=101,  # vocab size of 100
             features=self.config.d_model,
-            dtype=self.config.dtype
+            dtype=self.config.dtype,
+            param_dtype=self.config.dtype,
         )(extra_tokens.astype(jnp.int32))
 
         """ Time2Vec """
@@ -531,6 +549,7 @@ class PredictionHead(nn.Module):
         if self.config.flatten_encoder_output:
             x = nn.Dense(features=self.config.d_model,
                          dtype=self.config.dtype,
+                         param_dtype=self.config.dtype,
                          kernel_init=self.config.kernel_init,
                          bias_init=self.config.bias_init)(x)
             x = nn.relu(x)
@@ -546,6 +565,7 @@ class PredictionHead(nn.Module):
             else:
                 x = nn.Dense(features=self.config.d_model,
                              dtype=self.config.dtype,
+                             param_dtype=self.config.dtype,
                              kernel_init=self.config.kernel_init,
                              bias_init=self.config.bias_init)(x)
                 x = nn.relu(x)
@@ -553,6 +573,7 @@ class PredictionHead(nn.Module):
         if self.config.output_mode == 'discrete_grid':
             x = nn.Dense(features=self.config.discrete_grid_levels,
                          dtype=self.config.dtype,
+                         param_dtype=self.config.dtype,
                          kernel_init=self.config.kernel_init,
                          bias_init=self.config.bias_init)(x)
             x = nn.softmax(x, axis=-1)
@@ -561,6 +582,7 @@ class PredictionHead(nn.Module):
         mean = nn.Dense(
             features=1,
             dtype=self.config.dtype,
+            param_dtype=self.config.dtype,
             kernel_init=self.config.kernel_init,
             bias_init=self.config.bias_init,
         )(x)
@@ -571,6 +593,7 @@ class PredictionHead(nn.Module):
         log_std = nn.Dense(
             features=1,
             dtype=self.config.dtype,
+            param_dtype=self.config.dtype,
             kernel_init=self.config.kernel_init,
             bias_init=self.config.bias_init,
         )(x)
@@ -597,13 +620,16 @@ class Transformer(nn.Module):
         time_point_tokens = x[0]
         extra_tokens = x[1]
 
+        if time_point_tokens.dtype != self.config.dtype:
+            time_point_tokens = time_point_tokens.astype(self.config.dtype)
+
         """ Encoder """
         x = Encoder(
             config=self.config
         )(time_point_tokens, extra_tokens)
 
         """ Regression Head """
-        # x = nn.LayerNorm(dtype=self.config.dtype)(x)
+        # x = nn.LayerNorm(dtype=self.config.dtype, param_dtype=self.config.dtype)(x)
 
         # flatten the output:
         if self.config.flatten_encoder_output:

@@ -5,6 +5,9 @@ from dataclasses import dataclass
 class ModelConfig:
     """ Configuration class for the model
 
+    :param precision: precision of the model (fp32 or fp16)
+    :type precision: str
+
     :param d_model: dimension of the model
     :type d_model: int
 
@@ -51,6 +54,7 @@ class ModelConfig:
     :type norm_encoder_prev: bool
 
     """
+    precision: str
     d_model: int
     num_layers: int
     head_layers: int

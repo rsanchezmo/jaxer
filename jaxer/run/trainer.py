@@ -10,7 +10,7 @@ import orbax
 import numpy as np
 from jaxer.utils.plotter import plot_predictions
 from jaxer.utils.losses import (gaussian_negative_log_likelihood, mae,
-                                r2, rmse, mape, binary_cross_entropy, acc_dir, acc_dir_discrete)
+                                r2, rmse, mape, binary_cross_entropy, acc_dir, acc_dir_discrete, mse)
 from jaxer.utils.early_stopper import EarlyStopper
 from jaxer.run.trainer_base import TrainerBase
 from jaxer.utils.schedulers import create_warmup_cosine_schedule
@@ -67,7 +67,7 @@ class FlaxTrainer(TrainerBase):
         batch_size_real = self._config.batch_size
         batch_size_synth = self._config.batch_size
         if self._config.dataset_mode == 'both':
-            batch_size_real = int(0.25 * self._config.batch_size)
+            batch_size_real = int(self._config.real_proportion * self._config.batch_size)
             batch_size_synth = self._config.batch_size - batch_size_real
 
         if self._config.dataset_mode in ['real', 'both']:
@@ -104,7 +104,7 @@ class FlaxTrainer(TrainerBase):
             dim_feedforward=self._config.model_config.dim_feedforward,
             dropout=self._config.model_config.dropout,
             max_seq_len=self._config.model_config.max_seq_len,
-            dtype=jnp.float32,
+            dtype=jnp.float32 if self._config.model_config.precision == 'float32' else jnp.bfloat16,
             deterministic=False,
             flatten_encoder_output=self._config.model_config.flatten_encoder_output,
             fe_blocks=self._config.model_config.fe_blocks,
@@ -330,6 +330,8 @@ class FlaxTrainer(TrainerBase):
 
             means = predictions
 
+            mse_ = mse(means, targets)
+
             means_denorm = denormalize(means, normalizer[:, 0:4])
             targets_denorm = denormalize(targets, normalizer[:, 0:4])
 
@@ -341,7 +343,8 @@ class FlaxTrainer(TrainerBase):
 
             w_mape = 1.0
             w_acc_dir = 1.0
-            loss = w_mape * mape_ + w_acc_dir * (1.0 - 0.01 * acc_dir_)
+            # loss = w_mape * mape_ + w_acc_dir * (1.0 - 0.01 * acc_dir_)
+            loss = mse_
 
             return loss, (mae_, r2_, rmse_, mape_, acc_dir_)
 

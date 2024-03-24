@@ -37,8 +37,11 @@ class ExperimentConfig:
     :param warmup_epochs: number of warmup epochs (for learning rate)
     :type warmup_epochs: int
 
-    :param dataset_mode: dataset mode (real or synthetic)
+    :param dataset_mode: dataset mode (real or synthetic or both)
     :type dataset_mode: str
+
+    :param real_proportion: proportion of real data to use (only for both mode)
+    :type real_proportion: float
 
     :param dataset_config: dataset configuration
     :type dataset_config: DatasetConfig
@@ -77,6 +80,7 @@ class ExperimentConfig:
     early_stopper: int
     pretrained_model: Optional[Tuple[str, str, str]] = None
     steps_per_epoch: int = 100
+    real_proportion: float = 0.3
 
     def save_config(self, path):
         config = asdict(self)
@@ -133,4 +137,4 @@ class ExperimentConfig:
                f"resfe_{self.model_config.use_resblocks_in_fe}_" \
                f"avout_{self.model_config.average_encoder_output}_" \
                f"nrmpre_{self.model_config.norm_encoder_prev}_" \
-               f"steps_{self.steps_per_epoch}"
+               f"steps_{self.steps_per_epoch}_{self.model_config.precision}"

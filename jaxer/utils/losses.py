@@ -11,6 +11,15 @@ def r2(y_pred: jnp.ndarray, y_true: jnp.ndarray, eps: float = 1e-6) -> jnp.ndarr
 
 
 @jax.jit
+def huber_loss(y_pred: jnp.ndarray, y_true: jnp.ndarray, delta: float = 1.0) -> jnp.ndarray:
+    """ Huber Loss """
+    abs_error = jnp.abs(y_true - y_pred)
+    quadratic = jnp.minimum(abs_error, delta)
+    linear = abs_error - quadratic
+    return jnp.mean(0.5 * jnp.square(quadratic) + delta * linear)
+
+
+@jax.jit
 def mae(y_pred: jnp.ndarray, y_true: jnp.ndarray) -> jnp.ndarray:
     """ Mean Absolute Error """
     return jnp.mean(jnp.abs(y_true - y_pred))
@@ -19,7 +28,7 @@ def mae(y_pred: jnp.ndarray, y_true: jnp.ndarray) -> jnp.ndarray:
 @jax.jit
 def mse(y_pred: jnp.ndarray, y_true: jnp.ndarray) -> jnp.ndarray:
     """ Mean Squared Error """
-    return jnp.mean(jnp.square(y_true - y_pred))
+    return 0.5 * jnp.mean(jnp.square(y_true - y_pred))
 
 
 @jax.jit

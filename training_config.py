@@ -1,14 +1,16 @@
 import jaxer
 
 output_mode = 'mean'  # 'mean' or 'distribution' or 'discrete_grid
-seq_len = 100
-d_model = 128
+seq_len = 128
+d_model = 384
+precision = 'fp16'
 
 model_config = jaxer.config.ModelConfig(
+    precision=precision,  # 'fp32' or 'fp16'
     d_model=d_model,
     num_layers=4,
     head_layers=2,
-    n_heads=2,
+    n_heads=8,
     dim_feedforward=4 * d_model,  # 4 * d_model
     dropout=0.05,
     max_seq_len=seq_len,
@@ -16,9 +18,9 @@ model_config = jaxer.config.ModelConfig(
     fe_blocks=0,  # feature extractor is incremental, for instance input_shape, 128/2, 128 (d_model)
     use_time2vec=False,
     output_mode=output_mode,  # 'mean' or 'distribution' or 'discrete_grid'
-    use_resblocks_in_head=False,
-    use_resblocks_in_fe=True,
-    average_encoder_output=False,
+    use_resblocks_in_head=True,
+    use_resblocks_in_fe=False,
+    average_encoder_output=True,  # average the encoder output to get a context embedding
     norm_encoder_prev=True
 )
 
@@ -27,7 +29,7 @@ dataset_config = jaxer.config.DatasetConfig(
     output_mode=output_mode,  # 'mean' or 'distribution' or 'discrete_grid
     discrete_grid_levels=[-9e6, 0.0, 9e6],
     initial_date='2018-01-01',
-    norm_mode="window_minmax",
+    norm_mode="window_mean",
     resolution='30m',
     tickers=['btc_usd', 'eth_usd', 'sol_usd'],
     indicators=None,
@@ -38,32 +40,38 @@ synthetic_dataset_config = jaxer.config.SyntheticDatasetConfig(
     window_size=seq_len,
     output_mode=output_mode,  # 'mean' or 'distribution' or 'discrete_grid
     normalizer_mode='window_mean',  # 'window_meanstd' or 'window_minmax' or 'window_mean'
-    add_noise=False,
-    min_amplitude=0.1,
-    max_amplitude=1.0,
-    min_frequency=0.5,
-    max_frequency=30,
-    num_sinusoids=5
+    add_noise=True,
+    min_amplitude=0.05,
+    max_amplitude=0.2,
+    min_frequency=0.1,
+    max_frequency=50,
+    num_sinusoids=20,
+    max_linear_trend=0.1,
+    max_exp_trend=0.01,
+    precision=precision
 )
 
-pretrained_folder = "results/exp_synthetic_context"
-pretrained_path_subfolder, pretrained_path_ckpt = jaxer.utils.get_best_model(pretrained_folder)
-pretrained_model = (pretrained_folder, pretrained_path_subfolder, pretrained_path_ckpt)
+# pretrained_folder = "results/exp_synthetic_context"
+# pretrained_path_subfolder, pretrained_path_ckpt = jaxer.utils.get_best_model(pretrained_folder)
+# pretrained_model = (pretrained_folder, pretrained_path_subfolder, pretrained_path_ckpt)]
+
+pretrained_model = None
 
 config = jaxer.config.ExperimentConfig(
     model_config=model_config,
     pretrained_model=pretrained_model,
     log_dir="results",
-    experiment_name="exp_both_pretrained_synthetic",
-    num_epochs=1000,
+    experiment_name="synth_tiny",
+    num_epochs=500,
     steps_per_epoch=500,  # for synthetic dataset only
-    learning_rate=5e-4,
+    learning_rate=1e-3,
     lr_mode='cosine',  # 'cosine' 
-    warmup_epochs=15,
-    dataset_mode='both',  # 'real' or 'synthetic' or 'both'
+    warmup_epochs=50,
+    dataset_mode='synthetic',  # 'real' or 'synthetic' or 'both'
+    real_proportion=0.3,
     dataset_config=dataset_config,
     synthetic_dataset_config=synthetic_dataset_config,
-    batch_size=256,
+    batch_size=512,
     test_split=0.1,
     test_tickers=['btc_usd'],
     seed=0,

@@ -31,6 +31,15 @@ class SyntheticDatasetConfig:
 
     :param num_sinusoids: number of sinusoids to generate
     :type num_sinusoids: int
+
+    :param max_linear_trend: maximum linear trend (for short term trends)
+    :type max_linear_trend: float
+
+    :param max_exp_trend: maximum exponential trend. Must be low as it grows exponentially (for long term trends)
+    :type max_exp_trend: float
+
+    :param precision: precision of the model (fp32 or fp16)
+    :type precision: str
     """
     window_size: int
     output_mode: str = 'mean'
@@ -41,6 +50,9 @@ class SyntheticDatasetConfig:
     min_frequency: float = 0.5
     max_frequency: float = 30
     num_sinusoids: int = 3
+    max_linear_trend: float = 0.5
+    max_exp_trend: float = 0.01
+    precision: str = 'fp32'
 
     @classmethod
     def from_dict(cls, d):
