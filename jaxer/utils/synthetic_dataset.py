@@ -90,8 +90,8 @@ class SyntheticDataset:
         scalers_sum = np.random.uniform(0, 60_000, size=batch_size)
         scalers_prod = np.random.uniform(1, 10_000, size=batch_size)
 
-        high_noise = np.random.uniform(0, 0.05, size=(batch_size, self._config.window_size))
-        low_noise = np.random.uniform(-0.05, 0, size=(batch_size, self._config.window_size))
+        high_noise = np.random.uniform(0, 0.01, size=(batch_size, self._config.window_size))
+        low_noise = np.random.uniform(-0.01, 0, size=(batch_size, self._config.window_size))
 
         for idx in range(batch_size):
             # init_t = time.time()
@@ -135,21 +135,27 @@ class SyntheticDataset:
             historical_timepoints[idx, :, 2] = (window_signal[:-1] +
                                                 np.mean(window_signal[:-1]) * low_noise[idx])
 
+            min_value = np.min(historical_timepoints[idx, :, 0:4])
+            rescale_value = 0
+            if min_value < 0:
+                rescale_value = np.abs(min_value) * 2
+            historical_timepoints[idx, :, 0:4] += rescale_value
+
             normalizers[idx, 0:4] = self._compute_normalizer(historical_timepoints[idx, :, 0:4],
                                                              self._config.normalizer_mode)
 
             historical_timepoints[idx, :, 0:4] = normalize(historical_timepoints[idx, :, 0:4],
                                                            normalizers[idx, 0:4][np.newaxis, ...])
 
-            labels[idx] = window_signal[-1]
+            labels[idx] = window_signal[-1] + rescale_value
             labels[idx] = normalize(labels[idx], normalizers[idx, 0:4][np.newaxis, ...])
 
             price_std = np.std(historical_timepoints[idx, :, 0])
-            extra_tokens[idx, 0] = price_std
+            extra_tokens[idx, 0] = price_std * 5
             # end_t = time.time()
             # print(f"Time to generate sample inside batch: {1e3*(end_t - init_t):.2f}ms")
 
-        extra_tokens = Dataset.encode_tokens(extra_tokens).astype(np.int16)
+        extra_tokens = Dataset.encode_tokens(extra_tokens).astype(np.int8)
 
         # mask variables that cannot be computed
         historical_timepoints[:, :, 4:6] = -1
@@ -194,25 +200,26 @@ class SyntheticDataset:
 if __name__ == '__main__':
 
     dataset_config = SyntheticDatasetConfig(window_size=128,
-                                            add_noise=True,
+                                            add_noise=False,
                                             normalizer_mode='window_mean',
                                             min_amplitude=.05,
-                                            max_amplitude=.2,
+                                            max_amplitude=.1,
                                             min_frequency=0.1,
-                                            max_frequency=50,
-                                            num_sinusoids=20,
-                                            max_linear_trend=0.5,
+                                            max_frequency=40,
+                                            num_sinusoids=15,
+                                            max_linear_trend=0.6,
                                             max_exp_trend=0.01,
                                             precision='fp32')
 
     dataset = SyntheticDataset(config=dataset_config)
 
     dataset_generator = dataset.generator(1, seed=0)
-    for _ in range(20):
+    for _ in range(100):
         start_t = time.time()
         x, y_true, normalizer, window_info = next(dataset_generator)
         end_t = time.time()
         print(f"Time to generate batch: {1e3 * (end_t - start_t):.2f}ms")
+        print(x[1])
         y_pred = y_true
         plot_predictions(x=x, y_true=y_true, y_pred=y_pred, normalizer=normalizer, window_info=window_info,
-                         denormalize_values=False)
+                         denormalize_values=True)

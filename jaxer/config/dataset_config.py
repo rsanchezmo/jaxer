@@ -33,16 +33,20 @@ class DatasetConfig:
     :param indicators: list of indicators (e.g. ['rsi', 'bb_upper', 'bb_lower', 'bb_middle', 'ema_2h', 'ema_4h'])
     :type indicators: Optional[List[str]]
 
+    :param ohlc_only: whether to use only ohlc data (pad everything else with -1)
+    :type ohlc_only: bool
+
     """
     datapath: str
     seq_len: int
     norm_mode: str
-    initial_date: Optional[str]
     output_mode: str
-    discrete_grid_levels: Optional[List[float]]
     resolution: str
     tickers: List[str]
-    indicators: Optional[List[str]]
+    initial_date: Optional[str] = None
+    indicators: Optional[List[str]] = None
+    discrete_grid_levels: Optional[List[float]] = None
+    ohlc_only: bool = False
 
     @classmethod
     def from_dict(cls, d: dict) -> 'DatasetConfig':

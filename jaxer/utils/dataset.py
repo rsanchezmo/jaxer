@@ -58,6 +58,8 @@ class Dataset(torch.utils.data.Dataset):
 
         self._seq_len = dataset_config.seq_len
 
+        self._ohlc_only = dataset_config.ohlc_only
+
         self._resolution = dataset_config.resolution
 
         self._logger = get_logger()
@@ -158,6 +160,9 @@ class Dataset(torch.utils.data.Dataset):
         sequence_data = self._data[ticker_idx].iloc[start_idx:end_idx]
         sequence_data_values = sequence_data.loc[:, Dataset.OHLC + ['volume', 'tradesDone']].values
 
+        if self._ohlc_only:
+            sequence_data_values[:, 4:] = -1
+
         sequence_data_time = (self._sequence_data_time + start_idx) / self._data_len[ticker_idx]
 
         sequence_data_indicators = None
@@ -203,10 +208,10 @@ class Dataset(torch.utils.data.Dataset):
 
         extra_tokens = std_[[0, 4, 5]]
 
-        if self._norm_mode.__contains__('global'):
-            extra_tokens *= 5  # to increase resolution
+        # if self._norm_mode.__contains__('global'):
+        extra_tokens *= 5  # to increase resolution
 
-        extra_tokens = self.encode_tokens(extra_tokens)
+        extra_tokens = self.encode_tokens(extra_tokens).astype(np.int8)
 
         window_info = {
             'ticker': self._tickers[ticker_idx],
@@ -371,24 +376,29 @@ if __name__ == '__main__':
     dataset_config = DatasetConfig(
         datapath='../../data/datasets/data/',
         output_mode='mean',
-        discrete_grid_levels=[-9e6, 0.0, 9e6],
+        discrete_grid_levels=None,
         initial_date='2018-01-01',
         norm_mode="window_mean",
         resolution='30m',
         tickers=['btc_usd', 'eth_usd', 'sol_usd'],
         indicators=None,
         seq_len=128,
+        ohlc_only=True
     )
 
     dataset = Dataset(dataset_config)
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True, collate_fn=jax_collate_fn)
+    dataloader = torch.utils.data.DataLoader(dataset,
+                                             batch_size=1,
+                                             shuffle=True,
+                                             collate_fn=jax_collate_fn)
 
     for i in range(20):
         start_t = time.time()
         x, y_true, normalizer, window_info = next(iter(dataloader))
         end_t = time.time()
         print(f"Time to generate batch: {1e3 * (end_t - start_t):.2f}ms")
+        print(x[1])
         y_pred = y_true
         plot_predictions(x=x, y_true=y_true, y_pred=y_pred, normalizer=normalizer, window_info=window_info[0],
-                         denormalize_values=False)
+                         denormalize_values=True)
 

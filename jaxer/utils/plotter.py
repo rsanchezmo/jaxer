@@ -208,6 +208,7 @@ def plot_predictions(x: Tuple[jnp.ndarray, jnp.ndarray],
 
     ax0.set_ylabel('Predictions [$]', fontsize=14, fontweight='bold')
     ax0.legend(loc='upper center', ncol=5)
+    ax0.grid(True)
     #ax0.set_yscale('log')
 
     """ Plot high/low price """
@@ -219,18 +220,21 @@ def plot_predictions(x: Tuple[jnp.ndarray, jnp.ndarray],
              markersize=markersize)
     ax1.set_ylabel('High/Low Price [$]', fontsize=14, fontweight='bold')
     ax1.legend(loc='upper center', ncol=2)
+    ax1.grid(True)
 
     """ Plot volume """
     volume_data = x_hist_volume
     ax2.plot(window_base, volume_data, label='Volume', color=Color.yellow, linewidth=linewidth, marker='o',
              markersize=markersize)
     ax2.set_ylabel('Volume', fontsize=14, fontweight='bold')
+    ax2.grid(True)
 
     """ Plot trades"""
     trades_data = x_hist_trades
     ax3.plot(window_base, trades_data, label='Trades', color=Color.blue, linewidth=linewidth, marker='o',
              markersize=markersize)
     ax3.set_ylabel('Trades', fontsize=14, fontweight='bold')
+    ax3.grid(True)
 
     acc_dir_ = acc_dir(y_pred, y_true, x_hist_ohlc[-1, 3])
     mape_ = mape(y_pred, y_true)
@@ -246,7 +250,7 @@ def plot_predictions(x: Tuple[jnp.ndarray, jnp.ndarray],
     title = (f'{norm_mode} - {ticker_name} - {output_mode} - {resolution} - '
              f'[{initial_date_str}, {end_date_str}] - acc_dir: {int(acc_dir_.item()/100)} - '
              f'mape: {mape_.item():.2f}% - mae: {mae_.item():.2f}$ - volatility (R): {volatility:.2f}% '
-             f'- volatility (M): {window_variation:.2f}%')
+             f' (M): {window_variation:.2f}%')
 
     plt.suptitle(title, fontsize=14, fontweight='bold')
     plt.tight_layout()
