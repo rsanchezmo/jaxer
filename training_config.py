@@ -46,28 +46,28 @@ synthetic_dataset_config = jaxer.config.SyntheticDatasetConfig(
     min_frequency=0.1,
     max_frequency=50,
     num_sinusoids=20,
-    max_linear_trend=0.1,
+    max_linear_trend=0.5,
     max_exp_trend=0.01,
     precision=precision
 )
 
-# pretrained_folder = "results/synth_tiny"
-# pretrained_path_subfolder, pretrained_path_ckpt = jaxer.utils.get_best_model(pretrained_folder)
-# pretrained_model = (pretrained_folder, pretrained_path_subfolder, pretrained_path_ckpt)
+pretrained_folder = "results/synth_tiny_from_pretrained"
+pretrained_path_subfolder, pretrained_path_ckpt = jaxer.utils.get_best_model(pretrained_folder)
+pretrained_model = (pretrained_folder, pretrained_path_subfolder, pretrained_path_ckpt)
 
-pretrained_model = None
+# pretrained_model = None
 
 config = jaxer.config.ExperimentConfig(
     model_config=model_config,
     pretrained_model=pretrained_model,
     log_dir="results",
-    experiment_name="synth_tiny_from_pretrained",
+    experiment_name="real_tiny_from_pretrained",
     num_epochs=500,
     steps_per_epoch=500,  # for synthetic dataset only
-    learning_rate=1e-4,
-    lr_mode='cosine',  # 'cosine' 
+    learning_rate=8e-5,
+    lr_mode='linear',  # 'cosine'
     warmup_epochs=20,
-    dataset_mode='synthetic',  # 'real' or 'synthetic' or 'both'
+    dataset_mode='real',  # 'real' or 'synthetic' or 'both'
     real_proportion=0.3,
     dataset_config=dataset_config,
     synthetic_dataset_config=synthetic_dataset_config,

@@ -1,9 +1,7 @@
 import time
-import functools
-import jax
 import torch
 import pandas as pd
-from typing import Tuple, Any
+from typing import Tuple
 import numpy as np
 import torch.utils.data
 import jax.numpy as jnp
@@ -12,6 +10,8 @@ import os
 import itertools
 from jaxer.utils.logger import get_logger
 from jaxer.config.dataset_config import DatasetConfig
+from jaxer.utils.plotter import plot_predictions
+from jaxer.utils.normalizer import normalize
 
 
 class Dataset(torch.utils.data.Dataset):
@@ -273,7 +273,7 @@ class Dataset(torch.utils.data.Dataset):
                  mean_values[5], std_values[5], 0, 1]
             ])
 
-        if self._norm_mode =="window_mean":
+        if self._norm_mode == "window_mean":
             mean_values = sequence_data_values.mean(axis=0)
             return np.array([
                 [0, mean_values[0:4].max(), 0, 1,  # mean scaling is just to divide by the mean (as if it was std)
@@ -348,31 +348,6 @@ class Dataset(torch.utils.data.Dataset):
         return train_dataset, test_dataset
 
 
-def normalize(data: np.ndarray, normalizer: np.ndarray) -> np.ndarray:
-    """ Normalizes the data """
-
-    min_ = normalizer[:, [2]]
-    max_ = normalizer[:, [3]]
-    temp_data = (data - min_) / (max_ - min_ + 1e-6)
-
-    mean_ = normalizer[:, [0]]
-    std_ = normalizer[:, [1]] + 1e-6
-    return (temp_data - mean_) / std_
-
-
-@jax.jit
-def denormalize(data: jnp.ndarray, normalizer: jnp.ndarray) -> jnp.ndarray:
-    """ Denormalizes the data """
-
-    min_ = normalizer[:, [2]]
-    max_ = normalizer[:, [3]]
-    temp_data = data * (max_ - min_) + min_
-
-    mean_ = normalizer[:, [0]]
-    std_ = normalizer[:, [1]]
-    return temp_data * std_ + mean_
-
-
 def jax_collate_fn(batch: List[np.ndarray]) -> Tuple:
     """ Collate function for the jax dataset
 
@@ -390,3 +365,30 @@ def jax_collate_fn(batch: List[np.ndarray]) -> Tuple:
     batched_norms = jnp.concatenate(norms, axis=0)
 
     return (batched_jax_sequence_tokens, batched_jax_extra_tokens), batched_jax_labels, batched_norms, window_info
+
+
+if __name__ == '__main__':
+    dataset_config = DatasetConfig(
+        datapath='../../data/datasets/data/',
+        output_mode='mean',
+        discrete_grid_levels=[-9e6, 0.0, 9e6],
+        initial_date='2018-01-01',
+        norm_mode="window_mean",
+        resolution='30m',
+        tickers=['btc_usd', 'eth_usd', 'sol_usd'],
+        indicators=None,
+        seq_len=128,
+    )
+
+    dataset = Dataset(dataset_config)
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True, collate_fn=jax_collate_fn)
+
+    for i in range(20):
+        start_t = time.time()
+        x, y_true, normalizer, window_info = next(iter(dataloader))
+        end_t = time.time()
+        print(f"Time to generate batch: {1e3 * (end_t - start_t):.2f}ms")
+        y_pred = y_true
+        plot_predictions(x=x, y_true=y_true, y_pred=y_pred, normalizer=normalizer, window_info=window_info[0],
+                         denormalize_values=False)
+

@@ -4,7 +4,8 @@ import time
 import jax.numpy as jnp
 import numpy as np
 from jaxer.utils.plotter import plot_predictions
-from jaxer.utils.dataset import Dataset, normalize
+from jaxer.utils.dataset import Dataset
+from jaxer.utils.normalizer import normalize
 from jaxer.config.synthetic_dataset_config import SyntheticDatasetConfig
 from typing import Optional
 
@@ -32,7 +33,6 @@ class SyntheticDataset:
             'resolution': 'delta',
             'precision': self._config.precision
         }
-
 
     def get_random_input(self):
         """ Get a random input for the synthetic dataset
@@ -87,10 +87,8 @@ class SyntheticDataset:
         linear_tendencies = np.random.uniform(0, self._config.max_linear_trend, size=(batch_size,))
         exp_tendencies = np.random.uniform(0, self._config.max_exp_trend, size=(batch_size,))
 
-        sum_scales = np.random.choice([True, False], size=batch_size)
-        scalers_sum = np.random.uniform(0, 1_000, size=batch_size)
-        scalers_prod = np.random.uniform(1, 50, size=batch_size)
-        scalers = np.random.uniform(1, 200, size=batch_size)
+        scalers_sum = np.random.uniform(0, 60_000, size=batch_size)
+        scalers_prod = np.random.uniform(1, 10_000, size=batch_size)
 
         high_noise = np.random.uniform(0, 0.05, size=(batch_size, self._config.window_size))
         low_noise = np.random.uniform(-0.05, 0, size=(batch_size, self._config.window_size))
@@ -125,23 +123,17 @@ class SyntheticDataset:
             tendency = tendencies[idx, 1]
             window_signal += tendency * np.exp(time_) * exp_tendencies[idx]
 
-            sum_scale = sum_scales[idx]
-            if sum_scale:
-                scaler_sum = scalers_sum[idx]
-                scaler_prod = scalers_prod[idx]
-                window_signal = window_signal * scaler_prod + scaler_sum
-                scaler = scaler_sum
-            else:
-                scaler = scalers[idx]
-                window_signal = window_signal * scaler
+            scaler_sum = scalers_sum[idx]
+            scaler_prod = scalers_prod[idx]
+            window_signal = window_signal * scaler_prod + scaler_sum
 
             historical_timepoints[idx, :, 0] = np.roll(window_signal[:-1], 1)
             historical_timepoints[idx, 0, 0] = window_signal[0]
             historical_timepoints[idx, :, 3] = window_signal[:-1]
             historical_timepoints[idx, :, 1] = (window_signal[:-1] +
-                                                scaler * high_noise[idx])
+                                                np.mean(window_signal[:-1]) * high_noise[idx])
             historical_timepoints[idx, :, 2] = (window_signal[:-1] +
-                                                scaler * low_noise[idx])
+                                                np.mean(window_signal[:-1]) * low_noise[idx])
 
             normalizers[idx, 0:4] = self._compute_normalizer(historical_timepoints[idx, :, 0:4],
                                                              self._config.normalizer_mode)
@@ -209,18 +201,18 @@ if __name__ == '__main__':
                                             min_frequency=0.1,
                                             max_frequency=50,
                                             num_sinusoids=20,
-                                            max_linear_trend=0.1,
+                                            max_linear_trend=0.5,
                                             max_exp_trend=0.01,
                                             precision='fp32')
 
     dataset = SyntheticDataset(config=dataset_config)
 
-    dataset_generator = dataset.generator(256, seed=0)
+    dataset_generator = dataset.generator(1, seed=0)
     for _ in range(20):
         start_t = time.time()
         x, y_true, normalizer, window_info = next(dataset_generator)
         end_t = time.time()
         print(f"Time to generate batch: {1e3 * (end_t - start_t):.2f}ms")
         y_pred = y_true
-        # plot_predictions(x=x, y_true=y_true, y_pred=y_pred, normalizer=normalizer, window_info=window_info,
-        #                  denormalize_values=True)
+        plot_predictions(x=x, y_true=y_true, y_pred=y_pred, normalizer=normalizer, window_info=window_info,
+                         denormalize_values=False)

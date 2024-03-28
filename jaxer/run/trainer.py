@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 import optax
 import os
-from typing import Tuple, Dict, Optional, Any, List
+from typing import Tuple, Dict, Optional, Any
 from torch.utils.data import DataLoader
 import time
 import json
@@ -17,7 +17,8 @@ from jaxer.utils.schedulers import create_warmup_cosine_schedule
 from jaxer.model.flax_transformer import Transformer, TransformerConfig
 from jaxer.config.experiment_config import ExperimentConfig
 from jaxer.config.model_config import ModelConfig
-from jaxer.utils.dataset import jax_collate_fn, Dataset, denormalize
+from jaxer.utils.dataset import jax_collate_fn, Dataset
+from jaxer.utils.normalizer import denormalize
 from jaxer.utils.synthetic_dataset import SyntheticDataset
 from flax.training import orbax_utils, train_state
 

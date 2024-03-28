@@ -4,13 +4,9 @@ from matplotlib import gridspec
 import jax.numpy as jnp
 import numpy as np
 from dataclasses import dataclass
-from typing import Optional, Dict, Union, Tuple, List
-from jaxer.utils.dataset import denormalize
+from typing import Optional, Dict, Tuple
+from jaxer.utils.normalizer import denormalize
 from jaxer.utils.losses import acc_dir, mape, mae
-from jaxer.run.agent import FlaxAgent
-import torch
-from jaxer.utils.dataset import jax_collate_fn
-import torch.utils.data
 from tbparse import SummaryReader
 
 
@@ -29,69 +25,69 @@ class Color:
         return [self.green, self.blue, self.pink, self.orange, self.purple, self.yellow, self.red, self.black]
 
 
-def predict_entire_dataset(agent: FlaxAgent, dataset: torch.utils.data.Dataset, foldername=None, mode='test'):
-    """ Predict entire dataset """
-
-    if dataset.output_mode == 'discrete_grid':
-        return
-
-    # create a dataloader for the entire dataset and infere all at once
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=len(dataset), shuffle=False, collate_fn=jax_collate_fn)
-
-    for batch in dataloader:
-        input, label, normalizer, initial_date = batch
-        output = agent(input)
-
-    if isinstance(output, tuple):
-        y_pred, _ = output
-    else:
-        y_pred = output
-
-    plt.style.use('ggplot')
-    fig = plt.figure(figsize=(20, 12))
-    gs = gridspec.GridSpec(3, 1, height_ratios=[1, 1, 1])
-    ax0 = plt.subplot(gs[0:2, 0])
-    ax1 = plt.subplot(gs[2, 0])
-
-    close_preds = [denormalize(y_pred[i], normalizer[i]["price"]) for i in range(len(y_pred))]
-    close_inputs = [denormalize(input[i, 0, 0], normalizer[i]["price"]) for i in range(len(input))] + denormalize(
-        input[-1, 1:, 0], normalizer[-1]["price"]).tolist()
-    mean_avg = [denormalize(np.mean(input[i, :, 0]), normalizer[i]["price"]) for i in range(len(input))]
-
-    # close_inputs (batch_size, max_seq_len, 1)
-    # close_preds (batch_size, 1, 1)
-    batch_size = input.shape[0]
-    seq_len = input.shape[1]
-    base_input = jnp.arange(len(close_inputs))
-    base_pred = jnp.arange(batch_size) + seq_len
-
-    ax0.plot(base_pred, close_preds, label='Close Price Pred', color=Color.green, linewidth=3, marker='o', markersize=4)
-
-    # plot close_inputs
-    ax0.plot(base_input, close_inputs, label='Close Price Real', color=Color.blue, linewidth=3, marker='o',
-             markersize=4)
-
-    # plot mean
-    ax0.plot(base_pred, mean_avg, label='Close Price Avg', color=Color.orange, linewidth=3, marker='o', markersize=4)
-    ax0.set_ylabel('Close Price [$]', fontsize=18, fontweight='bold')
-
-    ax0.legend()
-
-    """ plot the errors """
-    errors = [100 * (close_inputs[i + seq_len - 1] - close_preds[i]) / close_inputs[i + seq_len - 1] for i in
-              range(len(close_preds))]
-    ax1.stem(base_pred, errors, label='Error')
-    ax1.legend()
-    ax1.set_ylabel('Error [%]', fontsize=18, fontweight='bold')
-
-    plt.suptitle(f"Predictions [{mode}]", fontsize=20, fontweight='bold')
-    plt.grid(True)
-    plt.tight_layout()
-    if foldername is not None:
-        plt.savefig(f"{foldername}/dataset_{mode}_prediction.png")
-    else:
-        plt.show()
-    plt.close()
+# def predict_entire_dataset(agent: FlaxAgent, dataset: torch.utils.data.Dataset, foldername=None, mode='test'):
+#     """ Predict entire dataset """
+#
+#     if dataset.output_mode == 'discrete_grid':
+#         return
+#
+#     # create a dataloader for the entire dataset and infere all at once
+#     dataloader = torch.utils.data.DataLoader(dataset, batch_size=len(dataset), shuffle=False, collate_fn=jax_collate_fn)
+#
+#     for batch in dataloader:
+#         input, label, normalizer, initial_date = batch
+#         output = agent(input)
+#
+#     if isinstance(output, tuple):
+#         y_pred, _ = output
+#     else:
+#         y_pred = output
+#
+#     plt.style.use('ggplot')
+#     fig = plt.figure(figsize=(20, 12))
+#     gs = gridspec.GridSpec(3, 1, height_ratios=[1, 1, 1])
+#     ax0 = plt.subplot(gs[0:2, 0])
+#     ax1 = plt.subplot(gs[2, 0])
+#
+#     close_preds = [denormalize(y_pred[i], normalizer[i]["price"]) for i in range(len(y_pred))]
+#     close_inputs = [denormalize(input[i, 0, 0], normalizer[i]["price"]) for i in range(len(input))] + denormalize(
+#         input[-1, 1:, 0], normalizer[-1]["price"]).tolist()
+#     mean_avg = [denormalize(np.mean(input[i, :, 0]), normalizer[i]["price"]) for i in range(len(input))]
+#
+#     # close_inputs (batch_size, max_seq_len, 1)
+#     # close_preds (batch_size, 1, 1)
+#     batch_size = input.shape[0]
+#     seq_len = input.shape[1]
+#     base_input = jnp.arange(len(close_inputs))
+#     base_pred = jnp.arange(batch_size) + seq_len
+#
+#     ax0.plot(base_pred, close_preds, label='Close Price Pred', color=Color.green, linewidth=3, marker='o', markersize=4)
+#
+#     # plot close_inputs
+#     ax0.plot(base_input, close_inputs, label='Close Price Real', color=Color.blue, linewidth=3, marker='o',
+#              markersize=4)
+#
+#     # plot mean
+#     ax0.plot(base_pred, mean_avg, label='Close Price Avg', color=Color.orange, linewidth=3, marker='o', markersize=4)
+#     ax0.set_ylabel('Close Price [$]', fontsize=18, fontweight='bold')
+#
+#     ax0.legend()
+#
+#     """ plot the errors """
+#     errors = [100 * (close_inputs[i + seq_len - 1] - close_preds[i]) / close_inputs[i + seq_len - 1] for i in
+#               range(len(close_preds))]
+#     ax1.stem(base_pred, errors, label='Error')
+#     ax1.legend()
+#     ax1.set_ylabel('Error [%]', fontsize=18, fontweight='bold')
+#
+#     plt.suptitle(f"Predictions [{mode}]", fontsize=20, fontweight='bold')
+#     plt.grid(True)
+#     plt.tight_layout()
+#     if foldername is not None:
+#         plt.savefig(f"{foldername}/dataset_{mode}_prediction.png")
+#     else:
+#         plt.show()
+#     plt.close()
 
 
 def plot_predictions(x: Tuple[jnp.ndarray, jnp.ndarray],
@@ -161,8 +157,8 @@ def plot_predictions(x: Tuple[jnp.ndarray, jnp.ndarray],
     if denormalize_values:
         y_pred = denormalize(y_pred, normalizer[[0], 0:4])
 
-    fig = plt.figure(figsize=(12, 6))
-    gs = gridspec.GridSpec(2, 3, height_ratios=[1, 1])
+    fig = plt.figure(figsize=(16, 9))
+    gs = gridspec.GridSpec(2, 3, height_ratios=[1.2, 0.8])
     ax0 = plt.subplot(gs[0, :])
     ax1 = plt.subplot(gs[1, 0])
     ax2 = plt.subplot(gs[1, 1])
@@ -211,7 +207,7 @@ def plot_predictions(x: Tuple[jnp.ndarray, jnp.ndarray],
     # )
 
     ax0.set_ylabel('Predictions [$]', fontsize=14, fontweight='bold')
-    ax0.legend()
+    ax0.legend(loc='upper center', ncol=5)
     #ax0.set_yscale('log')
 
     """ Plot high/low price """
@@ -222,7 +218,7 @@ def plot_predictions(x: Tuple[jnp.ndarray, jnp.ndarray],
     ax1.plot(window_base, low_data, label='Low', color=Color.purple, linewidth=linewidth, marker='o',
              markersize=markersize)
     ax1.set_ylabel('High/Low Price [$]', fontsize=14, fontweight='bold')
-    ax1.legend()
+    ax1.legend(loc='upper center', ncol=2)
 
     """ Plot volume """
     volume_data = x_hist_volume
@@ -242,9 +238,15 @@ def plot_predictions(x: Tuple[jnp.ndarray, jnp.ndarray],
 
     initial_date_str = initial_date.strftime('%Y/%m/%d') if initial_date is not None else '0'
     end_date_str = end_date.strftime('%Y/%m/%d') if end_date is not None else str(window_size)
+
+    returns = np.diff(np.log(x_hist_ohlc[:, 3]))
+    volatility = np.std(returns) * 100
+    window_variation = (np.max(x_hist_ohlc[:, 3]) - np.min(x_hist_ohlc[:, 3])) / np.min(x_hist_ohlc[:, 3]) * 100
+
     title = (f'{norm_mode} - {ticker_name} - {output_mode} - {resolution} - '
              f'[{initial_date_str}, {end_date_str}] - acc_dir: {int(acc_dir_.item()/100)} - '
-             f'mape: {mape_.item():.2f}% - mae: {mae_.item():.2f}$')
+             f'mape: {mape_.item():.2f}% - mae: {mae_.item():.2f}$ - volatility (R): {volatility:.2f}% '
+             f'- volatility (M): {window_variation:.2f}%')
 
     plt.suptitle(title, fontsize=14, fontweight='bold')
     plt.tight_layout()
