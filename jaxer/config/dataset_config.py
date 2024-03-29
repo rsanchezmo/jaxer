@@ -24,7 +24,7 @@ class DatasetConfig:
     :param discrete_grid_levels: levels of the discrete grid (in percentage: e.g. [-9.e6, -2., 0.0, 2., 9.e6])
     :type discrete_grid_levels: Optional[List[float]]
 
-    :param resolution: resolution of the dataset (30m, 1h, 4h)
+    :param resolution: resolution of the dataset (30m, 1h, 4h, all)
     :type resolution: str
 
     :param tickers: list of tickers (e.g. ['btc_usd', 'eth_usd'])

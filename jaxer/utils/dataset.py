@@ -33,16 +33,24 @@ class Dataset(torch.utils.data.Dataset):
 
     def __init__(self, dataset_config: DatasetConfig) -> None:
         """ Reads a csv file """
-        self._datapath = os.path.join(dataset_config.datapath, dataset_config.resolution)
 
         self._data = []
         self._data_len = []
         self._unrolled_len = []
         cum_len = 0
 
+        self._tickers = {}
+        if dataset_config.resolution == 'all':
+            for resolution in ['30m', '1h', '4h']:
+                for ticker in dataset_config.tickers:
+                    self._tickers[f'{ticker}_{resolution}'] = resolution
+        else:
+            self._tickers = {f'{ticker}_{dataset_config.resolution}': dataset_config.resolution
+                       for ticker in dataset_config.tickers}
+
         # load tickers
-        for ticker in dataset_config.tickers:
-            data = pd.read_json(os.path.join(self._datapath, f"{ticker}_{dataset_config.resolution}.json"))
+        for ticker, resolution in self._tickers.items():
+            data = pd.read_json(os.path.join(dataset_config.datapath, resolution, f"{ticker}.json"))
             data['date'] = pd.to_datetime(data['date'])
             data.set_index('date', inplace=True)
             data.sort_index(inplace=True)
@@ -60,13 +68,11 @@ class Dataset(torch.utils.data.Dataset):
 
         self._ohlc_only = dataset_config.ohlc_only
 
-        self._resolution = dataset_config.resolution
-
         self._logger = get_logger()
 
         self.output_mode = dataset_config.output_mode
         self._discrete_grid_levels = dataset_config.discrete_grid_levels
-        self._tickers = dataset_config.tickers
+        self._tickers_names = [(ticker.split('usd_')[0]+'usd', ticker.split('usd_')[1]) for ticker in self._tickers.keys()]
         self._indicators = dataset_config.indicators
         if self._indicators is not None:
             self._indicators = [indicator for indicator in self._indicators if indicator in Dataset.INDICATORS]
@@ -126,6 +132,8 @@ class Dataset(torch.utils.data.Dataset):
         self._logger.info(
             f"Dataset loaded with {len(self._data)} tickers and {len(self)} samples in total. "
             f"Each ticker has {self._data_len} samples.")
+
+        self._logger.info(f'Ticker names: {self._tickers_names}')
 
         self._sequence_data_time = np.arange(0, self._seq_len)[:, None]
 
@@ -214,13 +222,13 @@ class Dataset(torch.utils.data.Dataset):
         extra_tokens = self.encode_tokens(extra_tokens).astype(np.int8)
 
         window_info = {
-            'ticker': self._tickers[ticker_idx],
+            'ticker': self._tickers_names[ticker_idx][0],
             'initial_date': timestep,
             'end_date': self._data[ticker_idx].iloc[label_idx - 1].name,
             'output_mode': self.output_mode,
             'norm_mode': self._norm_mode,
             'discrete_grid_levels': self._discrete_grid_levels,
-            'resolution': self._resolution,
+            'resolution': self._tickers_names[ticker_idx][1],
             'window_size': self._seq_len
         }
 
@@ -311,20 +319,23 @@ class Dataset(torch.utils.data.Dataset):
         test_samples_btc = int(self._data_len[0] * test_size)
         train_samples_btc = self._data_len[0] - test_samples_btc
         initial_date_btc = self._data[0].index[0]
+        btc_transition_date = self._data[0].index[train_samples_btc]
 
         for ticker in range(len(self._data_len)):
-            if self._data[ticker].index[0] != initial_date_btc:
-                btc_transition_date = self._data[0].index[train_samples_btc]
-                train_samples = self._data[ticker].index.get_loc(btc_transition_date)
-            else:
-                train_samples = train_samples_btc
+            # if self._data[ticker].index[0] != initial_date_btc:
+            # the date may not be exactly the same, so get the index that is the closest
+            train_samples = self._data[ticker].index.searchsorted(btc_transition_date, side='left')
+            if self._data[ticker].index[train_samples] > btc_transition_date:
+                train_samples -= 1
+            # else:
+            #     train_samples = train_samples_btc
 
             # get the index of self._data[ticker].index for the date that is the limit
 
-            if ticker == 0:  # first ticker (btc_usd always)
+            if ticker == 0:  # first ticker (btc_usd always (btc_30m if all))
                 train_ranges.append(range(0, train_samples))
 
-                if test_tickers is not None and self._tickers[ticker] not in test_tickers:
+                if test_tickers is not None and self._tickers_names[ticker][0] not in test_tickers:
                     continue
 
                 test_ranges.append(range(train_samples, self._data_len[ticker]))
@@ -332,7 +343,11 @@ class Dataset(torch.utils.data.Dataset):
                 train_ranges.append(
                     range(self._unrolled_len[ticker - 1], self._unrolled_len[ticker - 1] + train_samples))
 
-                if test_tickers is not None and self._tickers[ticker] not in test_tickers:
+                if test_tickers is not None and self._tickers_names[ticker][0] not in test_tickers:
+                    continue
+
+                if 'btc_usd' in self._tickers_names[ticker]:
+                    # because we already added the btc_usd (30m) in the first and we do not want to merge resolutions
                     continue
 
                 test_ranges.append(range(self._unrolled_len[ticker - 1] + train_samples,
@@ -379,7 +394,7 @@ if __name__ == '__main__':
         discrete_grid_levels=None,
         initial_date='2018-01-01',
         norm_mode="window_mean",
-        resolution='30m',
+        resolution='all',
         tickers=['btc_usd', 'eth_usd', 'sol_usd'],
         indicators=None,
         seq_len=128,
@@ -387,7 +402,8 @@ if __name__ == '__main__':
     )
 
     dataset = Dataset(dataset_config)
-    dataloader = torch.utils.data.DataLoader(dataset,
+    train_set, _ = dataset.get_train_test_split(test_size=0.15, test_tickers=['btc_usd'])
+    dataloader = torch.utils.data.DataLoader(train_set,
                                              batch_size=1,
                                              shuffle=True,
                                              collate_fn=jax_collate_fn)

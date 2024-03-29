@@ -200,15 +200,15 @@ class SyntheticDataset:
 if __name__ == '__main__':
 
     dataset_config = SyntheticDatasetConfig(window_size=128,
-                                            add_noise=False,
+                                            add_noise=True,
                                             normalizer_mode='window_mean',
                                             min_amplitude=.05,
                                             max_amplitude=.1,
                                             min_frequency=0.1,
-                                            max_frequency=40,
-                                            num_sinusoids=15,
+                                            max_frequency=20,
+                                            num_sinusoids=10,
                                             max_linear_trend=0.6,
-                                            max_exp_trend=0.01,
+                                            max_exp_trend=0.05,
                                             precision='fp32')
 
     dataset = SyntheticDataset(config=dataset_config)

@@ -282,7 +282,7 @@ class FlaxTrainer(TrainerBase):
         else:
             raise NotImplementedError(f"Learning rate mode {self._config.lr_mode} not implemented")
 
-        tx = optax.adamw(self._learning_rate_fn, weight_decay=1e-3)
+        tx = optax.adamw(self._learning_rate_fn, weight_decay=self._config.weight_decay)
 
         """ wrap params, apply_fn and tx in a TrainState, to not keep passing them around """
         return train_state.TrainState.create(apply_fn=model.apply, params=params, tx=tx)
@@ -561,26 +561,3 @@ class FlaxTrainer(TrainerBase):
             metrics[key] = metrics[key]
 
         return metrics
-
-    def _best_model_test(self, max_seqs: int = 20):
-        """ Generate images from the test set of the best model """
-
-        test_dataloader = DataLoader(self._test_ds, batch_size=1, collate_fn=jax_collate_fn, shuffle=True)
-        save_folder = os.path.join(self._log_dir, "best_model_test", self._config.__str__())
-        os.makedirs(save_folder, exist_ok=True)
-
-        counter = 0
-        for i, data in enumerate(test_dataloader):
-            inputs, targets, normalizer, _ = data
-            output = self._eval_model.apply(self._best_model_state.params, inputs)
-            plot_predictions(input=inputs[0].squeeze(0),
-                             y_true=targets.squeeze(0),
-                             output=output,
-                             name=str(i),
-                             foldername=save_folder,
-                             normalizer=normalizer[0],
-                             output_mode=self._config.model_config.output_mode,
-                             discrete_grid_levels=self._config.dataset_config.discrete_grid_levels)
-            counter += 1
-            if counter == max_seqs:
-                break

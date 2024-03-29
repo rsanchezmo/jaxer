@@ -34,6 +34,9 @@ class ExperimentConfig:
     :param lr_mode: learning rate mode (cosine, linear or none)
     :type lr_mode: str
 
+    :param weight_decay: weight decay
+    :type weight_decay: float
+
     :param warmup_epochs: number of warmup epochs (for learning rate)
     :type warmup_epochs: int
 
@@ -68,6 +71,7 @@ class ExperimentConfig:
     num_epochs: int
     learning_rate: float
     lr_mode: str
+    weight_decay: float
     warmup_epochs: int
     dataset_mode: str
     dataset_config: Optional[DatasetConfig]
