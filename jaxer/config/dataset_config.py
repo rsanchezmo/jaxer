@@ -36,6 +36,9 @@ class DatasetConfig:
     :param ohlc_only: whether to use only ohlc data (pad everything else with -1)
     :type ohlc_only: bool
 
+    :param close_only: whether to use only the close price
+    :type close_only: bool
+
     :param return_mode: whether to return the dataset
     :type return_mode: bool
 
@@ -50,6 +53,7 @@ class DatasetConfig:
     indicators: Optional[List[str]] = None
     discrete_grid_levels: Optional[List[float]] = None
     ohlc_only: bool = False
+    close_only: bool = False
     return_mode: bool = False
 
     @classmethod
@@ -65,6 +69,7 @@ class DatasetConfig:
         indicators = d.get('indicators', None)
         ohlc_only = d.get('ohlc_only', False)
         return_mode = d.get('return_mode', False)
+        close_only = d.get('close_only', False)
         return cls(datapath=datapath,
                    seq_len=seq_len,
                    norm_mode=norm_mode,
@@ -75,4 +80,5 @@ class DatasetConfig:
                    indicators=indicators,
                    discrete_grid_levels=discrete_grid_levels,
                    ohlc_only=ohlc_only,
+                   close_only=close_only,
                    return_mode=return_mode)

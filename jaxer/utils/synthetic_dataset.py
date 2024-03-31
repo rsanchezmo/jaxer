@@ -32,7 +32,8 @@ class SyntheticDataset:
             'window_size': self._config.window_size,
             'discrete_grid_levels': [],
             'resolution': 'delta',
-            'precision': self._config.precision
+            'precision': self._config.precision,
+            'close_only': self._config.close_only
         }
 
     def get_random_input(self):
@@ -128,21 +129,32 @@ class SyntheticDataset:
             scaler_prod = scalers_prod[idx]
             window_signal = window_signal * scaler_prod + scaler_sum
 
-            historical_timepoints[idx, :, 0] = np.roll(window_signal[:-1], 1)
-            historical_timepoints[idx, 0, 0] = window_signal[0]
             historical_timepoints[idx, :, 3] = window_signal[:-1]
-            historical_timepoints[idx, :, 1] = (window_signal[:-1] +
-                                                np.mean(window_signal[:-1]) * high_noise[idx])
-            historical_timepoints[idx, :, 2] = (window_signal[:-1] +
-                                                np.mean(window_signal[:-1]) * low_noise[idx])
+            if self._config.close_only:
+                historical_timepoints[idx, :, 0] = -1
+                historical_timepoints[idx, :, 1] = -1
+                historical_timepoints[idx, :, 2] = -1
 
-            min_value = np.min(historical_timepoints[idx, :, 0:4])
-            min_value_label = np.min(window_signal)
-            min_value = np.minimum(min_value, min_value_label)
-            rescale_value = 0
-            if min_value < 0:
-                rescale_value = np.abs(min_value) * 2
-            historical_timepoints[idx, :, 0:4] += rescale_value
+                min_value = np.min(historical_timepoints[idx, :, 3])
+                rescale_value = 0
+                if min_value < 0:
+                    rescale_value = np.abs(min_value) * 2
+                historical_timepoints[idx, :, 3] += rescale_value
+            else:
+                historical_timepoints[idx, :, 0] = np.roll(window_signal[:-1], 1)
+                historical_timepoints[idx, 0, 0] = window_signal[0]
+                historical_timepoints[idx, :, 1] = (window_signal[:-1] +
+                                                    np.mean(window_signal[:-1]) * high_noise[idx])
+                historical_timepoints[idx, :, 2] = (window_signal[:-1] +
+                                                    np.mean(window_signal[:-1]) * low_noise[idx])
+
+                min_value = np.min(historical_timepoints[idx, :, 0:4])
+                min_value_label = np.min(window_signal)
+                min_value = np.minimum(min_value, min_value_label)
+                rescale_value = 0
+                if min_value < 0:
+                    rescale_value = np.abs(min_value) * 2
+                historical_timepoints[idx, :, 0:4] += rescale_value
 
             last_close = historical_timepoints[idx, -1, 3]
 
@@ -220,9 +232,9 @@ class SyntheticDataset:
 if __name__ == '__main__':
 
     dataset_config = SyntheticDatasetConfig(window_size=128,
-                                            return_mode=True,
+                                            return_mode=False,
                                             add_noise=True,
-                                            normalizer_mode='none',
+                                            normalizer_mode='window_mean',
                                             min_amplitude=.05,
                                             max_amplitude=.1,
                                             min_frequency=0.1,
@@ -230,7 +242,8 @@ if __name__ == '__main__':
                                             num_sinusoids=10,
                                             max_linear_trend=0.6,
                                             max_exp_trend=0.05,
-                                            precision='fp32')
+                                            precision='fp32',
+                                            close_only=True)
 
     dataset = SyntheticDataset(config=dataset_config)
 
@@ -239,10 +252,10 @@ if __name__ == '__main__':
         start_t = time.time()
         x, y_true, normalizer, window_info = next(dataset_generator)
         end_t = time.time()
-        # print(f"Time to generate batch: {1e3 * (end_t - start_t):.2f}ms")
-        # print(x[1])
+        print(f"Time to generate batch: {1e3 * (end_t - start_t):.2f}ms")
+        print(x[1])
         y_pred = y_true
 
         if x[0].shape[0] == 1:
             plot_predictions(x=x, y_true=y_true, y_pred=y_pred, normalizer=normalizer, window_info=window_info,
-                             denormalize_values=False)
+                             denormalize_values=True)

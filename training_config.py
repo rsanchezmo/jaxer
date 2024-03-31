@@ -24,24 +24,31 @@ model_config = jaxer.config.ModelConfig(
     norm_encoder_prev=True
 )
 
+return_mode = False
+norm_mode = 'window_mean'
+close_only = True
+ohlc_only = False
+
 dataset_config = jaxer.config.DatasetConfig(
     datapath='./data/datasets/data/',
     output_mode=output_mode,  # 'mean' or 'distribution' or 'discrete_grid
     discrete_grid_levels=None,
     initial_date='2018-01-01',
-    norm_mode="window_mean",
+    norm_mode=norm_mode,
     resolution='all',  # 4h, 1h, 30m, all?
     tickers=['btc_usd', 'eth_usd', 'sol_usd'],
     indicators=None,
     seq_len=seq_len,
-    ohlc_only=True
+    ohlc_only=ohlc_only,
+    return_mode=return_mode,
+    close_only=close_only
 )
 
 synthetic_dataset_config = jaxer.config.SyntheticDatasetConfig(
     window_size=seq_len,
-    return_mode=True,
+    return_mode=return_mode,
     output_mode=output_mode,  # 'mean' or 'distribution' or 'discrete_grid
-    normalizer_mode='none',  # 'window_meanstd' or 'window_minmax' or 'window_mean' or 'none'
+    normalizer_mode=norm_mode,  # 'window_meanstd' or 'window_minmax' or 'window_mean' or 'none'
     add_noise=True,
     min_amplitude=0.05,
     max_amplitude=0.1,
@@ -50,7 +57,8 @@ synthetic_dataset_config = jaxer.config.SyntheticDatasetConfig(
     num_sinusoids=10,
     max_linear_trend=0.6,
     max_exp_trend=0.03,
-    precision=precision
+    precision=precision,
+    close_only=close_only
 )
 
 # pretrained_folder = "results/synth_tiny_from_pretrained"
@@ -63,14 +71,14 @@ config = jaxer.config.ExperimentConfig(
     model_config=model_config,
     pretrained_model=pretrained_model,
     log_dir="results",
-    experiment_name="return_mode_synth",
+    experiment_name="univariate",
     num_epochs=200,
     steps_per_epoch=500,  # for synthetic dataset only
     learning_rate=3e-4,
     lr_mode='cosine',  # 'cosine'
     weight_decay=1.0e-2,
     warmup_epochs=5,
-    dataset_mode='synthetic',  # 'real' or 'synthetic' or 'both'
+    dataset_mode='both',  # 'real' or 'synthetic' or 'both'
     real_proportion=0.5,
     dataset_config=dataset_config,
     synthetic_dataset_config=synthetic_dataset_config,

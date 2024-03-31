@@ -66,7 +66,10 @@ class Dataset(torch.utils.data.Dataset):
 
         self._seq_len = dataset_config.seq_len
 
-        self._ohlc_only = dataset_config.ohlc_only
+        self._close_only = dataset_config.close_only
+        self._ohlc_only = True if dataset_config.ohlc_only and not dataset_config.close_only else False
+
+        self._return_mode = dataset_config.return_mode
 
         self._logger = get_logger()
 
@@ -168,13 +171,20 @@ class Dataset(torch.utils.data.Dataset):
         sequence_data = self._data[ticker_idx].iloc[start_idx:end_idx]
         sequence_data_values = sequence_data.loc[:, Dataset.OHLC + ['volume', 'tradesDone']].values
 
-        if self._ohlc_only:
+        if self._return_mode:
+            sequence_data_values[1:, :] = np.log(sequence_data_values[1:, :] / (sequence_data_values[:-1, :] + 1e-6))
+            sequence_data_values[0, :] = 0.
+
+        if self._ohlc_only or self._close_only:
             sequence_data_values[:, 4:] = -1
+
+        if self._close_only:
+            sequence_data_values[:, 0:3] = -1
 
         sequence_data_time = (self._sequence_data_time + start_idx) / self._data_len[ticker_idx]
 
         sequence_data_indicators = None
-        if self._indicators is not None:
+        if self._indicators is not None and not self._return_mode:
             sequence_data_indicators = sequence_data.loc[:, self._indicators]
 
         # Compute normalizers
@@ -193,7 +203,11 @@ class Dataset(torch.utils.data.Dataset):
 
         # Extract the labels
         label_idx = index + self._seq_len
-        label = self._data[ticker_idx].iloc[label_idx]['close']
+        if self._return_mode:
+            label = np.log(self._data[ticker_idx].iloc[label_idx]['close'] /
+                           (self._data[ticker_idx].iloc[label_idx - 1]['close'] + 1e-6))
+        else:
+            label = self._data[ticker_idx].iloc[label_idx]['close']
 
         if self.output_mode == 'mean' or self.output_mode == 'distribution':
             label = np.array([label], dtype=np.float32)
@@ -232,7 +246,9 @@ class Dataset(torch.utils.data.Dataset):
             'norm_mode': self._norm_mode,
             'discrete_grid_levels': self._discrete_grid_levels,
             'resolution': self._tickers_names[ticker_idx][1],
-            'window_size': self._seq_len
+            'window_size': self._seq_len,
+            'return_mode': self._return_mode,
+            'close_only': self._close_only
         }
 
         return timepoints_tokens, extra_tokens, label, normalizer, window_info
@@ -270,11 +286,15 @@ class Dataset(torch.utils.data.Dataset):
 
     def _compute_normalizers(self, sequence_data_values: np.ndarray, ticker_idx: int):
         if self._norm_mode == "window_minmax":
+
             min_values = sequence_data_values.min(axis=0)
             max_values = sequence_data_values.max(axis=0)
 
+            min_value_price = min_values[0:4].min() if not self._close_only else min_values[3]
+            max_value_price = max_values[0:4].max() if not self._close_only else max_values[3]
+
             return np.array([
-                [0, 1, min_values[0:4].min(), max_values[0:4].max(),
+                [0, 1, min_value_price, max_value_price,
                  0, 1, min_values[4], max_values[4],
                  0, 1, min_values[5], max_values[5]]
             ])
@@ -283,16 +303,21 @@ class Dataset(torch.utils.data.Dataset):
             mean_values = sequence_data_values.mean(axis=0)
             std_values = sequence_data_values.std(axis=0)
 
+            mean_values_price = mean_values[0:4].max() if not self._close_only else mean_values[3]
+            std_values_price = std_values[0:4].max() if not self._close_only else std_values[3]
+
             return np.array([
-                [mean_values[0:4].max(), std_values[0:4].max(), 0, 1,
+                [mean_values_price, std_values_price, 0, 1,
                  mean_values[4], std_values[4], 0, 1,
                  mean_values[5], std_values[5], 0, 1]
             ])
 
         if self._norm_mode == "window_mean":
             mean_values = sequence_data_values.mean(axis=0)
+
+            mean_values_price = mean_values[0:4].max() if not self._close_only else mean_values[3]
             return np.array([
-                [0, mean_values[0:4].max(), 0, 1,  # mean scaling is just to divide by the mean (as if it was std)
+                [0, mean_values_price, 0, 1,  # mean scaling is just to divide by the mean (as if it was std)
                  0, mean_values[4], 0, 1,
                  0, mean_values[5], 0, 1]
             ])
@@ -401,7 +426,9 @@ if __name__ == '__main__':
         tickers=['btc_usd', 'eth_usd', 'sol_usd'],
         indicators=None,
         seq_len=128,
-        ohlc_only=True
+        ohlc_only=True,
+        close_only=True,
+        return_mode=False
     )
 
     dataset = Dataset(dataset_config)

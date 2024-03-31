@@ -4,7 +4,7 @@ from matplotlib import gridspec
 import jax.numpy as jnp
 import numpy as np
 from dataclasses import dataclass
-from typing import Optional, Dict, Tuple
+from typing import Optional, Dict, Tuple, List
 from jaxer.utils.normalizer import denormalize
 from jaxer.utils.losses import acc_dir, mape, mae, acc_dir_discrete
 from tbparse import SummaryReader
@@ -97,7 +97,7 @@ def plot_predictions(x: Tuple[jnp.ndarray, jnp.ndarray],
                      window_info: Dict,
                      folder_name: Optional[str] = None,
                      image_name: str = 'pred',
-                     denormalize_values: bool = True):
+                     denormalize_values: bool = True) -> Dict:
     """ Function to plot a window prediction. Batch size must be 1
 
     :param x: input data (sequence, extra tokens)
@@ -145,6 +145,7 @@ def plot_predictions(x: Tuple[jnp.ndarray, jnp.ndarray],
     discrete_grid_levels = window_info.get('discrete_grid_levels', [])
     resolution = window_info.get('resolution', 1)
     norm_mode = window_info.get('norm_mode', '')
+    close_only = window_info.get('close_only', False)
 
     if denormalize_values:
         y_true = denormalize(y_true, normalizer[[0], 0:4])
@@ -185,15 +186,17 @@ def plot_predictions(x: Tuple[jnp.ndarray, jnp.ndarray],
                  marker='o',
                  markersize=markersize)
 
-        ax0.plot(window_base, 100 * (np.exp(x_hist_ohlc[:, 0]) - 1), label='Open', color=Color.red, linewidth=linewidth,
-                 marker='o',
-                 markersize=markersize)
+        if not close_only:
+            ax0.plot(window_base, 100 * (np.exp(x_hist_ohlc[:, 0]) - 1), label='Open', color=Color.red, linewidth=linewidth,
+                     marker='o',
+                     markersize=markersize)
     else:
         ax0.plot(window_base, x_hist_ohlc[:, 3], label='Close', color=Color.blue, linewidth=linewidth, marker='o',
                  markersize=markersize)
 
-        ax0.plot(window_base, x_hist_ohlc[:, 0], label='Open', color=Color.red, linewidth=linewidth, marker='o',
-                 markersize=markersize)
+        if not close_only:
+            ax0.plot(window_base, x_hist_ohlc[:, 0], label='Open', color=Color.red, linewidth=linewidth, marker='o',
+                     markersize=markersize)
 
     if output_mode != 'discrete_grid':
         ax0.plot(pred_base, y_pred_base, label='Pred', color=Color.green, linewidth=linewidth,
@@ -271,6 +274,7 @@ def plot_predictions(x: Tuple[jnp.ndarray, jnp.ndarray],
         acc_dir_ = acc_dir_discrete(y_pred, y_true)
     else:
         acc_dir_ = acc_dir(y_pred, y_true, x_hist_ohlc[-1, 3])
+
     mape_ = mape(y_pred, y_true)
     mae_ = mae(y_pred, y_true)
 
@@ -301,6 +305,54 @@ def plot_predictions(x: Tuple[jnp.ndarray, jnp.ndarray],
         plt.savefig(f"{folder_name}/{image_name}.png")
     else:
         plt.show()
+    plt.close()
+
+
+def plot_metrics(mape: List[float], acc_dir: List[float], window_size: int = 50) -> None:
+    fig = plt.figure(figsize=(16, 9))
+    gs = gridspec.GridSpec(2, 3, height_ratios=[1., 1.])
+    ax0 = plt.subplot(gs[0, :2])
+    ax1 = plt.subplot(gs[0, 2])
+    ax2 = plt.subplot(gs[1, :2])
+    ax3 = plt.subplot(gs[1, 2])
+
+    ax0.grid(axis='both', color='0.92')
+    ax0.scatter(np.arange(len(mape)), mape, label='mape', color=Color.green, marker='o', s=16)
+    ax0.set_ylabel('MAPE [%]', fontsize=14, fontweight='bold')
+
+    # plot the mean average with window of 10 (use numpy for this)
+    mape_mean = np.convolve(mape, np.ones(window_size), 'valid') / window_size
+    ax0.plot(np.arange(len(mape_mean)) + window_size/2, mape_mean, label=f'{window_size} mean',
+             color=Color.purple, linewidth=2)
+    ax0.legend(loc='upper center', ncol=2)
+
+    # plot histogram of MAPE
+    ax1.grid(axis='both', color='0.92')
+    ax1.hist(mape, bins=20, color=Color.green, alpha=0.7, rwidth=0.8)
+    ax1.set_ylabel('Frequency', fontsize=14, fontweight='bold')
+    ax1.set_xlabel('MAPE [%]', fontsize=14, fontweight='bold')
+
+    ax2.grid(axis='both', color='0.92')
+    ax2.scatter(np.arange(len(acc_dir)), acc_dir, label='acc_dir', color=Color.blue, marker='o', s=16)
+    ax2.set_ylabel('Acc Dir [%]', fontsize=14, fontweight='bold')
+
+    # plot the mean average with window of 10 (use numpy for this)
+    acc_dir_mean = np.convolve(acc_dir, np.ones(window_size), 'valid') / window_size
+    ax2.plot(np.arange(len(acc_dir_mean)) + window_size/2, acc_dir_mean, label=f'{window_size} mean',
+                color=Color.purple, linewidth=2)
+    ax2.legend(loc='upper center', ncol=2)
+
+    # plot histogram of Acc Dir
+    ax3.grid(axis='both', color='0.92')
+    ax3.hist(acc_dir, bins=[-0.5, 0.5, 1.5], rwidth=0.8, color=Color.blue, alpha=0.7)
+    ax3.set_xticks([0, 1])
+    ax3.set_xticklabels(['False', 'True'])
+    ax3.set_ylabel('Frequency', fontsize=14, fontweight='bold')
+    ax3.set_xlabel('Acc Dir', fontsize=14, fontweight='bold')
+
+    plt.suptitle('Metrics', fontsize=14, fontweight='bold')
+    plt.tight_layout()
+    plt.show()
     plt.close()
 
 # def plot_predictions(input: jnp.ndarray, y_true: jnp.ndarray,

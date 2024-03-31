@@ -17,7 +17,7 @@ class SyntheticDatasetConfig:
     :param add_noise: add noise to the signal
     :type add_noise: bool
 
-    :param return_mode: return mode
+    :param return_mode: return mode. If true, then normalizer cant be window_mean
     :type return_mode: bool
 
     :param min_amplitude: minimum amplitude for the sinusoids
@@ -43,6 +43,9 @@ class SyntheticDatasetConfig:
 
     :param precision: precision of the model (fp32 or fp16)
     :type precision: str
+
+    :param close_only: whether to use only the close price
+    :type close_only: bool
     """
     window_size: int
     return_mode: bool = False
@@ -57,6 +60,7 @@ class SyntheticDatasetConfig:
     max_linear_trend: float = 0.5
     max_exp_trend: float = 0.01
     precision: str = 'fp32'
+    close_only: bool = False
 
     @classmethod
     def from_dict(cls, d):

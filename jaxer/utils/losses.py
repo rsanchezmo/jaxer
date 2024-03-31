@@ -1,5 +1,7 @@
 import jax.numpy as jnp
 import jax
+from functools import partial
+from jaxer.utils.normalizer import denormalize
 
 
 @jax.jit
@@ -48,7 +50,13 @@ def gaussian_negative_log_likelihood(mean: jnp.ndarray, std: jnp.ndarray, target
 @jax.jit
 def mape(y_pred: jnp.ndarray, y_true: jnp.ndarray, eps: float = 1e-6) -> jnp.ndarray:
     """ Mean Absolute Percentage Error """
-    return jnp.mean(jnp.abs(y_true - y_pred) / jnp.clip(jnp.abs(y_true), a_min=eps)) * 100
+    return jnp.mean(ape(y_pred, y_true, eps))
+
+
+@jax.jit
+def ape(y_pred: jnp.ndarray, y_true: jnp.ndarray, eps: float = 1e-6) -> jnp.ndarray:
+    """ Absolute Percentage Error """
+    return jnp.abs(y_true - y_pred) / jnp.clip(jnp.abs(y_true), a_min=eps) * 100
 
 
 @jax.jit
@@ -74,13 +82,34 @@ def acc_dir(y_pred: jnp.ndarray, y_true: jnp.ndarray, last_price: jnp.ndarray) -
     :rtype: jnp.ndarray
     """
 
-    true_sign = jnp.sign(y_true[:, 0] - last_price)  # y_true is (batch, 1) and last_price is (batch,)
-    pred_sign = jnp.sign(y_pred[:, 0] - last_price)
+
 
     # jax.debug.print("🤯 {y_pred} {y_true} {last_price}", y_pred=y_pred, y_true=y_true, last_price=last_price)
     # jax.debug.print("🤯 {true_sign} {pred_sign}", true_sign=true_sign, pred_sign=pred_sign)
 
-    return jnp.mean(true_sign == pred_sign) * 100
+    return jnp.mean(acc_dir_raw(y_pred, y_true, last_price)) * 100
+
+
+@jax.jit
+def acc_dir_raw(y_pred: jnp.ndarray, y_true: jnp.ndarray, last_price: jnp.ndarray) -> jnp.ndarray:
+    """Direction accuracy metric
+
+    :param y_pred: predicted values
+    :type y_pred: jnp.ndarray
+
+    :param y_true: true values
+    :type y_true: jnp.ndarray
+
+    :param last_price: last close price
+    :type last_price: jnp.ndarray
+
+    :return: direction accuracy (percentage)
+    :rtype: jnp.ndarray
+    """
+    true_sign = jnp.sign(y_true[:, 0] - last_price)  # y_true is (batch, 1) and last_price is (batch,)
+    pred_sign = jnp.sign(y_pred[:, 0] - last_price)
+
+    return true_sign == pred_sign
 
 
 @jax.jit
@@ -101,3 +130,29 @@ def acc_dir_discrete(y_pred: jnp.ndarray, y_true: jnp.ndarray) -> jnp.ndarray:
     y_pred = jnp.sign(y_pred)
 
     return jnp.mean(y_true == y_pred) * 100
+
+
+@partial(jax.jit, static_argnames=('denormalize_values',))
+def compute_metrics(x: jnp.ndarray, y_pred: jnp.ndarray, y_true: jnp.ndarray, normalizer: jnp.ndarray,
+                    denormalize_values: bool = True):
+    """ Compute metrics for a batch of data
+    """
+
+    x_hist = x[0]
+    if denormalize_values:
+        x_hist_ohlc_last = denormalize(x_hist[:, -1, 0:4], normalizer[:, 0:4])
+        y_true = denormalize(y_true, normalizer[:, 0:4])
+        y_pred = denormalize(y_pred, normalizer[:, 0:4])
+
+    else:
+        x_hist_ohlc_last = x_hist[:, -1, 0:4]
+
+    mape_ = ape(y_pred, y_true)
+    acc_dir_ = acc_dir_raw(y_pred, y_true, x_hist_ohlc_last[:, 3])
+
+    metrics = {
+        'acc_dir': acc_dir_,
+        'mape': mape_,
+    }
+
+    return metrics
