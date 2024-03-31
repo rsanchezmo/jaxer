@@ -8,7 +8,7 @@ from jaxer.utils.dataset import Dataset
 from typing import Union
 
 
-def evaluate_agent(agent: FlaxAgent, dataset: Union[SyntheticDataset, Dataset], max_samples: int = 10_000, seed: int = 100):
+def evaluate_agent(agent: FlaxAgent, dataset: Union[SyntheticDataset, Dataset], max_samples: int = 50_000, seed: int = 100):
 
     max_batch_size = 512
     if isinstance(dataset, SyntheticDataset):
@@ -20,13 +20,13 @@ def evaluate_agent(agent: FlaxAgent, dataset: Union[SyntheticDataset, Dataset], 
     acc_dir = []
 
     if isinstance(dataset, SyntheticDataset):
-        for batch_idx in range(max_samples):
+        for batch_idx in range(int(max_samples/max_batch_size)):
             x, y_true, normalizer, window_info = next(dataloader)
             y_pred = agent(x)
 
             metrics = compute_metrics(x, y_pred, y_true, normalizer, denormalize_values=True)
 
-            mape += metrics['mape'].tolist()
+            mape += metrics['mape'][:, 0].tolist()
             acc_dir += metrics['acc_dir'].tolist()
     else:
         for idx, batch in enumerate(dataloader):

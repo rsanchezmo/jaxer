@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader
 
 if __name__ == '__main__':
     """ LOAD THE AGENT """
-    experiment = "results/tiny_low_res"
+    experiment = "results/exp_synthetic_context"
     model_name = jaxer.utils.get_best_model(experiment)
     agent = jaxer.run.FlaxAgent(experiment=experiment, model_name=model_name)
 
@@ -50,8 +50,12 @@ if __name__ == '__main__':
                                              window_info=window_info[0], denormalize_values=True)
                 # folder_name=experiment, image_name=f'prediction_{idx}')
 
-    if infer_test and isinstance(dataset, jaxer.utils.Dataset):
-        dataset = test_ds
+    if infer_test:
+        seed = 200
+        if isinstance(dataset, jaxer.utils.Dataset):
+            dataset = test_ds
     else:
-        dataset = train_ds
-    jaxer.run.evaluate_agent(agent, dataset=dataset)
+        seed = 100
+        if isinstance(dataset, jaxer.utils.Dataset):
+            dataset = train_ds
+    jaxer.run.evaluate_agent(agent, dataset=dataset, seed=seed)

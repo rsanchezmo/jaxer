@@ -308,7 +308,7 @@ def plot_predictions(x: Tuple[jnp.ndarray, jnp.ndarray],
     plt.close()
 
 
-def plot_metrics(mape: List[float], acc_dir: List[float], window_size: int = 50) -> None:
+def plot_metrics(mape: List[float], acc_dir: List[float], window_size: int = 200) -> None:
     fig = plt.figure(figsize=(16, 9))
     gs = gridspec.GridSpec(2, 3, height_ratios=[1., 1.])
     ax0 = plt.subplot(gs[0, :2])
@@ -328,9 +328,10 @@ def plot_metrics(mape: List[float], acc_dir: List[float], window_size: int = 50)
 
     # plot histogram of MAPE
     ax1.grid(axis='both', color='0.92')
-    ax1.hist(mape, bins=20, color=Color.green, alpha=0.7, rwidth=0.8)
+    ax1.hist(mape, bins=100, color=Color.green, alpha=0.7, rwidth=0.8)
     ax1.set_ylabel('Frequency', fontsize=14, fontweight='bold')
-    ax1.set_xlabel('MAPE [%]', fontsize=14, fontweight='bold')
+    mean_mape = np.mean(mape)
+    ax1.set_xlabel(f'MAPE [%] ({mean_mape:.2f})', fontsize=14, fontweight='bold')
 
     ax2.grid(axis='both', color='0.92')
     ax2.scatter(np.arange(len(acc_dir)), acc_dir, label='acc_dir', color=Color.blue, marker='o', s=16)
@@ -344,11 +345,12 @@ def plot_metrics(mape: List[float], acc_dir: List[float], window_size: int = 50)
 
     # plot histogram of Acc Dir
     ax3.grid(axis='both', color='0.92')
-    ax3.hist(acc_dir, bins=[-0.5, 0.5, 1.5], rwidth=0.8, color=Color.blue, alpha=0.7)
+    ax3.hist(np.array(acc_dir).astype(np.uint8), bins=[-0.5, 0.5, 1.5], rwidth=0.4, color=Color.blue, alpha=0.7)
     ax3.set_xticks([0, 1])
     ax3.set_xticklabels(['False', 'True'])
     ax3.set_ylabel('Frequency', fontsize=14, fontweight='bold')
-    ax3.set_xlabel('Acc Dir', fontsize=14, fontweight='bold')
+    mean_acc_dir = np.mean(acc_dir) * 100
+    ax3.set_xlabel(f'Acc Dir [%] ({mean_acc_dir:.2f})', fontsize=14, fontweight='bold')
 
     plt.suptitle('Metrics', fontsize=14, fontweight='bold')
     plt.tight_layout()

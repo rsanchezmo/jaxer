@@ -84,10 +84,10 @@ class FlaxTrainer(TrainerBase):
                                                                                     test_tickers=self._config.test_tickers)
 
             self._train_dataloader_real = DataLoader(self._train_ds, batch_size=batch_size_real, shuffle=True,
-                                                     collate_fn=jax_collate_fn, num_workers=8)
+                                                     collate_fn=jax_collate_fn)
             # leave the batch size on test at the maximum as if both mode, then will only test on real data
             self._test_dataloader_real = DataLoader(self._test_ds, batch_size=self._config.batch_size, shuffle=True,
-                                                    collate_fn=jax_collate_fn, num_workers=8)
+                                                    collate_fn=jax_collate_fn)
 
         if self._config.dataset_mode in ['synthetic', 'both']:
             self._dataset_synth = SyntheticDataset(config=self._config.synthetic_dataset_config)
