@@ -36,6 +36,9 @@ class DatasetConfig:
     :param ohlc_only: whether to use only ohlc data (pad everything else with -1)
     :type ohlc_only: bool
 
+    :param return_mode: whether to return the dataset
+    :type return_mode: bool
+
     """
     datapath: str
     seq_len: int
@@ -47,18 +50,29 @@ class DatasetConfig:
     indicators: Optional[List[str]] = None
     discrete_grid_levels: Optional[List[float]] = None
     ohlc_only: bool = False
+    return_mode: bool = False
 
     @classmethod
     def from_dict(cls, d: dict) -> 'DatasetConfig':
         datapath = d['datapath']
         seq_len = d['seq_len']
         norm_mode = d['norm_mode']
-        initial_date = d.get('initial_date')
+        initial_date = d.get('initial_date', None)
         output_mode = d['output_mode']
-        discrete_grid_levels = d.get('discrete_grid_levels')
+        discrete_grid_levels = d.get('discrete_grid_levels', None)
         resolution = d['resolution']
         tickers = d['tickers']
-        indicators = d.get('indicators')
-        return cls(datapath, seq_len, norm_mode, initial_date, output_mode, discrete_grid_levels, resolution, tickers, indicators)
-
-
+        indicators = d.get('indicators', None)
+        ohlc_only = d.get('ohlc_only', False)
+        return_mode = d.get('return_mode', False)
+        return cls(datapath=datapath,
+                   seq_len=seq_len,
+                   norm_mode=norm_mode,
+                   output_mode=output_mode,
+                   resolution=resolution,
+                   tickers=tickers,
+                   initial_date=initial_date,
+                   indicators=indicators,
+                   discrete_grid_levels=discrete_grid_levels,
+                   ohlc_only=ohlc_only,
+                   return_mode=return_mode)

@@ -6,7 +6,7 @@ import numpy as np
 from dataclasses import dataclass
 from typing import Optional, Dict, Tuple
 from jaxer.utils.normalizer import denormalize
-from jaxer.utils.losses import acc_dir, mape, mae
+from jaxer.utils.losses import acc_dir, mape, mae, acc_dir_discrete
 from tbparse import SummaryReader
 
 
@@ -141,6 +141,7 @@ def plot_predictions(x: Tuple[jnp.ndarray, jnp.ndarray],
     end_date = window_info.get('end_date', '')
     output_mode = window_info.get('output_mode', 'mean')
     window_size = window_info.get('window_size', 0)
+    return_mode = window_info.get('return_mode', False)
     discrete_grid_levels = window_info.get('discrete_grid_levels', [])
     resolution = window_info.get('resolution', 1)
     norm_mode = window_info.get('norm_mode', '')
@@ -166,18 +167,33 @@ def plot_predictions(x: Tuple[jnp.ndarray, jnp.ndarray],
 
     window_base = jnp.arange(len(x_hist_ohlc))
     pred_base = jnp.array([len(x_hist_ohlc) - 1, len(x_hist_ohlc)])
-    y_pred_base = [x_hist_ohlc[-1, -1].item(), y_pred[0, 0].item()]
     true_base = jnp.array([len(x_hist_ohlc) - 1, len(x_hist_ohlc)])
-    y_true_base = [x_hist_ohlc[-1, -1].item(), y_true[0, 0].item()]
+
+    if return_mode:
+        y_pred_base = [100 * (np.exp(x_hist_ohlc[-1, -1].item()) - 1), 100 * (np.exp(y_pred[0, 0].item()) - 1)]
+        y_true_base = [100 * (np.exp(x_hist_ohlc[-1, -1].item()) - 1), 100 * (np.exp(y_true[0, 0].item()) - 1)]
+    else:
+        y_pred_base = [x_hist_ohlc[-1, -1].item(), y_pred[0, 0].item()]
+        y_true_base = [x_hist_ohlc[-1, -1].item(), y_true[0, 0].item()]
 
     linewidth = 3
     markersize = 4
 
-    ax0.plot(window_base, x_hist_ohlc[:, 3], label='Close', color=Color.blue, linewidth=linewidth, marker='o',
-             markersize=markersize)
+    if return_mode:
+        ax0.plot(window_base, 100 * (np.exp(x_hist_ohlc[:, 3]) - 1), label='Close', color=Color.blue,
+                 linewidth=linewidth,
+                 marker='o',
+                 markersize=markersize)
 
-    ax0.plot(window_base, x_hist_ohlc[:, 0], label='Open', color=Color.red, linewidth=linewidth, marker='o',
-             markersize=markersize)
+        ax0.plot(window_base, 100 * (np.exp(x_hist_ohlc[:, 0]) - 1), label='Open', color=Color.red, linewidth=linewidth,
+                 marker='o',
+                 markersize=markersize)
+    else:
+        ax0.plot(window_base, x_hist_ohlc[:, 3], label='Close', color=Color.blue, linewidth=linewidth, marker='o',
+                 markersize=markersize)
+
+        ax0.plot(window_base, x_hist_ohlc[:, 0], label='Open', color=Color.red, linewidth=linewidth, marker='o',
+                 markersize=markersize)
 
     if output_mode != 'discrete_grid':
         ax0.plot(pred_base, y_pred_base, label='Pred', color=Color.green, linewidth=linewidth,
@@ -190,9 +206,15 @@ def plot_predictions(x: Tuple[jnp.ndarray, jnp.ndarray],
 
         # plot the mean
         mean_base = jnp.array([len(x_hist_ohlc) - 1, len(x_hist_ohlc)])
-        ax0.plot(mean_base, [x_hist_ohlc[-1, 3].item(), jnp.mean(x_hist_ohlc[:, 3]).item()], label='Mean', color=Color.purple,
-                 linewidth=linewidth, marker='o',
-                 markersize=markersize, linestyle='--')
+
+        if return_mode:
+            ax0.plot(mean_base, [100 * (np.exp(x_hist_ohlc[-1, -1].item()) - 1), 100 * (np.mean(np.exp(x_hist_ohlc[:, -1])) - 1)],
+                     label='Mean', color=Color.purple, linewidth=linewidth, marker='o',
+                     markersize=markersize, linestyle='--')
+        else:
+            ax0.plot(mean_base, [x_hist_ohlc[-1, 3].item(), jnp.mean(x_hist_ohlc[:, 3]).item()], label='Mean', color=Color.purple,
+                     linewidth=linewidth, marker='o',
+                     markersize=markersize, linestyle='--')
 
         if output_mode == 'distribution':
             ax0.errorbar(pred_base[1], y_pred[1], yerr=std * 1.96, color=Color.green, capsize=5, linewidth=2)
@@ -206,18 +228,28 @@ def plot_predictions(x: Tuple[jnp.ndarray, jnp.ndarray],
     #      jnp.max(x_hist_ohlc[:, -1]) + 0.02 * jnp.max(x_hist_ohlc[:, -1])]
     # )
 
-    ax0.set_ylabel('Predictions [$]', fontsize=14, fontweight='bold')
+    if return_mode:
+        ax0.set_ylabel('Returns [%]', fontsize=14, fontweight='bold')
+    else:
+        ax0.set_ylabel('Predictions [$]', fontsize=14, fontweight='bold')
     ax0.legend(loc='upper center', ncol=5)
     ax0.grid(axis='both', color='0.92')
 
     """ Plot high/low price """
-    high_data = x_hist_ohlc[:, 1]
-    low_data = x_hist_ohlc[:, 2]
+    if return_mode:
+        high_data = 100 * (np.exp(x_hist_ohlc[:, 1]) - 1)
+        low_data = 100 * (np.exp(x_hist_ohlc[:, 2]) - 1)
+    else:
+        high_data = x_hist_ohlc[:, 1]
+        low_data = x_hist_ohlc[:, 2]
     ax1.plot(window_base, high_data, label='High', color=Color.pink, linewidth=linewidth, marker='o',
              markersize=markersize)
     ax1.plot(window_base, low_data, label='Low', color=Color.purple, linewidth=linewidth, marker='o',
              markersize=markersize)
-    ax1.set_ylabel('High/Low Price [$]', fontsize=14, fontweight='bold')
+    if return_mode:
+        ax1.set_ylabel('High/Low Price [%]', fontsize=14, fontweight='bold')
+    else:
+        ax1.set_ylabel('High/Low Price [$]', fontsize=14, fontweight='bold')
     ax1.legend(loc='upper center', ncol=2)
     ax1.grid(axis='both', color='0.92')
 
@@ -235,16 +267,25 @@ def plot_predictions(x: Tuple[jnp.ndarray, jnp.ndarray],
     ax3.set_ylabel('Trades', fontsize=14, fontweight='bold')
     ax3.grid(axis='both', color='0.92')
 
-    acc_dir_ = acc_dir(y_pred, y_true, x_hist_ohlc[-1, 3])
+    if return_mode:
+        acc_dir_ = acc_dir_discrete(y_pred, y_true)
+    else:
+        acc_dir_ = acc_dir(y_pred, y_true, x_hist_ohlc[-1, 3])
     mape_ = mape(y_pred, y_true)
     mae_ = mae(y_pred, y_true)
 
     initial_date_str = initial_date.strftime('%Y/%m/%d') if initial_date is not None else '0'
     end_date_str = end_date.strftime('%Y/%m/%d') if end_date is not None else str(window_size)
 
-    returns = np.diff(np.log(x_hist_ohlc[:, 3]))
+    if not return_mode:
+        returns = x_hist_ohlc[1:, 3] / x_hist_ohlc[:-1, 3]
+        window_variation = (np.max(x_hist_ohlc[:, 3]) - np.min(x_hist_ohlc[:, 3])) / np.min(x_hist_ohlc[:, 3]) * 100
+
+    else:
+        returns = np.exp(x_hist_ohlc[:, 3]) - 1
+        window_variation = np.abs((np.max(returns) - np.min(returns)) / np.min(returns) * 100)
+
     volatility = np.std(returns) * 100
-    window_variation = (np.max(x_hist_ohlc[:, 3]) - np.min(x_hist_ohlc[:, 3])) / np.min(x_hist_ohlc[:, 3]) * 100
 
     title = (f'{norm_mode} - {ticker_name} - {output_mode} - {resolution} - '
              f'[{initial_date_str}, {end_date_str}] - acc_dir: {int(acc_dir_.item()/100)} - '

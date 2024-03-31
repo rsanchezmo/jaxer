@@ -26,6 +26,7 @@ class SyntheticDataset:
             'ticker': 'synthetic',
             'initial_date': None,
             'end_date': None,
+            'return_mode': self._config.return_mode,
             'output_mode': self._config.output_mode,
             'norm_mode': self._config.normalizer_mode,
             'window_size': self._config.window_size,
@@ -136,10 +137,19 @@ class SyntheticDataset:
                                                 np.mean(window_signal[:-1]) * low_noise[idx])
 
             min_value = np.min(historical_timepoints[idx, :, 0:4])
+            min_value_label = np.min(window_signal)
+            min_value = np.minimum(min_value, min_value_label)
             rescale_value = 0
             if min_value < 0:
                 rescale_value = np.abs(min_value) * 2
             historical_timepoints[idx, :, 0:4] += rescale_value
+
+            last_close = historical_timepoints[idx, -1, 3]
+
+            if self._config.return_mode:
+                historical_timepoints[idx, 1:, 0:4] = np.log(historical_timepoints[idx, 1:, 0:4] /
+                                                             (historical_timepoints[idx, :-1, 0:4] + 1e-6))
+                historical_timepoints[idx, 0, 0:4] = 0.
 
             normalizers[idx, 0:4] = self._compute_normalizer(historical_timepoints[idx, :, 0:4],
                                                              self._config.normalizer_mode)
@@ -147,11 +157,18 @@ class SyntheticDataset:
             historical_timepoints[idx, :, 0:4] = normalize(historical_timepoints[idx, :, 0:4],
                                                            normalizers[idx, 0:4][np.newaxis, ...])
 
-            labels[idx] = window_signal[-1] + rescale_value
-            labels[idx] = normalize(labels[idx], normalizers[idx, 0:4][np.newaxis, ...])
+            price_std = np.std(historical_timepoints[idx, :, 3])
+            std_scale = 5
+            if self._config.return_mode:
+                std_scale = 10
+            extra_tokens[idx, 0] = price_std * std_scale
 
-            price_std = np.std(historical_timepoints[idx, :, 0])
-            extra_tokens[idx, 0] = price_std * 5
+            labels[idx] = window_signal[-1] + rescale_value
+
+            if self._config.return_mode:
+                labels[idx] = np.log(labels[idx] / (last_close + 1e-6))
+
+            labels[idx] = normalize(labels[idx], normalizers[idx, 0:4][np.newaxis, ...])
             # end_t = time.time()
             # print(f"Time to generate sample inside batch: {1e3*(end_t - init_t):.2f}ms")
 
@@ -188,6 +205,9 @@ class SyntheticDataset:
             return np.array([0, mean_values.max(), 0, 1],
                             dtype=self._dtype)  # mean scaling is just to divide by the mean
 
+        if normalizer_mode == 'none':
+            return np.array([0, 1, 0, 1], dtype=self._dtype)
+
         raise ValueError('Not supported normalizer mode')
 
     @staticmethod
@@ -200,8 +220,9 @@ class SyntheticDataset:
 if __name__ == '__main__':
 
     dataset_config = SyntheticDatasetConfig(window_size=128,
+                                            return_mode=True,
                                             add_noise=True,
-                                            normalizer_mode='window_mean',
+                                            normalizer_mode='none',
                                             min_amplitude=.05,
                                             max_amplitude=.1,
                                             min_frequency=0.1,
@@ -218,8 +239,10 @@ if __name__ == '__main__':
         start_t = time.time()
         x, y_true, normalizer, window_info = next(dataset_generator)
         end_t = time.time()
-        print(f"Time to generate batch: {1e3 * (end_t - start_t):.2f}ms")
-        print(x[1])
+        # print(f"Time to generate batch: {1e3 * (end_t - start_t):.2f}ms")
+        # print(x[1])
         y_pred = y_true
-        plot_predictions(x=x, y_true=y_true, y_pred=y_pred, normalizer=normalizer, window_info=window_info,
-                         denormalize_values=True)
+
+        if x[0].shape[0] == 1:
+            plot_predictions(x=x, y_true=y_true, y_pred=y_pred, normalizer=normalizer, window_info=window_info,
+                             denormalize_values=False)

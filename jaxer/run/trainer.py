@@ -8,7 +8,7 @@ import time
 import json
 import orbax
 import numpy as np
-from jaxer.utils.plotter import plot_predictions
+from functools import partial
 from jaxer.utils.losses import (gaussian_negative_log_likelihood, mae,
                                 r2, rmse, mape, binary_cross_entropy, acc_dir, acc_dir_discrete, mse)
 from jaxer.utils.early_stopper import EarlyStopper
@@ -64,6 +64,12 @@ class FlaxTrainer(TrainerBase):
         self._test_dataloader_real = None
         self._train_dataloader_synth = None
         self._test_dataloader_synth = None
+
+        self._return_mode = False
+        if self._config.synthetic_dataset_config is not None:
+            self._return_mode |= self._config.synthetic_dataset_config.return_mode
+        if self._config.dataset_config is not None:
+            self._return_mode |= self._config.dataset_config.return_mode
 
         batch_size_real = self._config.batch_size
         batch_size_synth = self._config.batch_size
@@ -303,8 +309,9 @@ class FlaxTrainer(TrainerBase):
         return {"mae": mae_, "r2": r2_, "rmse": rmse_, "mape": mape_, "acc_dir": acc_dir_}
 
     @staticmethod
-    @jax.jit
-    def _compute_metrics_mean(predictions: jnp.ndarray, targets: jnp.ndarray, last_price: jnp.ndarray) -> Dict:
+    @partial(jax.jit, static_argnames=("return_mode",))
+    def _compute_metrics_mean(predictions: jnp.ndarray, targets: jnp.ndarray, last_price: jnp.ndarray,
+                              return_mode: bool = False) -> Dict:
         """ Computes metrics """
         means = predictions
 
@@ -312,7 +319,11 @@ class FlaxTrainer(TrainerBase):
         rmse_ = rmse(means, targets)
         r2_ = r2(means, targets)
         mape_ = mape(means, targets)
-        acc_dir_ = acc_dir(means, targets, last_price)
+
+        if not return_mode:
+            acc_dir_ = acc_dir(means, targets, last_price)
+        else:
+            acc_dir_ = acc_dir_discrete(means, targets)
 
         return {"mae": mae_, "r2": r2_, "rmse": rmse_, "mape": mape_, "acc_dir": acc_dir_}
 
@@ -328,12 +339,13 @@ class FlaxTrainer(TrainerBase):
         return {"accuracy": accuracy, "acc_dir": acc_dir_}
 
     @staticmethod
-    @jax.jit
+    @partial(jax.jit, static_argnames=("return_mode",))
     def _model_train_step_mean(state: train_state.TrainState,
                                inputs: Tuple[jnp.ndarray, jnp.ndarray],
                                targets: jnp.ndarray,
                                normalizer: jnp.ndarray,
-                               rng: jax.random.PRNGKey):
+                               rng: jax.random.PRNGKey,
+                               return_mode: bool = False):
 
         def loss_fn(params):
             predictions = state.apply_fn(params, inputs, rngs={"dropout": rng})
@@ -349,10 +361,14 @@ class FlaxTrainer(TrainerBase):
             r2_ = r2(means_denorm, targets_denorm)
             rmse_ = rmse(means_denorm, targets_denorm)
             mape_ = mape(means_denorm, targets_denorm)
-            acc_dir_ = acc_dir(means, targets, inputs[0][:, -1, 3])
 
-            w_mape = 1.0
-            w_acc_dir = 1.0
+            if not return_mode:
+                acc_dir_ = acc_dir(means, targets, inputs[0][:, -1, 3])
+            else:
+                acc_dir_ = acc_dir_discrete(means, targets)
+
+            # w_mape = 1.0
+            # w_acc_dir = 1.0
             # loss = w_mape * mape_ + w_acc_dir * (1.0 - 0.01 * acc_dir_)
             loss = mse_
 
@@ -428,7 +444,8 @@ class FlaxTrainer(TrainerBase):
         if config.output_mode == 'distribution':
             metrics = self._compute_metrics_dist(predictions_denorm, targets_denorm, last_price_denorm)
         elif config.output_mode == 'mean':
-            metrics = self._compute_metrics_mean(predictions_denorm, targets_denorm, last_price_denorm)
+            metrics = self._compute_metrics_mean(predictions_denorm, targets_denorm, last_price_denorm,
+                                                 return_mode=self._return_mode)
         elif config.output_mode == 'discrete_grid':
             metrics = self._compute_metrics_discrete(predictions, targets)
         else:
@@ -456,7 +473,8 @@ class FlaxTrainer(TrainerBase):
                 if self._flax_model_config.output_mode == 'distribution':
                     state, _metrics = self._model_train_step_dist(state, inputs, targets, normalizer, rng)
                 elif self._flax_model_config.output_mode == 'mean':
-                    state, _metrics = self._model_train_step_mean(state, inputs, targets, normalizer, rng)
+                    state, _metrics = self._model_train_step_mean(state, inputs, targets, normalizer, rng,
+                                                                  return_mode=self._return_mode)
                 elif self._flax_model_config.output_mode == 'discrete_grid':
                     state, _metrics = self._model_train_step_discrete(state, inputs, targets, rng)
                 else:

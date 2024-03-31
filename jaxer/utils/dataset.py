@@ -217,7 +217,10 @@ class Dataset(torch.utils.data.Dataset):
         extra_tokens = std_[[0, 4, 5]]
 
         # if self._norm_mode.__contains__('global'):
-        extra_tokens *= 5  # to increase resolution
+        std_scale = 5
+        if self._return_mode:
+            std_scale = 10
+        extra_tokens *= std_scale  # to increase resolution
 
         extra_tokens = self.encode_tokens(extra_tokens).astype(np.int8)
 

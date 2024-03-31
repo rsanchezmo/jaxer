@@ -17,6 +17,9 @@ class SyntheticDatasetConfig:
     :param add_noise: add noise to the signal
     :type add_noise: bool
 
+    :param return_mode: return mode
+    :type return_mode: bool
+
     :param min_amplitude: minimum amplitude for the sinusoids
     :type min_amplitude: float
 
@@ -42,6 +45,7 @@ class SyntheticDatasetConfig:
     :type precision: str
     """
     window_size: int
+    return_mode: bool = False
     output_mode: str = 'mean'
     normalizer_mode: str = 'window_minmax'
     add_noise: bool = False

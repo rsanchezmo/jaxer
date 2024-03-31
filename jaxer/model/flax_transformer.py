@@ -179,7 +179,7 @@ class FeedForwardBlockConv1D(nn.Module):
         return x
 
 
-def sinusoidal_init(max_len: int = 2048, min_scale: float = 1.0, max_scale: float = 10000.0,
+def sinusoidal_init(max_len: int = 128, min_scale: float = 1.0, max_scale: float = 200.0,
                     dtype=np.float32) -> Callable:
     """ 1D Sinusoidal Position Embedding Initializer """
 
@@ -210,12 +210,12 @@ class AddPositionalEncoding(nn.Module):
     def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
         """ Applies the positional encoding module """
 
-        pos_embed_shape = (1, self.config.max_seq_len, x.shape[-1])
+        pos_embed_shape = (1, self.config.max_seq_len, self.config.d_model)
         pos_embedding = sinusoidal_init(self.config.max_seq_len)(
             pos_embed_shape
         ).astype(self.config.dtype)
 
-        pe = pos_embedding[:, :x.shape[1], :]
+        pe = pos_embedding[:, :self.config.max_seq_len, :]
 
         return x + pe
 
@@ -299,24 +299,27 @@ class ResidualBlock(nn.Module):
     :param norm: whether to normalize the output
     :type norm: bool
 
-    :param norm_prev: whether to normalize the previous output
-    :type norm_prev: bool
     """
     dtype: jnp.dtype
     feature_dim: int
     kernel_init: Callable
     bias_init: Callable
     norm: bool = True
-    norm_prev: bool = False
 
     @nn.compact
     def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
+        """
+        In the paper they propose (https://arxiv.org/pdf/1603.05027.pdf):
+                 LayerNorm -> ReLU -> Dense -> ReLU -> Dense -> Addition (full pre-activation)
+        """
         inputs = x
 
         assert x.shape[-1] == self.feature_dim, f"Expected x to have {self.feature_dim} dimensions, got {x.shape[-1]}"
 
-        if self.norm and self.norm_prev:
+        if self.norm:
             x = nn.LayerNorm(dtype=self.dtype, param_dtype=self.dtype)(x)
+
+        x = nn.relu(x)
 
         x = nn.Dense(
             features=self.feature_dim,
@@ -326,15 +329,20 @@ class ResidualBlock(nn.Module):
             bias_init=self.bias_init,
         )(x)
 
-        x = nn.gelu(x)
+        if self.norm:
+            x = nn.LayerNorm(dtype=self.dtype, param_dtype=self.dtype)(x)
+
+        x = nn.relu(x)
+
+        x = nn.Dense(
+            features=self.feature_dim,
+            dtype=self.dtype,
+            param_dtype=self.dtype,
+            kernel_init=self.kernel_init,
+            bias_init=self.bias_init,
+        )(x)
 
         x = inputs + x
-
-        if self.norm and not self.norm_prev:
-            x = nn.LayerNorm(
-                dtype=self.dtype,
-                param_dtype=self.dtype
-            )(x)
 
         return x
 
@@ -361,6 +369,9 @@ class FeatureExtractor(nn.Module):
             feature_dim = step_dim
             residual = (self.config.d_model % (self.config.fe_blocks + 1))
 
+        if self.config.use_resblocks_in_fe:
+            feature_dim = self.config.d_model
+
         x = nn.Dense(
             features=feature_dim,  # time embeddings will be concatenated later
             dtype=self.config.dtype,
@@ -369,9 +380,6 @@ class FeatureExtractor(nn.Module):
             bias_init=self.config.bias_init,
         )(x)
         x = nn.relu(x)
-        x = nn.Dropout(rate=self.config.dropout)(
-            x, deterministic=self.config.deterministic
-        )
 
         # some residual blocks
         """
@@ -381,11 +389,10 @@ class FeatureExtractor(nn.Module):
             if self.config.use_resblocks_in_fe:
                 x = ResidualBlock(
                     dtype=self.config.dtype,
-                    feature_dim=feature_dim,  # time embeddings will be concatenated later
+                    feature_dim=self.config.d_model,  # time embeddings will be concatenated later
                     kernel_init=self.config.kernel_init,
                     bias_init=self.config.bias_init,
-                    norm=True,
-                    norm_prev=False
+                    norm=True
                 )(x)
             else:
                 feature_dim += step_dim
@@ -401,15 +408,15 @@ class FeatureExtractor(nn.Module):
                 )(x)
                 x = nn.relu(x)
 
-        if self.config.use_resblocks_in_fe:
-            x = nn.Dense(
-                features=self.config.d_model,  # time embeddings will be concatenated later
-                dtype=self.config.dtype,
-                param_dtype=self.config.dtype,
-                kernel_init=self.config.kernel_init,
-                bias_init=self.config.bias_init,
-            )(x)
-            x = nn.relu(x)
+        # if self.config.use_resblocks_in_fe:
+        #     x = nn.Dense(
+        #         features=self.config.d_model,  # time embeddings will be concatenated later
+        #         dtype=self.config.dtype,
+        #         param_dtype=self.config.dtype,
+        #         kernel_init=self.config.kernel_init,
+        #         bias_init=self.config.bias_init,
+        #     )(x)
+        #     x = nn.relu(x)
 
         return x
 
@@ -560,8 +567,7 @@ class PredictionHead(nn.Module):
                                   dtype=self.config.dtype,
                                   kernel_init=self.config.kernel_init,
                                   bias_init=self.config.bias_init,
-                                  norm=True,
-                                  norm_prev=False)(x)
+                                  norm=True)(x)
             else:
                 x = nn.Dense(features=self.config.d_model,
                              dtype=self.config.dtype,
