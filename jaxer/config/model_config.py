@@ -47,6 +47,9 @@ class ModelConfig:
     :param use_resblocks_in_fe: whether to use residual blocks in the feature extractor
     :type use_resblocks_in_fe: bool
 
+    :param use_extra_tokens: whether to use extra tokens in the model
+    :type use_extra_tokens: bool
+
     :param average_encoder_output: whether to average the encoder output (if not flattened)
     :type average_encoder_output: bool
 
@@ -68,6 +71,7 @@ class ModelConfig:
     output_mode: str
     use_resblocks_in_head: bool
     use_resblocks_in_fe: bool
+    use_extra_tokens: bool
     average_encoder_output: bool
     norm_encoder_prev: bool
 

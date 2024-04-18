@@ -308,7 +308,7 @@ def plot_predictions(x: Tuple[jnp.ndarray, jnp.ndarray],
     plt.close()
 
 
-def plot_metrics(mape: List[float], acc_dir: List[float], window_size: int = 200) -> None:
+def plot_metrics(mape: List[float], acc_dir: List[float], window_size: int = 10) -> None:
     fig = plt.figure(figsize=(16, 9))
     gs = gridspec.GridSpec(2, 3, height_ratios=[1., 1.])
     ax0 = plt.subplot(gs[0, :2])

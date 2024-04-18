@@ -18,6 +18,8 @@ class FlaxAgent(AgentBase):
     def __init__(self, experiment: str, model_name: Tuple[Optional[str], str]) -> None:
         super().__init__(experiment, model_name)
 
+        univariate = self.config.dataset_config['close_only'] or self.config.synthetic_dataset_config['close_only']
+
         self._flax_config = TransformerConfig(
             d_model=self.config.model_config["d_model"],
             num_layers=self.config.model_config["num_layers"],
@@ -35,8 +37,10 @@ class FlaxAgent(AgentBase):
                 self.config.dataset_config['discrete_grid_levels']) - 1 if self.config.dataset_config['discrete_grid_levels'] is not None else None,
             use_resblocks_in_head=self.config.model_config["use_resblocks_in_head"],
             use_resblocks_in_fe=self.config.model_config["use_resblocks_in_fe"],
+            use_extra_tokens=self.config.model_config["use_extra_tokens"],
             average_encoder_output=self.config.model_config["average_encoder_output"],
-            norm_encoder_prev=self.config.model_config["norm_encoder_prev"]
+            norm_encoder_prev=self.config.model_config["norm_encoder_prev"],
+            univariate=univariate
         )
 
         orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()

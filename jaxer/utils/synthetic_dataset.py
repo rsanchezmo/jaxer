@@ -231,7 +231,7 @@ class SyntheticDataset:
 
 if __name__ == '__main__':
 
-    dataset_config = SyntheticDatasetConfig(window_size=128,
+    dataset_config = SyntheticDatasetConfig(window_size=4,
                                             return_mode=False,
                                             add_noise=True,
                                             normalizer_mode='window_mean',

@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader
 
 if __name__ == '__main__':
     """ LOAD THE AGENT """
-    experiment = "results/exp_synthetic_context"
+    experiment = "results/30m_over"
     model_name = jaxer.utils.get_best_model(experiment)
     agent = jaxer.run.FlaxAgent(experiment=experiment, model_name=model_name)
 
@@ -23,7 +23,7 @@ if __name__ == '__main__':
 
         train_ds, test_ds = dataset.get_train_test_split(test_size=agent.config.test_split,
                                                          test_tickers=agent.config.test_tickers)
-        train_dataloader = DataLoader(train_ds, batch_size=1, shuffle=True, collate_fn=jaxer.utils.jax_collate_fn)
+        train_dataloader = DataLoader(train_ds, batch_size=1, shuffle=False, collate_fn=jaxer.utils.jax_collate_fn)
         test_dataloader = DataLoader(test_ds, batch_size=1, shuffle=False, collate_fn=jaxer.utils.jax_collate_fn)
 
     infer_test = True

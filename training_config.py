@@ -2,30 +2,31 @@ import jaxer
 
 output_mode = 'mean'  # 'mean' or 'distribution' or 'discrete_grid
 seq_len = 128
-d_model = 128
+d_model = 256
 precision = 'fp32'
 
 model_config = jaxer.config.ModelConfig(
     precision=precision,  # 'fp32' or 'fp16'
     d_model=d_model,
-    num_layers=2,
-    head_layers=2,
-    n_heads=2,
+    num_layers=8,
+    head_layers=1,
+    n_heads=8,
     dim_feedforward=4 * d_model,  # 4 * d_model
     dropout=0.2,
     max_seq_len=seq_len,
     flatten_encoder_output=False,
-    fe_blocks=2,  # feature extractor is incremental, for instance input_shape, 128/2, 128 (d_model)
+    fe_blocks=1,  # feature extractor is incremental, for instance input_shape, 128/2, 128 (d_model)
     use_time2vec=False,
     output_mode=output_mode,  # 'mean' or 'distribution' or 'discrete_grid'
     use_resblocks_in_head=True,
     use_resblocks_in_fe=True,
+    use_extra_tokens=False,
     average_encoder_output=False,  # what about concat the average and the last embedding?
     norm_encoder_prev=True
 )
 
 return_mode = False
-norm_mode = 'window_mean'
+norm_mode = 'window_meanstd'
 close_only = True
 ohlc_only = False
 
@@ -70,20 +71,20 @@ pretrained_model = None
 config = jaxer.config.ExperimentConfig(
     model_config=model_config,
     pretrained_model=pretrained_model,
-    log_dir="results",
-    experiment_name="univariate",
+    log_dir="results_new",
+    experiment_name="mix",
     num_epochs=200,
     steps_per_epoch=500,  # for synthetic dataset only
-    learning_rate=3e-4,
+    learning_rate=5e-4,
     lr_mode='cosine',  # 'cosine'
-    weight_decay=1.0e-2,
-    warmup_epochs=5,
-    dataset_mode='both',  # 'real' or 'synthetic' or 'both'
-    real_proportion=0.5,
+    weight_decay=1.0e-3,
+    warmup_epochs=10,
+    dataset_mode='real',  # 'real' or 'synthetic' or 'both'
+    real_proportion=0.4,
     dataset_config=dataset_config,
     synthetic_dataset_config=synthetic_dataset_config,
     batch_size=256,
-    test_split=0.15,
+    test_split=0.01,
     test_tickers=['btc_usd'],
     seed=0,
     save_weights=True,

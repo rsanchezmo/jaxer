@@ -103,6 +103,8 @@ class FlaxTrainer(TrainerBase):
         """ Best model state: eval purposes """
         self._best_model_state: Optional[train_state.TrainState] = None
 
+        univariate = self._config.dataset_config.close_only or self._config.synthetic_dataset_config.close_only
+
         self._flax_model_config = TransformerConfig(
             d_model=self._config.model_config.d_model,
             num_layers=self._config.model_config.num_layers,
@@ -120,8 +122,10 @@ class FlaxTrainer(TrainerBase):
             discrete_grid_levels=discrete_grid_levels,
             use_resblocks_in_head=self._config.model_config.use_resblocks_in_head,
             use_resblocks_in_fe=self._config.model_config.use_resblocks_in_fe,
+            use_extra_tokens=self._config.model_config.use_extra_tokens,
             average_encoder_output=self._config.model_config.average_encoder_output,
-            norm_encoder_prev=self._config.model_config.norm_encoder_prev
+            norm_encoder_prev=self._config.model_config.norm_encoder_prev,
+            univariate=univariate
         )
 
         self._flax_model_config_eval = self._flax_model_config.replace(deterministic=True)
